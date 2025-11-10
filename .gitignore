@@ -60,3 +60,6 @@ logs/
 
 # dev tools (local development utilities)
 /dev/
+
+# documentation (local documentation files, not for remote)
+/docs/
