@@ -1,3 +1,9 @@
+/**
+ * 确保此模块仅在服务端使用
+ * 如果客户端组件意外引入，Next.js 会在构建时报错
+ */
+import "server-only";
+
 import pino from "pino";
 import { isDevelopment } from "./config/env.schema";
 
@@ -30,25 +36,54 @@ function getInitialLogLevel(): LogLevel {
 
 /**
  * 创建 Pino 日志实例
+ *
+ * 修复：Next.js 15 + Turbopack + pnpm 下 pino-pretty transport 的 worker 线程问题
+ * 解决方案：使用 pino-pretty 作为直接依赖而非 transport，避免 thread-stream
  */
-const pinoInstance = pino({
-  level: getInitialLogLevel(),
-  transport: isDevelopment()
-    ? {
-        target: "pino-pretty",
-        options: {
-          colorize: true,
-          translateTime: "SYS:standard",
-          ignore: "pid,hostname",
+let pinoInstance: pino.Logger;
+
+if (isDevelopment()) {
+  // 开发环境：尝试使用 pino-pretty，如果失败则降级到普通输出
+  try {
+    // 动态导入 pino-pretty（避免 instrumentation 阶段加载失败）
+    const pinoPretty = require("pino-pretty");
+
+    pinoInstance = pino({
+      level: getInitialLogLevel(),
+      formatters: {
+        level: (label) => {
+          return { level: label };
         },
-      }
-    : undefined,
-  formatters: {
-    level: (label) => {
-      return { level: label };
+      },
+    }, pinoPretty({
+      colorize: true,
+      translateTime: "SYS:standard",
+      ignore: "pid,hostname",
+      sync: true, // 同步模式，避免 worker 线程
+    }));
+  } catch (error) {
+    // 降级：如果 pino-pretty 加载失败，使用普通 pino
+    console.warn("[Logger] pino-pretty initialization failed, using plain pino:", error);
+    pinoInstance = pino({
+      level: getInitialLogLevel(),
+      formatters: {
+        level: (label) => {
+          return { level: label };
+        },
+      },
+    });
+  }
+} else {
+  // 生产环境：使用普通 pino（JSON 输出）
+  pinoInstance = pino({
+    level: getInitialLogLevel(),
+    formatters: {
+      level: (label) => {
+        return { level: label };
+      },
     },
-  },
-});
+  });
+}
 
 /**
  * 日志包装器 - 支持灵活的参数顺序

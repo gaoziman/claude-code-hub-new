@@ -1,5 +1,4 @@
 import Decimal from "decimal.js-light";
-import { logger } from "@/lib/logger";
 import type { Numeric } from "decimal.js-light";
 
 Decimal.set({
@@ -43,6 +42,12 @@ export const CURRENCY_CONFIG: Record<
 
 export type DecimalInput = Numeric | null | undefined;
 
+/**
+ * 将输入值转换为 Decimal 对象
+ *
+ * 修复：移除 logger 依赖，避免客户端组件引用 Node.js 模块
+ * 工具函数应该是纯函数，错误通过返回 null 处理，调用方负责日志记录
+ */
 export function toDecimal(value: DecimalInput): Decimal | null {
   if (value === null || value === undefined) {
     return null;
@@ -59,7 +64,11 @@ export function toDecimal(value: DecimalInput): Decimal | null {
   try {
     return new Decimal(value);
   } catch (error) {
-    logger.error("Failed to create Decimal from value", { context: value, error });
+    // 静默失败，返回 null
+    // 调用方如需日志记录，应在调用后检查返回值
+    if (typeof console !== "undefined" && console.warn) {
+      console.warn("Failed to create Decimal from value:", value, error);
+    }
     return null;
   }
 }
