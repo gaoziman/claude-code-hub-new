@@ -9,6 +9,7 @@ import {
   listProviderGroups,
   renameProviderGroup,
   clearProviderGroup,
+  getActiveProviderIds,
 } from "@/repository/provider";
 import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
@@ -18,6 +19,7 @@ import { getSession } from "@/lib/auth";
 import { CreateProviderSchema, UpdateProviderSchema } from "@/lib/validation/schemas";
 import type { ActionResult } from "./types";
 import { getAllHealthStatus, resetCircuit, clearConfigCache } from "@/lib/circuit-breaker";
+import { getCircuitBreakerHealthSnapshots } from "@/lib/redis/circuit-breaker-health";
 import {
   saveProviderCircuitConfig,
   deleteProviderCircuitConfig,
@@ -450,6 +452,46 @@ export async function removeProvider(providerId: number): Promise<ActionResult> 
  * 获取所有供应商的熔断器健康状态
  * 返回格式：{ providerId: { circuitState, failureCount, circuitOpenUntil, ... } }
  */
+type ProviderHealthResponse = {
+  circuitState: "closed" | "open" | "half-open";
+  failureCount: number;
+  lastFailureTime: number | null;
+  circuitOpenUntil: number | null;
+  recoveryMinutes: number | null;
+};
+
+function calculateRecoveryMinutes(circuitOpenUntil: number | null): number | null {
+  if (!circuitOpenUntil) return null;
+  const diff = circuitOpenUntil - Date.now();
+  if (diff <= 0) return 0;
+  return Math.ceil(diff / 60000);
+}
+
+function fromProviderHealth(health: {
+  circuitState: "closed" | "open" | "half-open";
+  failureCount: number;
+  lastFailureTime: number | null;
+  circuitOpenUntil: number | null;
+}): ProviderHealthResponse {
+  return {
+    circuitState: health.circuitState,
+    failureCount: health.failureCount,
+    lastFailureTime: health.lastFailureTime,
+    circuitOpenUntil: health.circuitOpenUntil,
+    recoveryMinutes: calculateRecoveryMinutes(health.circuitOpenUntil),
+  };
+}
+
+function defaultHealthResponse(): ProviderHealthResponse {
+  return {
+    circuitState: "closed",
+    failureCount: 0,
+    lastFailureTime: null,
+    circuitOpenUntil: null,
+    recoveryMinutes: null,
+  };
+}
+
 export async function getProvidersHealthStatus() {
   try {
     const session = await getSession();
@@ -457,31 +499,27 @@ export async function getProvidersHealthStatus() {
       return {};
     }
 
-    const healthStatus = getAllHealthStatus();
+    const providerIds = await getActiveProviderIds();
+    const inMemoryStatus = getAllHealthStatus();
 
-    // 转换为前端友好的格式
-    const enrichedStatus: Record<
-      number,
-      {
-        circuitState: "closed" | "open" | "half-open";
-        failureCount: number;
-        lastFailureTime: number | null;
-        circuitOpenUntil: number | null;
-        recoveryMinutes: number | null; // 距离恢复的分钟数
-      }
-    > = {};
+    const enrichedStatus: Record<number, ProviderHealthResponse> = {};
 
-    Object.entries(healthStatus).forEach(([providerId, health]) => {
-      enrichedStatus[Number(providerId)] = {
-        circuitState: health.circuitState,
-        failureCount: health.failureCount,
-        lastFailureTime: health.lastFailureTime,
-        circuitOpenUntil: health.circuitOpenUntil,
-        recoveryMinutes: health.circuitOpenUntil
-          ? Math.ceil((health.circuitOpenUntil - Date.now()) / 60000)
-          : null,
-      };
+    Object.entries(inMemoryStatus).forEach(([providerId, health]) => {
+      enrichedStatus[Number(providerId)] = fromProviderHealth(health);
     });
+
+    const missingIds = providerIds.filter((id) => !enrichedStatus[id]);
+    if (missingIds.length > 0) {
+      const persisted = await getCircuitBreakerHealthSnapshots(missingIds);
+      missingIds.forEach((id) => {
+        const snapshot = persisted[id];
+        if (snapshot) {
+          enrichedStatus[id] = fromProviderHealth(snapshot);
+        } else {
+          enrichedStatus[id] = defaultHealthResponse();
+        }
+      });
+    }
 
     return enrichedStatus;
   } catch (error) {
@@ -500,7 +538,7 @@ export async function resetProviderCircuit(providerId: number): Promise<ActionRe
       return { ok: false, error: "无权限执行此操作" };
     }
 
-    resetCircuit(providerId);
+    await resetCircuit(providerId);
     revalidatePath("/settings/providers");
 
     return { ok: true };

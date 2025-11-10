@@ -18,6 +18,10 @@ import {
   DEFAULT_CIRCUIT_BREAKER_CONFIG,
   type CircuitBreakerConfig,
 } from "@/lib/redis/circuit-breaker-config";
+import {
+  saveCircuitBreakerHealthSnapshot,
+  type PersistedCircuitBreakerHealth,
+} from "@/lib/redis/circuit-breaker-health";
 
 // 修复：导出 ProviderHealth 类型，供其他模块使用
 export interface ProviderHealth {
@@ -170,6 +174,8 @@ export async function recordFailure(providerId: number, error: Error): Promise<v
       }
     );
   }
+
+  await persistHealthState(providerId, health);
 }
 
 /**
@@ -271,6 +277,7 @@ export async function recordSuccess(providerId: number): Promise<void> {
       health.lastFailureTime = null;
     }
   }
+  await persistHealthState(providerId, health);
 }
 
 /**
@@ -311,7 +318,7 @@ export function getAllHealthStatus(): Record<number, ProviderHealth> {
 /**
  * 手动重置熔断器（用于运维手动恢复）
  */
-export function resetCircuit(providerId: number): void {
+export async function resetCircuit(providerId: number): Promise<void> {
   const health = getOrCreateHealth(providerId);
 
   const oldState = health.circuitState;
@@ -331,6 +338,8 @@ export function resetCircuit(providerId: number): void {
       newState: "closed",
     }
   );
+
+  await persistHealthState(providerId, health);
 }
 
 /**
@@ -342,5 +351,27 @@ export function clearConfigCache(providerId: number): void {
     health.config = null;
     health.configLoadedAt = null;
     logger.debug(`[CircuitBreaker] Cleared config cache for provider ${providerId}`);
+  }
+}
+
+function toPersistedHealth(health: ProviderHealth): PersistedCircuitBreakerHealth {
+  return {
+    circuitState: health.circuitState,
+    failureCount: health.failureCount,
+    lastFailureTime: health.lastFailureTime,
+    circuitOpenUntil: health.circuitOpenUntil,
+    halfOpenSuccessCount: health.halfOpenSuccessCount,
+    updatedAt: Date.now(),
+  };
+}
+
+async function persistHealthState(providerId: number, health: ProviderHealth): Promise<void> {
+  try {
+    await saveCircuitBreakerHealthSnapshot(providerId, toPersistedHealth(health));
+  } catch (error) {
+    logger.warn(`[CircuitBreaker] Failed to persist health for provider ${providerId}`, {
+      providerId,
+      error: error instanceof Error ? error.message : String(error),
+    });
   }
 }

@@ -135,6 +135,15 @@ export async function findProviderList(
   return result.map(toProvider);
 }
 
+export async function getActiveProviderIds(): Promise<number[]> {
+  const rows = await db
+    .select({ id: providers.id })
+    .from(providers)
+    .where(isNull(providers.deletedAt));
+
+  return rows.map((row) => row.id);
+}
+
 export async function findProviderById(id: number): Promise<Provider | null> {
   const [provider] = await db
     .select({

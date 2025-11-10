@@ -27,6 +27,7 @@ export {
   findProviderById,
   updateProvider,
   deleteProvider,
+  getActiveProviderIds,
 } from "./provider";
 
 // Message related exports
