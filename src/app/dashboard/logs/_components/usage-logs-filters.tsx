@@ -139,14 +139,13 @@ export function UsageLogsFilters({
   const showKeySelect = isAdmin || !isChildKeyView;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center gap-4 xl:gap-6">
+    <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
         {/* 日期选择 */}
-        <div className="flex w-full flex-col gap-1.5 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
-          <Label className="text-sm text-muted-foreground sm:w-12 text-nowrap">日期</Label>
+        <div className="flex flex-col gap-1.5">
+          <Label className="text-xs text-muted-foreground">日期</Label>
           <Input
             type="date"
-            className="w-full rounded-xl pl-3 pr-2 text-sm font-medium sm:w-[150px] md:w-[160px] lg:w-[170px]"
+            className="h-9 w-36 rounded-lg text-sm"
             value={localFilters.date ? formatDate(localFilters.date) : getTodayDateString()}
             onChange={(e) =>
               setLocalFilters({
@@ -159,13 +158,13 @@ export function UsageLogsFilters({
 
         {/* 用户选择（仅 Admin） */}
         {isAdmin && (
-          <div className="flex w-full flex-col gap-1.5 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
-            <Label className="text-sm text-muted-foreground sm:w-12 text-nowrap">用户</Label>
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs text-muted-foreground">用户</Label>
             <Select
               value={localFilters.userId?.toString() || ""}
               onValueChange={handleUserChange}
             >
-              <SelectTrigger className="w-full rounded-xl sm:w-[220px]">
+              <SelectTrigger className="h-9 w-40 rounded-lg">
                 <SelectValue placeholder="全部用户" />
               </SelectTrigger>
               <SelectContent>
@@ -181,8 +180,8 @@ export function UsageLogsFilters({
 
         {/* Key 选择（子 Key 视图不展示） */}
         {showKeySelect && (
-          <div className="flex w-full flex-col gap-1.5 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
-            <Label className="text-sm text-muted-foreground sm:w-16 text-nowrap">API 密钥</Label>
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs text-muted-foreground">API 密钥</Label>
             <Select
               value={localFilters.keyId?.toString() || ""}
               onValueChange={(value: string) =>
@@ -193,7 +192,7 @@ export function UsageLogsFilters({
               }
               disabled={isAdmin && !localFilters.userId && keys.length === 0}
             >
-              <SelectTrigger className="w-full rounded-xl sm:w-[220px]">
+              <SelectTrigger className="h-9 w-44 rounded-lg">
                 <SelectValue
                   placeholder={
                     isAdmin && !localFilters.userId && keys.length === 0 ? "请先选择用户" : "全部密钥"
@@ -213,8 +212,8 @@ export function UsageLogsFilters({
 
         {/* 供应商选择 */}
         {isAdmin && (
-          <div className="flex w-full flex-col gap-1.5 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
-            <Label className="text-sm text-muted-foreground sm:w-12 text-nowrap">供应商</Label>
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs text-muted-foreground">供应商</Label>
             <Select
               value={localFilters.providerId?.toString() || ""}
               onValueChange={(value: string) =>
@@ -224,7 +223,7 @@ export function UsageLogsFilters({
                 })
               }
             >
-              <SelectTrigger className="w-full rounded-xl sm:w-[220px]">
+              <SelectTrigger className="h-9 w-44 rounded-lg">
                 <SelectValue placeholder="全部供应商" />
               </SelectTrigger>
               <SelectContent>
@@ -239,15 +238,15 @@ export function UsageLogsFilters({
         )}
 
         {/* 模型选择 */}
-        <div className="flex w-full flex-col gap-1.5 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
-          <Label className="text-sm text-muted-foreground sm:w-12 text-nowrap">模型</Label>
+        <div className="flex flex-col gap-1.5">
+          <Label className="text-xs text-muted-foreground">模型</Label>
           <Select
             value={localFilters.model || ""}
             onValueChange={(value: string) =>
               setLocalFilters({ ...localFilters, model: value || undefined })
             }
           >
-            <SelectTrigger className="w-full rounded-xl sm:w-[220px] md:w-[260px]">
+            <SelectTrigger className="h-9 w-48 rounded-lg">
               <SelectValue placeholder="全部模型" />
             </SelectTrigger>
             <SelectContent>
@@ -261,8 +260,8 @@ export function UsageLogsFilters({
         </div>
 
         {/* 状态码选择 */}
-        <div className="flex w-full flex-col gap-1.5 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
-          <Label className="text-sm text-muted-foreground sm:w-12 text-nowrap">状态码</Label>
+        <div className="flex flex-col gap-1.5">
+          <Label className="text-xs text-muted-foreground">状态码</Label>
           <Select
             value={localFilters.statusCode?.toString() || ""}
             onValueChange={(value: string) =>
@@ -272,7 +271,7 @@ export function UsageLogsFilters({
               })
             }
           >
-            <SelectTrigger className="w-full rounded-xl sm:w-[150px]">
+            <SelectTrigger className="h-9 w-36 rounded-lg">
               <SelectValue placeholder="全部状态码" />
             </SelectTrigger>
             <SelectContent>
@@ -293,26 +292,25 @@ export function UsageLogsFilters({
         </div>
 
         {/* 操作按钮 */}
-        <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto sm:flex-nowrap sm:justify-end sm:ml-auto">
+        <div className="flex items-center gap-2">
           <Button
             onClick={handleApply}
-            size="default"
-            className="min-w-[140px] rounded-xl justify-center gap-2"
+            size="sm"
+            className="h-9 gap-1.5 rounded-lg px-4"
           >
-            <Filter className="h-4 w-4" />
-            <span>应用筛选</span>
+            <Filter className="h-3.5 w-3.5" />
+            <span className="text-sm">应用筛选</span>
           </Button>
           <Button
             variant="outline"
             onClick={handleReset}
-            size="default"
-            className="min-w-[140px] rounded-xl justify-center gap-2"
+            size="sm"
+            className="h-9 gap-1.5 rounded-lg px-4"
           >
-            <RotateCcw className="h-4 w-4" />
-            <span>重置</span>
+            <RotateCcw className="h-3.5 w-3.5" />
+            <span className="text-sm">重置</span>
           </Button>
         </div>
       </div>
-    </div>
   );
 }
