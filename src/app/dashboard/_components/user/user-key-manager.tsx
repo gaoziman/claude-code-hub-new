@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { UserList } from "./user-list";
 import { KeyListHeader } from "./key-list-header";
 import { KeyList } from "./key-list";
@@ -11,9 +11,15 @@ interface UserKeyManagerProps {
   users: UserDisplay[];
   currentUser?: User;
   currencyCode?: CurrencyCode;
+  providerGroupOptions?: string[];
 }
 
-export function UserKeyManager({ users, currentUser, currencyCode = "USD" }: UserKeyManagerProps) {
+export function UserKeyManager({
+  users,
+  currentUser,
+  currencyCode = "USD",
+  providerGroupOptions = [],
+}: UserKeyManagerProps) {
   // 普通用户默认选择自己，管理员选择第一个用户
   const getInitialUser = () => {
     if (currentUser?.role === "user") {
@@ -26,6 +32,18 @@ export function UserKeyManager({ users, currentUser, currencyCode = "USD" }: Use
 
   const [activeUserId, setActiveUserId] = useState<number | null>(getInitialUser()?.id ?? null);
   const activeUser = users.find((u) => u.id === activeUserId) ?? getInitialUser();
+  const availableTags = useMemo(() => {
+    const tagSet = new Set<string>();
+    users.forEach((user) => {
+      (user.tags || []).forEach((tag) => {
+        const normalized = tag.trim();
+        if (normalized) {
+          tagSet.add(normalized);
+        }
+      });
+    });
+    return Array.from(tagSet);
+  }, [users]);
 
   // 普通用户只显示Key列表，不显示用户列表
   if (currentUser?.role === "user") {
@@ -35,12 +53,17 @@ export function UserKeyManager({ users, currentUser, currencyCode = "USD" }: Use
           <KeyListHeader
             activeUser={activeUser}
             currentUser={currentUser}
+            canManageActiveUser
+            allowScopeSelection={false}
             currencyCode={currencyCode}
+            providerGroupOptions={providerGroupOptions}
+            availableTags={availableTags}
           />
           <KeyList
             keys={activeUser?.keys || []}
             currentUser={currentUser}
             keyOwnerUserId={activeUser?.id || 0}
+            allowManageKeys
             currencyCode={currencyCode}
           />
         </div>
@@ -59,6 +82,8 @@ export function UserKeyManager({ users, currentUser, currencyCode = "USD" }: Use
           activeUserId={activeUser?.id}
           onUserSelect={setActiveUserId}
           currentUser={currentUser}
+          providerGroupOptions={providerGroupOptions}
+          availableTags={availableTags}
         />
 
         {/* 右侧：当前用户的 Key 列表 */}
@@ -66,12 +91,17 @@ export function UserKeyManager({ users, currentUser, currencyCode = "USD" }: Use
           <KeyListHeader
             activeUser={activeUser}
             currentUser={currentUser}
+            canManageActiveUser={true}
+            allowScopeSelection={currentUser?.role === "admin"}
             currencyCode={currencyCode}
+            providerGroupOptions={providerGroupOptions}
+            availableTags={availableTags}
           />
           <KeyList
             keys={activeUser?.keys || []}
             currentUser={currentUser}
             keyOwnerUserId={activeUser?.id || 0}
+            allowManageKeys
             currencyCode={currencyCode}
           />
         </div>

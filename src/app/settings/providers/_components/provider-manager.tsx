@@ -1,9 +1,11 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { ProviderList } from "./provider-list";
 import { ProviderTypeFilter } from "./provider-type-filter";
 import { ProviderSortDropdown, type SortKey } from "./provider-sort-dropdown";
-import type { ProviderDisplay, ProviderType } from "@/types/provider";
+import { ProviderViewToggle, type ProviderViewMode } from "./provider-view-toggle";
+import type { ProviderDisplay, ProviderType, ProviderGroupSummary } from "@/types/provider";
 import type { User } from "@/types/user";
 import type { CurrencyCode } from "@/lib/utils/currency";
 
@@ -22,6 +24,8 @@ interface ProviderManagerProps {
   >;
   currencyCode?: CurrencyCode;
   enableMultiProviderTypes: boolean;
+  providerGroups: ProviderGroupSummary[];
+  canManageGroups: boolean;
 }
 
 export function ProviderManager({
@@ -30,9 +34,28 @@ export function ProviderManager({
   healthStatus,
   currencyCode = "USD",
   enableMultiProviderTypes,
+  providerGroups,
+  canManageGroups,
 }: ProviderManagerProps) {
+  const router = useRouter();
   const [typeFilter, setTypeFilter] = useState<ProviderType | "all">("all");
   const [sortBy, setSortBy] = useState<SortKey>("priority");
+  const [viewMode, setViewMode] = useState<ProviderViewMode>("table");
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const stored = window.localStorage.getItem("provider_view_mode");
+    if (stored === "table" || stored === "card") {
+      setViewMode(stored);
+    }
+  }, []);
+
+  const handleViewModeChange = (mode: ProviderViewMode) => {
+    setViewMode(mode);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("provider_view_mode", mode);
+    }
+  };
 
   // 根据类型筛选供应商
   const filteredProviders = useMemo(() => {
@@ -68,13 +91,16 @@ export function ProviderManager({
   return (
     <div className="space-y-4">
       {/* 筛选条件 */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           <ProviderTypeFilter value={typeFilter} onChange={setTypeFilter} />
           <ProviderSortDropdown value={sortBy} onChange={setSortBy} />
         </div>
-        <div className="text-sm text-muted-foreground">
-          显示 {filteredProviders.length} / {providers.length} 个供应商
+        <div className="flex flex-wrap items-center gap-3">
+          <ProviderViewToggle value={viewMode} onChange={handleViewModeChange} />
+          <div className="text-sm text-muted-foreground">
+            显示 {filteredProviders.length} / {providers.length} 个供应商
+          </div>
         </div>
       </div>
 
@@ -85,6 +111,10 @@ export function ProviderManager({
         healthStatus={healthStatus}
         currencyCode={currencyCode}
         enableMultiProviderTypes={enableMultiProviderTypes}
+        providerGroups={providerGroups}
+        canManageGroups={canManageGroups}
+        onGroupsUpdated={() => router.refresh()}
+        viewMode={viewMode}
       />
     </div>
   );

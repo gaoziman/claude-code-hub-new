@@ -90,7 +90,7 @@ export function buildDailyLeaderboard(data: DailyLeaderboardData): string {
  * 成本预警消息
  */
 export interface CostAlertData {
-  targetType: "user" | "provider";
+  targetType: "key" | "provider";
   targetName: string;
   targetId: number;
   currentCost: number;
@@ -102,7 +102,7 @@ export interface CostAlertData {
 export function buildCostAlert(data: CostAlertData): string {
   const usagePercent = (data.currentCost / data.quotaLimit) * 100;
   const remaining = data.quotaLimit - data.currentCost;
-  const targetTypeText = data.targetType === "user" ? "用户" : "供应商";
+  const targetTypeText = data.targetType === "key" ? "Key" : "供应商";
 
   const lines = [
     "## ⚠️ 成本预警提醒",

@@ -78,20 +78,31 @@ function StatusSpinner() {
 interface KeyListHeaderProps {
   activeUser: UserDisplay | null;
   currentUser?: User;
+  canManageActiveUser?: boolean;
+  allowScopeSelection?: boolean;
   currencyCode?: CurrencyCode;
+  showUserActions?: boolean;
+  metricLabel?: string;
+  providerGroupOptions?: string[];
+  availableTags?: string[];
 }
 
 export function KeyListHeader({
   activeUser,
   currentUser,
+  canManageActiveUser = false,
+  allowScopeSelection = false,
   currencyCode = "USD",
+  showUserActions = true,
+  metricLabel = "今日",
+  providerGroupOptions = [],
+  availableTags = [],
 }: KeyListHeaderProps) {
   const [openAdd, setOpenAdd] = useState(false);
   const [keyResult, setKeyResult] = useState<{ generatedKey: string; name: string } | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const totalTodayUsage =
-    activeUser?.keys.reduce((sum, key) => sum + (key.todayUsage ?? 0), 0) ?? 0;
+  const totalRangeUsage = activeUser?.keys.reduce((sum, key) => sum + (key.todayUsage ?? 0), 0) ?? 0;
 
   const proxyStatusEnabled = Boolean(activeUser);
   const {
@@ -187,7 +198,7 @@ export function KeyListHeader({
 
   // 权限检查：管理员可以给所有人添加Key，普通用户只能给自己添加Key
   const canAddKey =
-    currentUser && activeUser && (currentUser.role === "admin" || currentUser.id === activeUser.id);
+    currentUser && activeUser && (currentUser.role === "admin" || canManageActiveUser);
 
   return (
     <>
@@ -195,14 +206,26 @@ export function KeyListHeader({
         <div>
           <div className="flex items-center gap-2 text-base font-semibold tracking-tight">
             <span>{activeUser ? activeUser.name : "-"}</span>
-            {activeUser && <UserActions user={activeUser} currentUser={currentUser} />}
+            {activeUser && showUserActions && (
+                            <UserActions
+                              user={activeUser}
+                              currentUser={currentUser}
+                              providerGroupOptions={providerGroupOptions}
+                              availableTags={availableTags}
+                            />
+            )}
           </div>
           <div className="mt-1">
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
               <div>
-                今日用量 {activeUser ? formatCurrency(totalTodayUsage, currencyCode) : "-"} /{" "}
-                {activeUser ? formatCurrency(activeUser.dailyQuota, currencyCode) : "-"}
+                {metricLabel}用量 {activeUser ? formatCurrency(totalRangeUsage, currencyCode) : "-"}
               </div>
+              {activeUser && (
+                <div>
+                  启用 Key {activeUser.keys.filter((key) => key.status === "enabled").length}/
+                  {activeUser.keys.length}
+                </div>
+              )}
               {proxyStatusContent}
             </div>
           </div>
@@ -219,9 +242,13 @@ export function KeyListHeader({
                 <ListPlus className="h-3.5 w-3.5" /> 新增 Key
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-w-2xl md:max-w-3xl xl:max-w-4xl max-h-[90vh] overflow-y-auto">
               <FormErrorBoundary>
-                <AddKeyForm userId={activeUser?.id} onSuccess={handleKeyCreated} />
+                <AddKeyForm
+                  userId={activeUser?.id}
+                  allowScopeSelection={allowScopeSelection}
+                  onSuccess={handleKeyCreated}
+                />
               </FormErrorBoundary>
             </DialogContent>
           </Dialog>

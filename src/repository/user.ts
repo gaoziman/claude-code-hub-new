@@ -10,9 +10,10 @@ export async function createUser(userData: CreateUserData): Promise<User> {
   const dbData = {
     name: userData.name,
     description: userData.description,
-    rpmLimit: userData.rpm,
-    dailyLimitUsd: userData.dailyQuota?.toString(),
     providerGroup: userData.providerGroup,
+    tags: userData.tags ?? [],
+    isEnabled: userData.isEnabled ?? true,
+    expiresAt: userData.expiresAt ?? null,
   };
 
   const [user] = await db.insert(users).values(dbData).returning({
@@ -20,9 +21,10 @@ export async function createUser(userData: CreateUserData): Promise<User> {
     name: users.name,
     description: users.description,
     role: users.role,
-    rpm: users.rpmLimit,
-    dailyQuota: users.dailyLimitUsd,
     providerGroup: users.providerGroup,
+    tags: users.tags,
+    isEnabled: users.isEnabled,
+    expiresAt: users.expiresAt,
     createdAt: users.createdAt,
     updatedAt: users.updatedAt,
     deletedAt: users.deletedAt,
@@ -38,9 +40,10 @@ export async function findUserList(limit: number = 50, offset: number = 0): Prom
       name: users.name,
       description: users.description,
       role: users.role,
-      rpm: users.rpmLimit,
-      dailyQuota: users.dailyLimitUsd,
       providerGroup: users.providerGroup,
+      tags: users.tags,
+      isEnabled: users.isEnabled,
+      expiresAt: users.expiresAt,
       createdAt: users.createdAt,
       updatedAt: users.updatedAt,
       deletedAt: users.deletedAt,
@@ -61,9 +64,10 @@ export async function findUserById(id: number): Promise<User | null> {
       name: users.name,
       description: users.description,
       role: users.role,
-      rpm: users.rpmLimit,
-      dailyQuota: users.dailyLimitUsd,
       providerGroup: users.providerGroup,
+      tags: users.tags,
+      isEnabled: users.isEnabled,
+      expiresAt: users.expiresAt,
       createdAt: users.createdAt,
       updatedAt: users.updatedAt,
       deletedAt: users.deletedAt,
@@ -84,9 +88,10 @@ export async function updateUser(id: number, userData: UpdateUserData): Promise<
   interface UpdateDbData {
     name?: string;
     description?: string;
-    rpmLimit?: number;
-    dailyLimitUsd?: string;
     providerGroup?: string | null;
+    tags?: string[];
+    isEnabled?: boolean;
+    expiresAt?: Date | null;
     updatedAt?: Date;
   }
 
@@ -95,9 +100,10 @@ export async function updateUser(id: number, userData: UpdateUserData): Promise<
   };
   if (userData.name !== undefined) dbData.name = userData.name;
   if (userData.description !== undefined) dbData.description = userData.description;
-  if (userData.rpm !== undefined) dbData.rpmLimit = userData.rpm;
-  if (userData.dailyQuota !== undefined) dbData.dailyLimitUsd = userData.dailyQuota.toString();
   if (userData.providerGroup !== undefined) dbData.providerGroup = userData.providerGroup;
+  if (userData.tags !== undefined) dbData.tags = userData.tags;
+  if (userData.isEnabled !== undefined) dbData.isEnabled = userData.isEnabled;
+  if (userData.expiresAt !== undefined) dbData.expiresAt = userData.expiresAt;
 
   const [user] = await db
     .update(users)
@@ -108,9 +114,10 @@ export async function updateUser(id: number, userData: UpdateUserData): Promise<
       name: users.name,
       description: users.description,
       role: users.role,
-      rpm: users.rpmLimit,
-      dailyQuota: users.dailyLimitUsd,
       providerGroup: users.providerGroup,
+      tags: users.tags,
+      isEnabled: users.isEnabled,
+      expiresAt: users.expiresAt,
       createdAt: users.createdAt,
       updatedAt: users.updatedAt,
       deletedAt: users.deletedAt,

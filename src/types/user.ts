@@ -6,9 +6,10 @@ export interface User {
   name: string;
   description: string;
   role: "admin" | "user";
-  rpm: number; // 每分钟请求数限制
-  dailyQuota: number; // 每日额度限制（美元）
   providerGroup: string | null; // 供应商分组
+  tags: string[];
+  isEnabled: boolean;
+  expiresAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
   deletedAt?: Date;
@@ -20,9 +21,10 @@ export interface User {
 export interface CreateUserData {
   name: string;
   description: string;
-  rpm?: number; // 可选，有默认值
-  dailyQuota?: number; // 可选，有默认值
   providerGroup?: string | null; // 可选，供应商分组
+  tags?: string[];
+  isEnabled?: boolean;
+  expiresAt?: Date | null;
 }
 
 /**
@@ -31,9 +33,10 @@ export interface CreateUserData {
 export interface UpdateUserData {
   name?: string;
   description?: string;
-  rpm?: number;
-  dailyQuota?: number;
   providerGroup?: string | null; // 可选，供应商分组
+  tags?: string[];
+  isEnabled?: boolean;
+  expiresAt?: Date | null;
 }
 
 /**
@@ -47,6 +50,7 @@ export interface UserKeyDisplay {
   canCopy: boolean; // 是否可以复制完整密钥
   expiresAt: string; // 格式化后的日期字符串或"永不过期"
   status: "enabled" | "disabled";
+  disabledReason?: "key_disabled" | "user_disabled" | "user_expired";
   todayUsage: number; // 今日消耗金额（美元）
   todayCallCount: number; // 今日调用次数
   lastUsedAt: Date | null; // 最后使用时间
@@ -58,12 +62,17 @@ export interface UserKeyDisplay {
   }>; // 各模型统计（当天）
   createdAt: Date; // 创建时间
   createdAtFormatted: string; // 格式化后的具体时间
+  rpmLimit: number | null; // Key RPM 限制
+  dailyQuota: number | null; // Key 每日额度限制
   // Web UI 登录权限控制
   canLoginWebUi: boolean; // 是否允许使用该 Key 登录 Web UI
+  scope: 'owner' | 'child';
+  canManage?: boolean; // 当前登录视角是否允许管理该 Key
   // 限额配置
   limit5hUsd: number | null; // 5小时消费上限（美元）
   limitWeeklyUsd: number | null; // 周消费上限（美元）
   limitMonthlyUsd: number | null; // 月消费上限（美元）
+  totalLimitUsd: number | null; // 总费用上限（美元）
   limitConcurrentSessions: number; // 并发 Session 上限
 }
 
@@ -75,9 +84,12 @@ export interface UserDisplay {
   name: string;
   note?: string;
   role: "admin" | "user";
-  rpm: number;
-  dailyQuota: number;
   providerGroup?: string | null;
+  tags: string[];
+  isEnabled: boolean;
+  expiresAt?: string | null;
+  isExpired: boolean;
+  status: "active" | "disabled" | "expired";
   keys: UserKeyDisplay[];
 }
 

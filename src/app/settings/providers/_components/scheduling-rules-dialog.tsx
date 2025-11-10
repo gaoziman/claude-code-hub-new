@@ -209,7 +209,7 @@ export function SchedulingRulesDialog() {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2">
+        <Button variant="outline" className="gap-2 px-4">
           <Info className="h-4 w-4" />
           调度规则说明
         </Button>

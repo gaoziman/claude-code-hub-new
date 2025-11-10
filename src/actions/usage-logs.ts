@@ -4,8 +4,10 @@ import { getSession } from "@/lib/auth";
 import { logger } from "@/lib/logger";
 import {
   findUsageLogsWithDetails,
+  getMonthlyUsageStats,
   getUsedModels,
   getUsedStatusCodes,
+  type MonthlyUsageStatsResult,
   type UsageLogFilters,
   type UsageLogsResult,
 } from "@/repository/usage-logs";
@@ -23,9 +25,16 @@ export async function getUsageLogs(
       return { ok: false, error: "未登录" };
     }
 
-    // 如果不是 admin，强制过滤为当前用户
-    const finalFilters: UsageLogFilters =
-      session.user.role === "admin" ? filters : { ...filters, userId: session.user.id };
+    const isAdmin = session.user.role === "admin";
+    let finalFilters: UsageLogFilters = isAdmin ? { ...filters } : { ...filters, userId: session.user.id };
+
+    if (session.viewMode === "key") {
+      finalFilters = {
+        ...finalFilters,
+        userId: session.user.id,
+        keyId: session.key.id,
+      };
+    }
 
     const result = await findUsageLogsWithDetails(finalFilters);
 
@@ -70,5 +79,28 @@ export async function getStatusCodeList(): Promise<ActionResult<number[]>> {
   } catch (error) {
     logger.error("获取状态码列表失败:", error);
     return { ok: false, error: "获取状态码列表失败" };
+  }
+}
+
+/**
+ * 获取月度使用统计（按天聚合）
+ */
+export async function getMonthlyUsageStatsAction(month?: string): Promise<ActionResult<MonthlyUsageStatsResult>> {
+  try {
+    const session = await getSession();
+    if (!session) {
+      return { ok: false, error: "未登录" };
+    }
+
+    const result = await getMonthlyUsageStats({
+      userId: session.user.id,
+      month,
+      keyId: session.viewMode === "key" ? session.key.id : undefined,
+    });
+    return { ok: true, data: result };
+  } catch (error) {
+    logger.error("获取月度使用统计失败:", error);
+    const message = error instanceof Error ? error.message : "获取月度使用统计失败";
+    return { ok: false, error: message };
   }
 }

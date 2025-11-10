@@ -6,6 +6,13 @@ import { DialogFormLayout } from "@/components/form/form-layout";
 import { TextField, DateField, NumberField } from "@/components/form/form-field";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useZodForm } from "@/lib/hooks/use-zod-form";
 import { KeyFormSchema } from "@/lib/validation/schemas";
 import { toast } from "sonner";
@@ -19,7 +26,11 @@ interface EditKeyFormProps {
     limit5hUsd?: number | null;
     limitWeeklyUsd?: number | null;
     limitMonthlyUsd?: number | null;
+    totalLimitUsd?: number | null;
     limitConcurrentSessions?: number;
+    rpmLimit?: number | null;
+    dailyQuota?: number | null;
+    scope?: "owner" | "child";
   };
   onSuccess?: () => void;
 }
@@ -43,10 +54,14 @@ export function EditKeyForm({ keyData, onSuccess }: EditKeyFormProps) {
       name: keyData?.name || "",
       expiresAt: formatExpiresAt(keyData?.expiresAt || ""),
       canLoginWebUi: keyData?.canLoginWebUi ?? true,
+      scope: keyData?.scope ?? "owner",
       limit5hUsd: keyData?.limit5hUsd ?? null,
       limitWeeklyUsd: keyData?.limitWeeklyUsd ?? null,
       limitMonthlyUsd: keyData?.limitMonthlyUsd ?? null,
+      totalLimitUsd: keyData?.totalLimitUsd ?? null,
       limitConcurrentSessions: keyData?.limitConcurrentSessions ?? 0,
+      rpmLimit: keyData?.rpmLimit ?? null,
+      dailyQuota: keyData?.dailyQuota ?? null,
     },
     onSubmit: async (data) => {
       if (!keyData) {
@@ -62,7 +77,11 @@ export function EditKeyForm({ keyData, onSuccess }: EditKeyFormProps) {
             limit5hUsd: data.limit5hUsd,
             limitWeeklyUsd: data.limitWeeklyUsd,
             limitMonthlyUsd: data.limitMonthlyUsd,
+            totalLimitUsd: data.totalLimitUsd,
             limitConcurrentSessions: data.limitConcurrentSessions,
+            rpmLimit: data.rpmLimit,
+            dailyQuota: data.dailyQuota,
+            scope: data.scope,
           });
           if (!res.ok) {
             toast.error(res.error || "保存失败");
@@ -123,6 +142,25 @@ export function EditKeyForm({ keyData, onSuccess }: EditKeyFormProps) {
         />
       </div>
 
+      <div className="flex flex-col gap-2 rounded-lg border border-dashed border-border px-4 py-3">
+        <Label className="text-sm font-medium">Key 视角</Label>
+        <p className="text-xs text-muted-foreground">
+          主 Key 可以查看用户全量数据；子 Key 仅可访问自身数据和限额
+        </p>
+        <Select
+          value={form.values.scope}
+          onValueChange={(value: "owner" | "child") => form.setValue("scope", value)}
+        >
+          <SelectTrigger className="rounded-xl">
+            <SelectValue placeholder="选择 Key 视角" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="owner">主 Key（汇总视角）</SelectItem>
+            <SelectItem value="child">子 Key（独立视角）</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
       <NumberField
         label="5小时消费上限 (USD)"
         placeholder="留空表示无限制"
@@ -151,12 +189,39 @@ export function EditKeyForm({ keyData, onSuccess }: EditKeyFormProps) {
       />
 
       <NumberField
+        label="总费用上限 (USD)"
+        placeholder="留空表示无限制"
+        description="该 Key 生命周期内允许的最大消费"
+        min={0}
+        step={0.01}
+        {...form.getFieldProps("totalLimitUsd")}
+      />
+
+      <NumberField
         label="并发 Session 上限"
         placeholder="0 表示无限制"
         description="同时运行的对话数量"
         min={0}
         step={1}
         {...form.getFieldProps("limitConcurrentSessions")}
+      />
+
+      <NumberField
+        label="RPM 限制"
+        placeholder="留空表示无限制"
+        description="该 Key 每分钟允许的最大请求数"
+        min={1}
+        step={1}
+        {...form.getFieldProps("rpmLimit")}
+      />
+
+      <NumberField
+        label="每日额度 (USD)"
+        placeholder="留空表示无限制"
+        description="该 Key 每日允许的最大消费金额"
+        min={0.01}
+        step={0.01}
+        {...form.getFieldProps("dailyQuota")}
       />
     </DialogFormLayout>
   );

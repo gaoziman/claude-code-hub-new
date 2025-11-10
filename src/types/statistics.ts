@@ -1,3 +1,5 @@
+import type { ProviderType } from "./provider";
+
 export type TimeRange = "today" | "7days" | "30days";
 
 export interface TimeRangeConfig {
@@ -73,4 +75,56 @@ export interface UserStatisticsData {
   timeRange: TimeRange;
   resolution: "hour" | "day";
   mode: "users" | "keys" | "mixed";
+}
+
+export interface ProviderTrendRow {
+  provider_id: number;
+  provider_name: string;
+  date: string;
+  api_calls: number;
+  total_cost: string | number | null;
+}
+
+export interface ProviderTrendSeries {
+  id: number;
+  name: string;
+  dataKey: string;
+  totalCost: number;
+  totalCalls: number;
+}
+
+export interface ProviderTrendData {
+  chartData: ChartDataItem[];
+  providers: ProviderTrendSeries[];
+  providerType: ProviderType;
+  days: number;
+}
+
+/**
+ * API Keys 趋势相关类型
+ */
+
+// Key 级别的趋势数据行（从数据库查询返回）
+export interface KeyTrendRow {
+  key_id: number;
+  key_name: string;
+  date: string;
+  api_calls: number;
+  total_cost: string | number | null;
+}
+
+// Key 趋势系列（用于图表）
+export interface KeyTrendSeries {
+  id: number;
+  name: string;
+  dataKey: string;
+  totalCost: number;
+  totalCalls: number;
+}
+
+// Key 趋势数据（完整数据结构）
+export interface KeyTrendData {
+  chartData: ChartDataItem[];
+  keys: KeyTrendSeries[];
+  days: number;
 }

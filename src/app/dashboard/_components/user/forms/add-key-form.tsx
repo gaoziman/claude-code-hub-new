@@ -7,15 +7,23 @@ import { DialogFormLayout } from "@/components/form/form-layout";
 import { TextField, DateField, NumberField } from "@/components/form/form-field";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useZodForm } from "@/lib/hooks/use-zod-form";
 import { KeyFormSchema } from "@/lib/validation/schemas";
 
 interface AddKeyFormProps {
   userId?: number;
+  allowScopeSelection?: boolean;
   onSuccess?: (result: { generatedKey: string; name: string }) => void;
 }
 
-export function AddKeyForm({ userId, onSuccess }: AddKeyFormProps) {
+export function AddKeyForm({ userId, onSuccess, allowScopeSelection = false }: AddKeyFormProps) {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -25,10 +33,14 @@ export function AddKeyForm({ userId, onSuccess }: AddKeyFormProps) {
       name: "",
       expiresAt: "",
       canLoginWebUi: true,
+      scope: allowScopeSelection ? "owner" : "child",
       limit5hUsd: null,
       limitWeeklyUsd: null,
       limitMonthlyUsd: null,
+      totalLimitUsd: null,
       limitConcurrentSessions: 0,
+      rpmLimit: null,
+      dailyQuota: null,
     },
     onSubmit: async (data) => {
       if (!userId) {
@@ -44,7 +56,11 @@ export function AddKeyForm({ userId, onSuccess }: AddKeyFormProps) {
           limit5hUsd: data.limit5hUsd,
           limitWeeklyUsd: data.limitWeeklyUsd,
           limitMonthlyUsd: data.limitMonthlyUsd,
+          totalLimitUsd: data.totalLimitUsd,
           limitConcurrentSessions: data.limitConcurrentSessions,
+          rpmLimit: data.rpmLimit,
+          dailyQuota: data.dailyQuota,
+          scope: allowScopeSelection ? data.scope : "child",
         });
 
         if (!result.ok) {
@@ -116,6 +132,27 @@ export function AddKeyForm({ userId, onSuccess }: AddKeyFormProps) {
         />
       </div>
 
+      {allowScopeSelection && (
+        <div className="flex flex-col gap-2 rounded-lg border border-dashed border-border px-4 py-3">
+          <Label className="text-sm font-medium">Key 视角</Label>
+          <p className="text-xs text-muted-foreground">
+            主 Key 可查看该用户所有数据；子 Key 仅能查看自身数据与限额
+          </p>
+          <Select
+            value={form.values.scope}
+            onValueChange={(value: "owner" | "child") => form.setValue("scope", value)}
+          >
+            <SelectTrigger className="rounded-xl">
+              <SelectValue placeholder="选择 Key 视角" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="owner">主 Key（汇总视角）</SelectItem>
+              <SelectItem value="child">子 Key（独立视角）</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
       <NumberField
         label="5小时消费上限 (USD)"
         placeholder="留空表示无限制"
@@ -144,12 +181,39 @@ export function AddKeyForm({ userId, onSuccess }: AddKeyFormProps) {
       />
 
       <NumberField
+        label="总费用上限 (USD)"
+        placeholder="留空表示无限制"
+        description="该 Key 生命周期内允许的最大消费"
+        min={0}
+        step={0.01}
+        {...form.getFieldProps("totalLimitUsd")}
+      />
+
+      <NumberField
         label="并发 Session 上限"
         placeholder="0 表示无限制"
         description="同时运行的对话数量"
         min={0}
         step={1}
         {...form.getFieldProps("limitConcurrentSessions")}
+      />
+
+      <NumberField
+        label="RPM 限制"
+        placeholder="留空表示无限制"
+        description="该 Key 每分钟允许的最大请求数"
+        min={1}
+        step={1}
+        {...form.getFieldProps("rpmLimit")}
+      />
+
+      <NumberField
+        label="每日额度 (USD)"
+        placeholder="留空表示无限制"
+        description="该 Key 每日允许的最大消费金额"
+        min={0.01}
+        step={0.01}
+        {...form.getFieldProps("dailyQuota")}
       />
     </DialogFormLayout>
   );

@@ -2,6 +2,7 @@
 
 import { logger } from "@/lib/logger";
 import { getSession } from "@/lib/auth";
+import { getSystemSettings } from "@/repository/system-config";
 import type { ActionResult } from "./types";
 import type { ActiveSessionInfo } from "@/types/session";
 import {
@@ -15,7 +16,7 @@ import {
  * 获取所有活跃 session 的详细信息（使用聚合数据 + 批量查询 + 缓存）
  * 用于实时监控页面
  *
- * ✅ 安全修复：添加用户权限隔离
+ * ✅ 安全修复：添加用户权限隔离，遵循 allowGlobalUsageView 配置
  */
 export async function getActiveSessions(): Promise<ActionResult<ActiveSessionInfo[]>> {
   try {
@@ -28,16 +29,20 @@ export async function getActiveSessions(): Promise<ActionResult<ActiveSessionInf
       };
     }
 
+    const settings = await getSystemSettings();
     const isAdmin = authSession.user.role === "admin";
     const currentUserId = authSession.user.id;
+
+    // 确定是否显示全局数据
+    const shouldShowGlobal = isAdmin || settings.allowGlobalUsageView;
 
     // 1. 尝试从缓存获取
     const cached = getActiveSessionsCache();
     if (cached) {
       logger.debug("[SessionCache] Active sessions cache hit");
 
-      // 过滤：管理员可查看所有，普通用户只能查看自己的
-      const filteredData = isAdmin ? cached : cached.filter((s) => s.userId === currentUserId);
+      // 过滤：根据 allowGlobalUsageView 配置决定
+      const filteredData = shouldShowGlobal ? cached : cached.filter((s) => s.userId === currentUserId);
 
       return {
         ok: true,
@@ -84,8 +89,8 @@ export async function getActiveSessions(): Promise<ActionResult<ActiveSessionInf
     // 4. 写入缓存
     setActiveSessionsCache(sessionsData);
 
-    // 5. 过滤：管理员可查看所有，普通用户只能查看自己的
-    const filteredSessions = isAdmin
+    // 5. 过滤：根据 allowGlobalUsageView 配置决定
+    const filteredSessions = shouldShowGlobal
       ? sessionsData
       : sessionsData.filter((s) => s.userId === currentUserId);
 
@@ -117,7 +122,7 @@ export async function getActiveSessions(): Promise<ActionResult<ActiveSessionInf
     }));
 
     logger.debug(
-      `[SessionCache] Active sessions fetched and cached, count: ${sessions.length} (filtered for user: ${currentUserId})`
+      `[SessionCache] Active sessions fetched and cached, count: ${sessions.length} (showGlobal: ${shouldShowGlobal}, userId: ${currentUserId})`
     );
 
     return { ok: true, data: sessions };
@@ -153,8 +158,12 @@ export async function getAllSessions(): Promise<
       };
     }
 
+    const settings = await getSystemSettings();
     const isAdmin = authSession.user.role === "admin";
     const currentUserId = authSession.user.id;
+
+    // 确定是否显示全局数据
+    const shouldShowGlobal = isAdmin || settings.allowGlobalUsageView;
 
     // 1. 尝试从缓存获取（使用不同的 key）
     const cacheKey = "all_sessions";
@@ -162,8 +171,8 @@ export async function getAllSessions(): Promise<
     if (cached) {
       logger.debug("[SessionCache] All sessions cache hit");
 
-      // 过滤：管理员可查看所有，普通用户只能查看自己的
-      const filteredCached = isAdmin ? cached : cached.filter((s) => s.userId === currentUserId);
+      // 过滤：根据 allowGlobalUsageView 配置决定
+      const filteredCached = shouldShowGlobal ? cached : cached.filter((s) => s.userId === currentUserId);
 
       // 分离活跃和非活跃（5 分钟内有请求为活跃）
       const now = Date.now();
@@ -225,8 +234,8 @@ export async function getAllSessions(): Promise<
     // 4. 写入缓存
     setActiveSessionsCache(sessionsData, cacheKey);
 
-    // 5. 过滤：管理员可查看所有，普通用户只能查看自己的
-    const filteredSessions = isAdmin
+    // 5. 过滤：根据 allowGlobalUsageView 配置决定
+    const filteredSessions = shouldShowGlobal
       ? sessionsData
       : sessionsData.filter((s) => s.userId === currentUserId);
 
@@ -273,7 +282,7 @@ export async function getAllSessions(): Promise<
     }
 
     logger.debug(
-      `[SessionCache] All sessions fetched and cached, active: ${active.length}, inactive: ${inactive.length} (filtered for user: ${currentUserId})`
+      `[SessionCache] All sessions fetched and cached, active: ${active.length}, inactive: ${inactive.length} (showGlobal: ${shouldShowGlobal}, userId: ${currentUserId})`
     );
 
     return { ok: true, data: { active, inactive } };

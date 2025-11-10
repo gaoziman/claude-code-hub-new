@@ -26,10 +26,14 @@ export async function addKey(data: {
   name: string;
   expiresAt?: string;
   canLoginWebUi?: boolean;
+  scope?: 'owner' | 'child';
   limit5hUsd?: number | null;
   limitWeeklyUsd?: number | null;
   limitMonthlyUsd?: number | null;
+  totalLimitUsd?: number | null;
   limitConcurrentSessions?: number;
+  rpmLimit?: number | null;
+  dailyQuota?: number | null;
 }): Promise<ActionResult<{ generatedKey: string; name: string }>> {
   try {
     // 权限检查：用户只能给自己添加Key，管理员可以给所有人添加Key
@@ -37,13 +41,24 @@ export async function addKey(data: {
     if (!session) {
       return { ok: false, error: "未登录" };
     }
-    if (session.user.role !== "admin" && session.user.id !== data.userId) {
+    const isAdmin = session.user.role === "admin";
+    const isSelfOwnerView = session.viewMode === "user" && session.user.id === data.userId;
+    if (!isAdmin && !isSelfOwnerView) {
       return { ok: false, error: "无权限执行此操作" };
     }
 
     const validatedData = KeyFormSchema.parse({
       name: data.name,
       expiresAt: data.expiresAt,
+      canLoginWebUi: data.canLoginWebUi,
+      scope: data.scope,
+      limit5hUsd: data.limit5hUsd,
+      limitWeeklyUsd: data.limitWeeklyUsd,
+      limitMonthlyUsd: data.limitMonthlyUsd,
+      totalLimitUsd: data.totalLimitUsd,
+      limitConcurrentSessions: data.limitConcurrentSessions,
+      rpmLimit: data.rpmLimit,
+      dailyQuota: data.dailyQuota,
     });
 
     // 检查是否存在同名的生效key
@@ -56,6 +71,7 @@ export async function addKey(data: {
     }
 
     const generatedKey = "sk-" + randomBytes(16).toString("hex");
+    const targetScope = isAdmin ? validatedData.scope : "child";
 
     await createKey({
       user_id: data.userId,
@@ -64,10 +80,14 @@ export async function addKey(data: {
       is_enabled: true,
       expires_at: validatedData.expiresAt ? new Date(validatedData.expiresAt) : undefined,
       can_login_web_ui: validatedData.canLoginWebUi,
+      scope: targetScope,
       limit_5h_usd: validatedData.limit5hUsd,
       limit_weekly_usd: validatedData.limitWeeklyUsd,
       limit_monthly_usd: validatedData.limitMonthlyUsd,
+      total_limit_usd: validatedData.totalLimitUsd,
       limit_concurrent_sessions: validatedData.limitConcurrentSessions,
+      rpm_limit: validatedData.rpmLimit ?? undefined,
+      daily_limit_usd: validatedData.dailyQuota ?? undefined,
     });
 
     revalidatePath("/dashboard");
@@ -88,10 +108,14 @@ export async function editKey(
     name: string;
     expiresAt?: string;
     canLoginWebUi?: boolean;
+    scope?: 'owner' | 'child';
     limit5hUsd?: number | null;
     limitWeeklyUsd?: number | null;
     limitMonthlyUsd?: number | null;
+    totalLimitUsd?: number | null;
     limitConcurrentSessions?: number;
+    rpmLimit?: number | null;
+    dailyQuota?: number | null;
   }
 ): Promise<ActionResult> {
   try {
@@ -106,8 +130,10 @@ export async function editKey(
       return { ok: false, error: "密钥不存在" };
     }
 
-    if (session.user.role !== "admin" && session.user.id !== key.userId) {
-      return { ok: false, error: "无权限执行此操作" };
+    const isAdmin = session.user.role === "admin";
+    const isSelfOwnerView = session.viewMode === "user" && session.user.id === key.userId;
+    if (!isAdmin && (!isSelfOwnerView || key.scope !== "child")) {
+      return { ok: false, error: "仅管理员可修改主 Key" };
     }
 
     const validatedData = KeyFormSchema.parse(data);
@@ -116,10 +142,14 @@ export async function editKey(
       name: validatedData.name,
       expires_at: validatedData.expiresAt ? new Date(validatedData.expiresAt) : undefined,
       can_login_web_ui: validatedData.canLoginWebUi,
+      scope: isAdmin ? validatedData.scope : undefined,
       limit_5h_usd: validatedData.limit5hUsd,
       limit_weekly_usd: validatedData.limitWeeklyUsd,
       limit_monthly_usd: validatedData.limitMonthlyUsd,
+      total_limit_usd: validatedData.totalLimitUsd,
       limit_concurrent_sessions: validatedData.limitConcurrentSessions,
+      rpm_limit: validatedData.rpmLimit ?? undefined,
+      daily_limit_usd: validatedData.dailyQuota ?? undefined,
     });
 
     revalidatePath("/dashboard");
@@ -145,8 +175,10 @@ export async function removeKey(keyId: number): Promise<ActionResult> {
       return { ok: false, error: "密钥不存在" };
     }
 
-    if (session.user.role !== "admin" && session.user.id !== key.userId) {
-      return { ok: false, error: "无权限执行此操作" };
+    const isAdmin = session.user.role === "admin";
+    const isSelfOwnerView = session.viewMode === "user" && session.user.id === key.userId;
+    if (!isAdmin && (!isSelfOwnerView || key.scope !== "child")) {
+      return { ok: false, error: "仅管理员可删除主 Key" };
     }
 
     const activeKeyCount = await countActiveKeysByUser(key.userId);
@@ -205,80 +237,5 @@ export async function getKeysWithStatistics(
   } catch (error) {
     logger.error("获取密钥统计失败:", error);
     return { ok: false, error: "获取密钥统计失败" };
-  }
-}
-
-/**
- * 获取密钥的限额使用情况（实时数据）
- */
-export async function getKeyLimitUsage(keyId: number): Promise<
-  ActionResult<{
-    cost5h: { current: number; limit: number | null; resetAt?: Date };
-    costWeekly: { current: number; limit: number | null; resetAt?: Date };
-    costMonthly: { current: number; limit: number | null; resetAt?: Date };
-    concurrentSessions: { current: number; limit: number };
-  }>
-> {
-  try {
-    const session = await getSession();
-    if (!session) {
-      return { ok: false, error: "未登录" };
-    }
-
-    const key = await findKeyById(keyId);
-    if (!key) {
-      return { ok: false, error: "密钥不存在" };
-    }
-
-    // 权限检查
-    if (session.user.role !== "admin" && session.user.id !== key.userId) {
-      return { ok: false, error: "无权限执行此操作" };
-    }
-
-    // 动态导入 RateLimitService 避免循环依赖
-    const { RateLimitService } = await import("@/lib/rate-limit");
-    const { SessionTracker } = await import("@/lib/session-tracker");
-    const { getResetInfo } = await import("@/lib/rate-limit/time-utils");
-
-    // 获取金额消费（优先 Redis，降级数据库）
-    const [cost5h, costWeekly, costMonthly, concurrentSessions] = await Promise.all([
-      RateLimitService.getCurrentCost(keyId, "key", "5h"),
-      RateLimitService.getCurrentCost(keyId, "key", "weekly"),
-      RateLimitService.getCurrentCost(keyId, "key", "monthly"),
-      SessionTracker.getKeySessionCount(keyId),
-    ]);
-
-    // 获取重置时间
-    const resetInfo5h = getResetInfo("5h");
-    const resetInfoWeekly = getResetInfo("weekly");
-    const resetInfoMonthly = getResetInfo("monthly");
-
-    return {
-      ok: true,
-      data: {
-        cost5h: {
-          current: cost5h,
-          limit: key.limit5hUsd,
-          resetAt: resetInfo5h.resetAt, // 滚动窗口无 resetAt
-        },
-        costWeekly: {
-          current: costWeekly,
-          limit: key.limitWeeklyUsd,
-          resetAt: resetInfoWeekly.resetAt,
-        },
-        costMonthly: {
-          current: costMonthly,
-          limit: key.limitMonthlyUsd,
-          resetAt: resetInfoMonthly.resetAt,
-        },
-        concurrentSessions: {
-          current: concurrentSessions,
-          limit: key.limitConcurrentSessions || 0,
-        },
-      },
-    };
-  } catch (error) {
-    logger.error("获取密钥限额使用情况失败:", error);
-    return { ok: false, error: "获取限额使用情况失败" };
   }
 }

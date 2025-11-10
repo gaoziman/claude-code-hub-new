@@ -10,8 +10,7 @@ export interface UsageLogFilters {
   userId?: number;
   keyId?: number;
   providerId?: number;
-  startDate?: Date;
-  endDate?: Date;
+  date?: Date; // 单个日期，查询当天的记录（00:00:00 到 23:59:59.999）
   statusCode?: number;
   model?: string;
   page?: number;
@@ -60,6 +59,49 @@ export interface UsageLogsResult {
   summary: UsageLogSummary;
 }
 
+export interface MonthlyUsageStatsFilters {
+  userId: number;
+  month?: string; // YYYY-MM
+  keyId?: number;
+}
+
+export interface ModelUsageStats {
+  model: string;
+  requestCount: number;
+  inputTokens: number;
+  outputTokens: number;
+  cacheCreationTokens: number;
+  cacheReadTokens: number;
+  totalTokens: number;
+  totalCost: number;
+}
+
+export interface DailyUsageStats {
+  date: string;
+  requestCount: number;
+  totalTokens: number;
+  totalCost: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  cacheCreationTokens: number;
+  cacheReadTokens: number;
+  models: ModelUsageStats[];
+}
+
+export interface MonthlyUsageStatsResult {
+  month: string;
+  days: DailyUsageStats[];
+  totals: {
+    requestCount: number;
+    totalTokens: number;
+    totalCost: number;
+    totalInputTokens: number;
+    totalOutputTokens: number;
+    cacheCreationTokens: number;
+    cacheReadTokens: number;
+  };
+}
+
 /**
  * 查询使用日志（支持多种筛选条件和分页）
  */
@@ -68,13 +110,27 @@ export async function findUsageLogsWithDetails(filters: UsageLogFilters): Promis
     userId,
     keyId,
     providerId,
-    startDate,
-    endDate,
+    date,
     statusCode,
     model,
     page = 1,
-    pageSize = 50,
+    pageSize = 20,
   } = filters;
+
+  // 将单个日期转换为时间范围（当天 00:00:00 到 23:59:59.999）
+  let startDate: Date | undefined;
+  let endDate: Date | undefined;
+
+  if (date) {
+    // 开始时间：当天 00:00:00
+    startDate = new Date(date);
+    startDate.setHours(0, 0, 0, 0);
+
+    // 结束时间：次日 00:00:00（使用 < 运算符，相当于当天 23:59:59.999）
+    endDate = new Date(date);
+    endDate.setDate(endDate.getDate() + 1);
+    endDate.setHours(0, 0, 0, 0);
+  }
 
   // 构建查询条件
   const conditions = [isNull(messageRequest.deletedAt)];
@@ -130,7 +186,7 @@ export async function findUsageLogsWithDetails(filters: UsageLogFilters): Promis
     const localTimeStr = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 
     conditions.push(
-      sql`(${messageRequest.createdAt} AT TIME ZONE 'UTC' AT TIME ZONE ${timezone})::timestamp >= ${localTimeStr}::timestamp`
+      sql`(${messageRequest.createdAt} AT TIME ZONE ${timezone})::timestamp >= ${localTimeStr}::timestamp`
     );
   }
 
@@ -144,7 +200,7 @@ export async function findUsageLogsWithDetails(filters: UsageLogFilters): Promis
     const localTimeStr = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 
     conditions.push(
-      sql`(${messageRequest.createdAt} AT TIME ZONE 'UTC' AT TIME ZONE ${timezone})::timestamp < ${localTimeStr}::timestamp`
+      sql`(${messageRequest.createdAt} AT TIME ZONE ${timezone})::timestamp < ${localTimeStr}::timestamp`
     );
   }
 
@@ -267,4 +323,196 @@ export async function getUsedStatusCodes(): Promise<number[]> {
     .orderBy(messageRequest.statusCode);
 
   return results.map((r) => r.statusCode).filter((c): c is number => c !== null);
+}
+
+function parseMonth(month?: string): Date {
+  if (!month) {
+    const now = new Date();
+    now.setDate(1);
+    now.setHours(0, 0, 0, 0);
+    return now;
+  }
+
+  const [yearStr, monthStr] = month.split("-");
+  const year = parseInt(yearStr, 10);
+  const monthIndex = parseInt(monthStr, 10) - 1;
+
+  if (Number.isNaN(year) || Number.isNaN(monthIndex)) {
+    const now = new Date();
+    now.setDate(1);
+    now.setHours(0, 0, 0, 0);
+    return now;
+  }
+
+  return new Date(year, monthIndex, 1, 0, 0, 0, 0);
+}
+
+function quoteLiteral(value: string): string {
+  return `'${value.replace(/'/g, "''")}'`;
+}
+
+export async function getMonthlyUsageStats(
+  filters: MonthlyUsageStatsFilters
+): Promise<MonthlyUsageStatsResult> {
+  const { userId, month, keyId } = filters;
+  const monthDate = parseMonth(month);
+  const startDate = new Date(monthDate);
+  const endDate = new Date(monthDate);
+  endDate.setMonth(endDate.getMonth() + 1);
+
+  const monthLabel = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, "0")}`;
+
+  const emptyResult: MonthlyUsageStatsResult = {
+    month: monthLabel,
+    days: [],
+    totals: {
+      requestCount: 0,
+      totalTokens: 0,
+      totalCost: 0,
+      totalInputTokens: 0,
+      totalOutputTokens: 0,
+      cacheCreationTokens: 0,
+      cacheReadTokens: 0,
+    },
+  };
+
+  const timezone = getEnvConfig().TZ;
+  const timezoneLiteral = sql.raw(quoteLiteral(timezone));
+  const conditions = [isNull(messageRequest.deletedAt), eq(messageRequest.userId, userId)];
+
+  if (keyId !== undefined) {
+    const keyRow = await db
+      .select({ key: keysTable.key })
+      .from(keysTable)
+      .where(and(eq(keysTable.id, keyId), isNull(keysTable.deletedAt)))
+      .limit(1);
+
+    if (keyRow.length === 0) {
+      return emptyResult;
+    }
+
+    conditions.push(eq(messageRequest.key, keyRow[0].key));
+  }
+
+  const buildLocalTime = (date: Date) => {
+    const year = date.getFullYear();
+    const monthValue = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    const hours = String(date.getHours()).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+    const seconds = String(date.getSeconds()).padStart(2, "0");
+    return `${year}-${monthValue}-${day} ${hours}:${minutes}:${seconds}`;
+  };
+
+  const startStr = buildLocalTime(startDate);
+  const endStr = buildLocalTime(endDate);
+
+  conditions.push(
+    sql`(${messageRequest.createdAt} AT TIME ZONE ${timezoneLiteral})::timestamp >= ${startStr}::timestamp`
+  );
+  conditions.push(
+    sql`(${messageRequest.createdAt} AT TIME ZONE ${timezoneLiteral})::timestamp < ${endStr}::timestamp`
+  );
+
+  const dayExpression = sql`date_trunc('day', (${messageRequest.createdAt} AT TIME ZONE ${timezoneLiteral}))`;
+
+  const dailyRows = await db
+    .select({
+      date: sql<string>`to_char(${dayExpression}, 'YYYY-MM-DD')`,
+      requestCount: sql<number>`count(*)::double precision`,
+      totalCost: sql<string>`COALESCE(sum(${messageRequest.costUsd}), 0)`,
+      totalInputTokens: sql<number>`COALESCE(sum(${messageRequest.inputTokens})::double precision, 0::double precision)`,
+      totalOutputTokens: sql<number>`COALESCE(sum(${messageRequest.outputTokens})::double precision, 0::double precision)`,
+      cacheCreationTokens: sql<number>`COALESCE(sum(${messageRequest.cacheCreationInputTokens})::double precision, 0::double precision)`,
+      cacheReadTokens: sql<number>`COALESCE(sum(${messageRequest.cacheReadInputTokens})::double precision, 0::double precision)`,
+    })
+    .from(messageRequest)
+    .where(and(...conditions))
+    .groupBy(dayExpression)
+    .orderBy(sql`${dayExpression} DESC`);
+
+  const modelRows = await db
+    .select({
+      date: sql<string>`to_char(${dayExpression}, 'YYYY-MM-DD')`,
+      model: messageRequest.model,
+      requestCount: sql<number>`count(*)::double precision`,
+      inputTokens: sql<number>`COALESCE(sum(${messageRequest.inputTokens})::double precision, 0::double precision)`,
+      outputTokens: sql<number>`COALESCE(sum(${messageRequest.outputTokens})::double precision, 0::double precision)`,
+      cacheCreationTokens: sql<number>`COALESCE(sum(${messageRequest.cacheCreationInputTokens})::double precision, 0::double precision)`,
+      cacheReadTokens: sql<number>`COALESCE(sum(${messageRequest.cacheReadInputTokens})::double precision, 0::double precision)`,
+      totalCost: sql<string>`COALESCE(sum(${messageRequest.costUsd}), 0)`,
+    })
+    .from(messageRequest)
+    .where(and(...conditions))
+    .groupBy(dayExpression, messageRequest.model)
+    .orderBy(sql`${dayExpression} DESC`, sql`count(*)::double precision DESC`);
+
+  const dayMap = new Map<string, DailyUsageStats>();
+
+  dailyRows.forEach((row) => {
+    const totalCacheTokens = (row.cacheCreationTokens ?? 0) + (row.cacheReadTokens ?? 0);
+    const totalTokens =
+      (row.totalInputTokens ?? 0) + (row.totalOutputTokens ?? 0) + totalCacheTokens;
+
+    dayMap.set(row.date, {
+      date: row.date,
+      requestCount: row.requestCount ?? 0,
+      totalTokens,
+      totalCost: parseFloat(row.totalCost ?? "0"),
+      totalInputTokens: row.totalInputTokens ?? 0,
+      totalOutputTokens: row.totalOutputTokens ?? 0,
+      cacheCreationTokens: row.cacheCreationTokens ?? 0,
+      cacheReadTokens: row.cacheReadTokens ?? 0,
+      models: [],
+    });
+  });
+
+  modelRows.forEach((row) => {
+    const target = dayMap.get(row.date);
+    if (!target) return;
+
+    const totalCacheTokens = (row.cacheCreationTokens ?? 0) + (row.cacheReadTokens ?? 0);
+    const totalTokens = (row.inputTokens ?? 0) + (row.outputTokens ?? 0) + totalCacheTokens;
+
+    target.models.push({
+      model: row.model ?? "未指定模型",
+      requestCount: row.requestCount ?? 0,
+      inputTokens: row.inputTokens ?? 0,
+      outputTokens: row.outputTokens ?? 0,
+      cacheCreationTokens: row.cacheCreationTokens ?? 0,
+      cacheReadTokens: row.cacheReadTokens ?? 0,
+      totalTokens,
+      totalCost: parseFloat(row.totalCost ?? "0"),
+    });
+  });
+
+  const days = Array.from(dayMap.values()).sort((a, b) => (a.date < b.date ? 1 : -1));
+
+  const totals = days.reduce(
+    (acc, day) => {
+      acc.requestCount += day.requestCount;
+      acc.totalCost += day.totalCost;
+      acc.totalTokens += day.totalTokens;
+      acc.totalInputTokens += day.totalInputTokens;
+      acc.totalOutputTokens += day.totalOutputTokens;
+      acc.cacheCreationTokens += day.cacheCreationTokens;
+      acc.cacheReadTokens += day.cacheReadTokens;
+      return acc;
+    },
+    {
+      requestCount: 0,
+      totalCost: 0,
+      totalTokens: 0,
+      totalInputTokens: 0,
+      totalOutputTokens: 0,
+      cacheCreationTokens: 0,
+      cacheReadTokens: 0,
+    }
+  );
+
+  return {
+    month: monthLabel,
+    days,
+    totals,
+  };
 }

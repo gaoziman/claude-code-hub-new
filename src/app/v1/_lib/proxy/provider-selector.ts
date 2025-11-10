@@ -621,6 +621,7 @@ export class ProxyProviderResolver {
           limit_5h_usd: p.limit5hUsd,
           limit_weekly_usd: p.limitWeeklyUsd,
           limit_monthly_usd: p.limitMonthlyUsd,
+          total_limit_usd: null,
         });
 
         if (!costCheck.allowed) {

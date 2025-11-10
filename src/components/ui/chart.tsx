@@ -258,12 +258,27 @@ function ChartLegendContent({
   payload,
   verticalAlign = "bottom",
   nameKey,
+  interactive = false,
+  hiddenKeys,
+  onToggleSeries,
 }: React.ComponentProps<"div"> &
   Pick<RechartsPrimitive.LegendProps, "payload" | "verticalAlign"> & {
     hideIcon?: boolean
     nameKey?: string
+    interactive?: boolean
+    hiddenKeys?: string[]
+    onToggleSeries?: (seriesKey: string) => void
   }) {
   const { config } = useChart()
+
+  const hiddenSet = React.useMemo(() => new Set(hiddenKeys ?? []), [hiddenKeys])
+  const handleKeyToggle = (event: React.KeyboardEvent<HTMLButtonElement>, key: string) => {
+    if (!interactive || !onToggleSeries) return
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault()
+      onToggleSeries(key)
+    }
+  }
 
   if (!payload?.length) {
     return null
@@ -282,14 +297,10 @@ function ChartLegendContent({
         .map((item) => {
           const key = `${nameKey || item.dataKey || "value"}`
           const itemConfig = getPayloadConfigFromPayload(config, item, key)
+          const isHidden = hiddenSet.has(key)
 
-          return (
-            <div
-              key={item.value}
-              className={cn(
-                "[&>svg]:text-muted-foreground flex items-center gap-1.5 [&>svg]:h-3 [&>svg]:w-3"
-              )}
-            >
+          const legendContent = (
+            <>
               {itemConfig?.icon && !hideIcon ? (
                 <itemConfig.icon />
               ) : (
@@ -301,6 +312,37 @@ function ChartLegendContent({
                 />
               )}
               {itemConfig?.label}
+            </>
+          )
+
+          if (interactive) {
+            return (
+              <button
+                key={item.value}
+                type="button"
+                onClick={() => onToggleSeries?.(key)}
+                onKeyDown={(event) => handleKeyToggle(event, key)}
+                aria-pressed={!isHidden}
+                className={cn(
+                  "[&>svg]:text-muted-foreground inline-flex items-center gap-1.5 rounded-full border border-transparent bg-transparent px-2 py-1 text-left text-xs font-medium transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  isHidden && "opacity-45",
+                  "cursor-pointer select-none"
+                )}
+              >
+                {legendContent}
+              </button>
+            )
+          }
+
+          return (
+            <div
+              key={item.value}
+              className={cn(
+                "[&>svg]:text-muted-foreground flex items-center gap-1.5 [&>svg]:h-3 [&>svg]:w-3",
+                isHidden && "opacity-45"
+              )}
+            >
+              {legendContent}
             </div>
           )
         })}

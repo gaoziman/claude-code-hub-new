@@ -24,13 +24,19 @@ import {
   AlertDialogTitle as AlertTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import type { ProviderDisplay, ProviderType, CodexInstructionsStrategy } from "@/types/provider";
+import type {
+  ProviderDisplay,
+  ProviderType,
+  CodexInstructionsStrategy,
+  ProviderGroupSummary,
+} from "@/types/provider";
 import { validateNumericField, isValidUrl } from "@/lib/utils/validation";
 import { PROVIDER_DEFAULTS } from "@/lib/constants/provider.constants";
 import { toast } from "sonner";
 import { ModelMultiSelect } from "../model-multi-select";
 import { ModelRedirectEditor } from "../model-redirect-editor";
 import { ProxyTestButton } from "./proxy-test-button";
+import { ProviderGroupSelector } from "../provider-group-selector";
 
 type Mode = "create" | "edit";
 
@@ -40,6 +46,9 @@ interface ProviderFormProps {
   provider?: ProviderDisplay; // edit 模式需要，create 可空
   cloneProvider?: ProviderDisplay; // create 模式用于克隆数据
   enableMultiProviderTypes: boolean;
+  availableGroups?: ProviderGroupSummary[];
+  canManageGroups?: boolean;
+  onGroupsUpdated?: () => void;
 }
 
 export function ProviderForm({
@@ -48,6 +57,9 @@ export function ProviderForm({
   provider,
   cloneProvider,
   enableMultiProviderTypes,
+  availableGroups = [],
+  canManageGroups = false,
+  onGroupsUpdated,
 }: ProviderFormProps) {
   const isEdit = mode === "edit";
   const [isPending, startTransition] = useTransition();
@@ -68,8 +80,10 @@ export function ProviderForm({
   );
   const [priority, setPriority] = useState<number>(sourceProvider?.priority ?? 0);
   const [weight, setWeight] = useState<number>(sourceProvider?.weight ?? 1);
-  const [costMultiplier, setCostMultiplier] = useState<number>(
-    sourceProvider?.costMultiplier ?? 1.0
+  const [costMultiplier, setCostMultiplier] = useState<string>(
+    sourceProvider?.costMultiplier !== undefined
+      ? String(sourceProvider.costMultiplier)
+      : "0.6"
   );
   const [groupTag, setGroupTag] = useState<string>(sourceProvider?.groupTag ?? "");
   const [limit5hUsd, setLimit5hUsd] = useState<number | null>(sourceProvider?.limit5hUsd ?? null);
@@ -164,7 +178,10 @@ export function ProviderForm({
             join_claude_pool: joinClaudePool,
             priority: priority,
             weight: weight,
-            cost_multiplier: costMultiplier,
+          cost_multiplier:
+            Number.isFinite(parseFloat(costMultiplier)) && costMultiplier !== ""
+              ? Math.max(0, parseFloat(costMultiplier))
+              : 0.6,
             group_tag: groupTag.trim() || null,
             limit_5h_usd: limit5hUsd,
             limit_weekly_usd: limitWeeklyUsd,
@@ -204,7 +221,10 @@ export function ProviderForm({
             is_enabled: PROVIDER_DEFAULTS.IS_ENABLED,
             weight: weight,
             priority: priority,
-            cost_multiplier: costMultiplier,
+          cost_multiplier:
+            Number.isFinite(parseFloat(costMultiplier)) && costMultiplier !== ""
+              ? Math.max(0, parseFloat(costMultiplier))
+              : 0.6,
             group_tag: groupTag.trim() || null,
             limit_5h_usd: limit5hUsd,
             limit_weekly_usd: limitWeeklyUsd,
@@ -241,7 +261,7 @@ export function ProviderForm({
           setJoinClaudePool(false);
           setPriority(0);
           setWeight(1);
-          setCostMultiplier(1.0);
+          setCostMultiplier("0.6");
           setGroupTag("");
           setLimit5hUsd(null);
           setLimitWeeklyUsd(null);
@@ -492,11 +512,12 @@ export function ProviderForm({
                 id={isEdit ? "edit-cost" : "cost"}
                 type="number"
                 value={costMultiplier}
-                onChange={(e) => setCostMultiplier(parseFloat(e.target.value) || 1.0)}
-                placeholder="1.0"
+                onChange={(e) => setCostMultiplier(e.target.value)}
+                placeholder="0.6"
                 disabled={isPending}
                 min="0"
                 step="0.0001"
+                inputMode="decimal"
               />
               <p className="text-xs text-muted-foreground">
                 成本计算倍数。官方供应商=1.0，便宜 20%=0.8，贵 20%=1.2（支持最多 4 位小数）
@@ -504,13 +525,14 @@ export function ProviderForm({
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor={isEdit ? "edit-group" : "group"}>供应商分组</Label>
-            <Input
-              id={isEdit ? "edit-group" : "group"}
+            <Label>供应商分组</Label>
+            <ProviderGroupSelector
               value={groupTag}
-              onChange={(e) => setGroupTag(e.target.value)}
-              placeholder="例如: premium, economy"
+              onChange={setGroupTag}
+              groups={availableGroups}
               disabled={isPending}
+              canManageGroups={canManageGroups}
+              onGroupsUpdated={onGroupsUpdated}
             />
             <p className="text-xs text-muted-foreground">
               供应商分组标签。只有用户的 providerGroup

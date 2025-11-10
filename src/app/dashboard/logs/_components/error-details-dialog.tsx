@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import {
   Dialog,
@@ -12,7 +12,17 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, ArrowRight, CheckCircle, ExternalLink, Loader2, Monitor } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowRight,
+  CheckCircle,
+  ExternalLink,
+  Loader2,
+  FileWarning,
+  MessageSquare,
+  Smartphone,
+  Info,
+} from "lucide-react";
 import type { ProviderChainItem } from "@/types/message";
 import { hasSessionMessages } from "@/actions/active-sessions";
 import { formatProviderTimeline } from "@/lib/utils/provider-chain-formatter";
@@ -88,6 +98,16 @@ export function ErrorDetailsDialog({
     }
   }, [open, sessionId]);
 
+  const formatErrorMessage = (message: string | null) => {
+    if (!message) return null;
+    try {
+      const parsed = JSON.parse(message);
+      return JSON.stringify(parsed, null, 2);
+    } catch {
+      return message;
+    }
+  };
+
   const getStatusBadgeVariant = () => {
     if (isInProgress) return "outline"; // 请求中使用 outline 样式
     if (isSuccess) return "default";
@@ -107,7 +127,7 @@ export function ErrorDetailsDialog({
           </Badge>
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {isInProgress ? (
@@ -128,191 +148,129 @@ export function ErrorDetailsDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6 mt-4">
-          {/* 拦截信息 */}
-          {isBlocked && blockedBy && (
-            <div className="space-y-2">
-              <h4 className="font-semibold text-sm flex items-center gap-2">
-                <AlertCircle className="h-4 w-4 text-orange-600" />
-                拦截信息
-              </h4>
-              <div className="rounded-md border bg-orange-50 dark:bg-orange-950/20 p-4 space-y-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-medium text-orange-900 dark:text-orange-100">
-                    拦截类型:
-                  </span>
-                  <Badge variant="outline" className="border-orange-600 text-orange-600">
-                    {blockedByLabels[blockedBy] || blockedBy}
-                  </Badge>
+        <div className="mt-4 space-y-6">
+          <div className="grid gap-4 lg:grid-cols-3">
+            <InfoCard
+              icon={<Info className="h-4 w-4 text-blue-500" />}
+              title="会话 ID"
+              description="用于追踪完整请求链路"
+              action={
+                hasMessages && !checkingMessages && sessionId ? (
+                  <Link href={`/dashboard/sessions/${sessionId}/messages`}>
+                    <Button variant="outline" size="sm">
+                      <ExternalLink className="mr-2 h-4 w-4" />
+                      查看消息
+                    </Button>
+                  </Link>
+                ) : null
+              }
+            >
+              <code className="block overflow-hidden text-ellipsis whitespace-pre-wrap break-all text-xs font-mono">
+                {sessionId ?? "-"}
+              </code>
+            </InfoCard>
+
+            <InfoCard
+              icon={<MessageSquare className="h-4 w-4 text-purple-500" />}
+              title="消息数量"
+              description="该 Session 累计消息条数"
+            >
+              <span className="text-base font-semibold">
+                {messagesCount !== null && messagesCount !== undefined ? messagesCount : "-"}
+              </span>
+            </InfoCard>
+
+            {userAgent && (
+              <InfoCard
+                icon={<Smartphone className="h-4 w-4 text-emerald-500" />}
+                title="客户端信息"
+                description="请求来源及版本"
+              >
+                <code className="block overflow-hidden text-ellipsis whitespace-pre-wrap break-all text-xs font-mono">
+                  {userAgent}
+                </code>
+              </InfoCard>
+            )}
+
+            {originalModel && currentModel && originalModel !== currentModel && (
+              <InfoCard
+                icon={<ArrowRight className="h-4 w-4 text-amber-500" />}
+                title="模型重定向"
+                description="请求与实际调用模型"
+              >
+                <div className="space-y-2 text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground">请求</span>
+                    <Badge variant="outline">{originalModel}</Badge>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground">实际</span>
+                    <Badge variant="secondary">{currentModel}</Badge>
+                  </div>
+                  <p className="text-muted-foreground">
+                    计费优先使用请求模型价格，若无则使用实际模型价格。
+                  </p>
                 </div>
+              </InfoCard>
+            )}
+
+            {isBlocked && blockedBy && (
+              <InfoCard
+                icon={<AlertCircle className="h-4 w-4 text-orange-500" />}
+                title="拦截信息"
+                description="命中敏感词或策略"
+              >
+                <Badge variant="outline" className="border-orange-500 text-orange-600">
+                  {blockedByLabels[blockedBy] || blockedBy}
+                </Badge>
                 {parsedBlockedReason && (
-                  <div className="space-y-1 text-xs">
+                  <div className="mt-3 space-y-2 text-xs text-orange-800">
                     {parsedBlockedReason.word && (
-                      <div className="flex items-baseline gap-2">
-                        <span className="font-medium text-orange-900 dark:text-orange-100">
-                          敏感词:
-                        </span>
-                        <code className="bg-orange-100 dark:bg-orange-900/50 px-2 py-0.5 rounded text-orange-900 dark:text-orange-100">
+                      <div className="flex items-center gap-2">
+                        <span>敏感词</span>
+                        <code className="rounded bg-orange-100 px-2 py-0.5">
                           {parsedBlockedReason.word}
                         </code>
                       </div>
                     )}
                     {parsedBlockedReason.matchType && (
-                      <div className="flex items-baseline gap-2">
-                        <span className="font-medium text-orange-900 dark:text-orange-100">
-                          匹配类型:
-                        </span>
-                        <span className="text-orange-800 dark:text-orange-200">
-                          {parsedBlockedReason.matchType === 'contains' && '包含匹配'}
-                          {parsedBlockedReason.matchType === 'exact' && '精确匹配'}
-                          {parsedBlockedReason.matchType === 'regex' && '正则表达式'}
-                        </span>
+                      <div>
+                        匹配类型：{parsedBlockedReason.matchType}
                       </div>
                     )}
                     {parsedBlockedReason.matchedText && (
-                      <div className="flex flex-col gap-1">
-                        <span className="font-medium text-orange-900 dark:text-orange-100">
-                          匹配内容:
-                        </span>
-                        <pre className="bg-orange-100 dark:bg-orange-900/50 px-2 py-1 rounded text-orange-900 dark:text-orange-100 whitespace-pre-wrap break-words">
+                      <div>
+                        <div className="mb-1">匹配内容：</div>
+                        <pre className="rounded bg-orange-50 px-2 py-1 text-[11px]">
                           {parsedBlockedReason.matchedText}
                         </pre>
                       </div>
                     )}
                   </div>
                 )}
-              </div>
-            </div>
-          )}
+              </InfoCard>
+            )}
+          </div>
 
-          {/* Session 信息 */}
-          {sessionId && (
-            <div className="space-y-2">
-              <h4 className="font-semibold text-sm">会话 ID</h4>
-              <div className="flex items-center gap-3">
-                <div className="flex-1 rounded-md border bg-muted/50 p-3">
-                  <code className="text-xs font-mono break-all">
-                    {sessionId}
-                  </code>
-                </div>
-                {hasMessages && !checkingMessages && (
-                  <Link href={`/dashboard/sessions/${sessionId}/messages`}>
-                    <Button variant="outline" size="sm">
-                      <ExternalLink className="h-4 w-4 mr-2" />
-                      查看详情
-                    </Button>
-                  </Link>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Messages 数量 */}
-          {messagesCount !== null && messagesCount !== undefined && (
-            <div className="space-y-2">
-              <h4 className="font-semibold text-sm">消息数量</h4>
-              <div className="rounded-md border bg-muted/50 p-3">
-                <div className="text-sm">
-                  <span className="font-medium">Messages:</span>{" "}
-                  <code className="text-base font-mono font-semibold">{messagesCount}</code> 条
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* User-Agent 信息 */}
-          {userAgent && (
-            <div className="space-y-2">
-              <h4 className="font-semibold text-sm flex items-center gap-2">
-                <Monitor className="h-4 w-4 text-blue-600" />
-                客户端信息
-              </h4>
-              <div className="rounded-md border bg-muted/50 p-3">
-                <code className="text-xs font-mono break-all">
-                  {userAgent}
-                </code>
-              </div>
-            </div>
-          )}
-
-          {/* 模型重定向信息 */}
-          {originalModel && currentModel && originalModel !== currentModel && (
-            <div className="space-y-2">
-              <h4 className="font-semibold text-sm flex items-center gap-2">
-                <ArrowRight className="h-4 w-4 text-blue-600" />
-                模型重定向
-              </h4>
-              <div className="rounded-md border bg-blue-50 dark:bg-blue-950/20 p-4 space-y-3">
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="font-medium text-blue-900 dark:text-blue-100">
-                      请求模型:
-                    </span>
-                    <div className="mt-1">
-                      <code className="bg-blue-100 dark:bg-blue-900/50 px-2 py-1 rounded text-blue-900 dark:text-blue-100">
-                        {originalModel}
-                      </code>
-                    </div>
-                  </div>
-                  <div>
-                    <span className="font-medium text-blue-900 dark:text-blue-100">
-                      实际调用:
-                    </span>
-                    <div className="mt-1">
-                      <code className="bg-blue-100 dark:bg-blue-900/50 px-2 py-1 rounded text-blue-900 dark:text-blue-100">
-                        {currentModel}
-                      </code>
-                    </div>
-                  </div>
-                </div>
-                <div className="text-xs text-blue-800 dark:text-blue-200 border-t border-blue-200 dark:border-blue-800 pt-2">
-                  <span className="font-medium">计费说明:</span>{" "}
-                  系统优先使用请求模型（{originalModel}）的价格计费。
-                  如果价格表中不存在该模型，则使用实际调用模型（{currentModel}）的价格。
-                </div>
-              </div>
-            </div>
-          )}
-
+          {/* 拦截信息 */}
           {/* 最终错误信息 */}
           {errorMessage && (
-            <div className="space-y-2">
-              <h4 className="font-semibold text-sm flex items-center gap-2">
-                <AlertCircle className="h-4 w-4" />
-                错误信息
-              </h4>
-              <div className="rounded-md border bg-destructive/10 p-4">
-                <pre className="text-xs text-destructive whitespace-pre-wrap break-words font-mono">
-                  {errorMessage}
+            <InfoCard
+              icon={<FileWarning className="h-4 w-4 text-red-500" />}
+              title="错误信息"
+              description="供应商返回的原始错误"
+            >
+              <div className="rounded-xl border bg-destructive/5 p-0 font-mono text-xs text-destructive">
+                <pre className="whitespace-pre-wrap break-words p-3">
+                  {formatErrorMessage(errorMessage)}
                 </pre>
               </div>
-            </div>
+            </InfoCard>
           )}
 
           {/* 供应商决策链时间线 */}
           {providerChain && providerChain.length > 0 && (
-            <div className="space-y-2">
-              <h4 className="font-semibold text-sm">供应商决策链时间线</h4>
-
-              {(() => {
-                const { timeline, totalDuration } = formatProviderTimeline(providerChain);
-                return (
-                  <>
-                    <div className="rounded-md border bg-muted/50 p-4 max-h-[500px] overflow-y-auto overflow-x-hidden">
-                      <pre className="text-xs whitespace-pre-wrap break-words font-mono leading-relaxed">
-                        {timeline}
-                      </pre>
-                    </div>
-
-                    {totalDuration > 0 && (
-                      <div className="text-xs text-muted-foreground text-right">
-                        总耗时: {totalDuration}ms
-                      </div>
-                    )}
-                  </>
-                );
-              })()}
-            </div>
+            <TimelineCard providerChain={providerChain} />
           )}
 
           {/* 无错误信息的情况 */}
@@ -328,5 +286,108 @@ export function ErrorDetailsDialog({
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function InfoCard({
+  title,
+  description,
+  icon,
+  children,
+  action,
+}: {
+  title: string;
+  description?: string;
+  icon?: React.ReactNode;
+  children: React.ReactNode;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col justify-between rounded-2xl border bg-muted/30 p-4 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            {icon}
+            <span>{title}</span>
+          </div>
+          {description && <p className="mt-1 text-xs text-muted-foreground">{description}</p>}
+        </div>
+        {action}
+      </div>
+      <div className="mt-3 text-sm text-foreground">{children}</div>
+    </div>
+  );
+}
+
+function TimelineCard({ providerChain }: { providerChain: ProviderChainItem[] }) {
+  const { timeline, totalDuration } = formatProviderTimeline(providerChain);
+
+  const segments = useMemo(() => {
+    const startTag = "[[[CODE_START]]]";
+    const endTag = "[[[CODE_END]]]";
+    const parts: { type: "text" | "code"; content: string }[] = [];
+
+    let remaining = timeline;
+    while (remaining.length > 0) {
+      const startIndex = remaining.indexOf(startTag);
+      if (startIndex === -1) {
+        if (remaining.trim()) {
+          parts.push({ type: "text", content: remaining });
+        }
+        break;
+      }
+
+      if (startIndex > 0) {
+        parts.push({ type: "text", content: remaining.slice(0, startIndex) });
+      }
+
+      const afterStart = remaining.slice(startIndex + startTag.length);
+      const endIndex = afterStart.indexOf(endTag);
+      if (endIndex === -1) {
+        parts.push({ type: "code", content: afterStart.trim() });
+        break;
+      }
+
+      const codeContent = afterStart.slice(0, endIndex);
+      parts.push({ type: "code", content: codeContent.trim() });
+      remaining = afterStart.slice(endIndex + endTag.length);
+    }
+
+    return parts;
+  }, [timeline]);
+
+  return (
+    <div className="space-y-3 rounded-2xl border bg-background/80 p-4 shadow-sm">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-sm font-semibold">
+          <ArrowRight className="h-4 w-4 text-primary" />
+          供应商决策链时间线
+        </div>
+        {totalDuration > 0 && (
+          <span className="text-xs text-muted-foreground">总耗时：{totalDuration}ms</span>
+        )}
+      </div>
+      <div className="rounded-xl bg-muted/20 text-xs leading-relaxed">
+        <div className="max-h-[420px] overflow-auto space-y-3 p-4">
+          {segments.map((segment, idx) =>
+            segment.type === "code" ? (
+              <pre
+                key={`code-${idx}`}
+                className="whitespace-pre-wrap break-words rounded-lg border border-muted-foreground/20 bg-background p-3 font-mono text-xs"
+              >
+                {segment.content}
+              </pre>
+            ) : (
+              <pre
+                key={`text-${idx}`}
+                className="whitespace-pre-wrap break-words font-mono text-xs"
+              >
+                {segment.content}
+              </pre>
+            )
+          )}
+        </div>
+      </div>
+    </div>
   );
 }

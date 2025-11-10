@@ -1,20 +1,23 @@
 "use server";
 
-import { findUserList, createUser, updateUser, deleteUser, findUserById } from "@/repository/user";
+import { findUserList, createUser, updateUser, deleteUser } from "@/repository/user";
 import { logger } from "@/lib/logger";
-import { findKeyList, findKeyUsageToday, findKeysWithStatistics } from "@/repository/key";
+import { findKeyList, findKeyUsageInRange, findKeysWithStatistics } from "@/repository/key";
 import { revalidatePath } from "next/cache";
 import { randomBytes } from "node:crypto";
 import { type UserDisplay } from "@/types/user";
 import { maskKey } from "@/lib/utils/validation";
 import { CreateUserSchema, UpdateUserSchema } from "@/lib/validation/schemas";
-import { USER_DEFAULTS } from "@/lib/constants/user.constants";
+import { KEY_DEFAULTS } from "@/lib/constants/key.constants";
 import { createKey } from "@/repository/key";
 import { getSession } from "@/lib/auth";
 import type { ActionResult } from "./types";
+import { UsageTimeRangeValue, resolveUsageTimeRange } from "@/lib/time-range";
+
+type GetUsersParam = UsageTimeRangeValue | { timeRange?: UsageTimeRangeValue } | undefined;
 
 // 获取用户数据
-export async function getUsers(): Promise<UserDisplay[]> {
+export async function getUsers(params?: GetUsersParam): Promise<UserDisplay[]> {
   try {
     const session = await getSession();
     if (!session) {
@@ -35,40 +38,68 @@ export async function getUsers(): Promise<UserDisplay[]> {
 
     // 管理员可以看到完整Key，普通用户只能看到掩码
     const isAdmin = session.user.role === "admin";
+    const hasOwnerView = session.viewMode === "user";
+
+    const now = Date.now();
+
+    const rangeValue = typeof params === "string" ? params : params?.timeRange ?? "today";
+    const rangeBounds = resolveUsageTimeRange(rangeValue);
+    const rangeFilter = { start: rangeBounds.start, end: rangeBounds.end };
 
     const userDisplays: UserDisplay[] = await Promise.all(
       users.map(async (user) => {
         try {
           const [keys, usageRecords, keyStatistics] = await Promise.all([
             findKeyList(user.id),
-            findKeyUsageToday(user.id),
-            findKeysWithStatistics(user.id),
+            findKeyUsageInRange(user.id, rangeFilter),
+            findKeysWithStatistics(user.id, rangeFilter),
           ]);
 
           const usageMap = new Map(usageRecords.map((item) => [item.keyId, item.totalCost ?? 0]));
-
           const statisticsMap = new Map(keyStatistics.map((stat) => [stat.keyId, stat]));
+          const canManageThisUser = isAdmin || (hasOwnerView && session.user.id === user.id);
+
+          const expiresAtIso = user.expiresAt ? user.expiresAt.toISOString() : null;
+          const isExpired = Boolean(user.expiresAt && user.expiresAt.getTime() <= now);
+          const status: UserDisplay["status"] = !user.isEnabled
+            ? "disabled"
+            : isExpired
+              ? "expired"
+              : "active";
 
           return {
             id: user.id,
             name: user.name,
             note: user.description || undefined,
             role: user.role,
-            rpm: user.rpm,
-            dailyQuota: user.dailyQuota,
             providerGroup: user.providerGroup || undefined,
+            tags: user.tags ?? [],
+            isEnabled: user.isEnabled,
+            expiresAt: expiresAtIso,
+            isExpired,
+            status,
             keys: keys.map((key) => {
               const stats = statisticsMap.get(key.id);
-              // 用户可以查看和复制自己的密钥，管理员可以查看和复制所有密钥
-              const canUserManageKey = isAdmin || session.user.id === user.id;
+              const canUserManageKey = canManageThisUser;
+              const disabledReason = !key.isEnabled
+                ? ("key_disabled" as const)
+                : status === "disabled"
+                  ? ("user_disabled" as const)
+                  : status === "expired"
+                    ? ("user_expired" as const)
+                    : undefined;
+              const effectiveStatus = disabledReason ? "disabled" : ("enabled" as const);
+
               return {
                 id: key.id,
                 name: key.name,
                 maskedKey: maskKey(key.key),
                 fullKey: canUserManageKey ? key.key : undefined,
                 canCopy: canUserManageKey,
+                canManage: canUserManageKey,
                 expiresAt: key.expiresAt ? key.expiresAt.toISOString().split("T")[0] : "永不过期",
-                status: key.isEnabled ? "enabled" : ("disabled" as const),
+                status: effectiveStatus,
+                disabledReason,
                 createdAt: key.createdAt,
                 createdAtFormatted: key.createdAt.toLocaleString("zh-CN", {
                   year: "numeric",
@@ -83,26 +114,33 @@ export async function getUsers(): Promise<UserDisplay[]> {
                 lastUsedAt: stats?.lastUsedAt ?? null,
                 lastProviderName: stats?.lastProviderName ?? null,
                 modelStats: stats?.modelStats ?? [],
-                // Web UI 登录权限控制
+                rpmLimit: key.rpmLimit,
+                dailyQuota: key.dailyLimitUsd,
                 canLoginWebUi: key.canLoginWebUi,
-                // 限额配置
+                scope: key.scope,
                 limit5hUsd: key.limit5hUsd,
                 limitWeeklyUsd: key.limitWeeklyUsd,
                 limitMonthlyUsd: key.limitMonthlyUsd,
+                totalLimitUsd: key.totalLimitUsd,
                 limitConcurrentSessions: key.limitConcurrentSessions || 0,
               };
             }),
           };
         } catch (error) {
           logger.error(`获取用户 ${user.id} 的密钥失败:`, error);
+          const expiresAtIso = user.expiresAt ? user.expiresAt.toISOString() : null;
+          const isExpired = Boolean(user.expiresAt && user.expiresAt.getTime() <= now);
           return {
             id: user.id,
             name: user.name,
             note: user.description || undefined,
             role: user.role,
-            rpm: user.rpm,
-            dailyQuota: user.dailyQuota,
             providerGroup: user.providerGroup || undefined,
+            tags: user.tags ?? [],
+            isEnabled: user.isEnabled,
+            expiresAt: expiresAtIso,
+            isExpired,
+            status: !user.isEnabled ? "disabled" : isExpired ? "expired" : "active",
             keys: [],
           };
         }
@@ -121,8 +159,9 @@ export async function addUser(data: {
   name: string;
   note?: string;
   providerGroup?: string | null;
-  rpm?: number;
-  dailyQuota?: number;
+  tags?: string[];
+  expiresAt?: string | null;
+  isEnabled?: boolean;
 }): Promise<ActionResult> {
   try {
     // 权限检查：只有管理员可以添加用户
@@ -135,16 +174,26 @@ export async function addUser(data: {
       name: data.name,
       note: data.note || "",
       providerGroup: data.providerGroup || "",
-      rpm: data.rpm || USER_DEFAULTS.RPM,
-      dailyQuota: data.dailyQuota || USER_DEFAULTS.DAILY_QUOTA,
+      tags: data.tags ?? [],
+      expiresAt: data.expiresAt ?? null,
+      isEnabled: data.isEnabled ?? true,
     });
+
+    const normalizedTags = Array.from(
+      new Set((validatedData.tags ?? []).map((tag) => tag.trim()).filter(Boolean))
+    );
+    const expiresAtDate =
+      validatedData.expiresAt && typeof validatedData.expiresAt === "string"
+        ? new Date(validatedData.expiresAt)
+        : null;
 
     const newUser = await createUser({
       name: validatedData.name,
       description: validatedData.note || "",
       providerGroup: validatedData.providerGroup || null,
-      rpm: validatedData.rpm,
-      dailyQuota: validatedData.dailyQuota,
+      tags: normalizedTags,
+      expiresAt: expiresAtDate,
+      isEnabled: validatedData.isEnabled,
     });
 
     // 为新用户创建默认密钥
@@ -153,11 +202,15 @@ export async function addUser(data: {
       user_id: newUser.id,
       name: "default",
       key: generatedKey,
-      is_enabled: true,
+      is_enabled: validatedData.isEnabled ?? true,
       expires_at: undefined,
+      scope: 'owner',
+      rpm_limit: KEY_DEFAULTS.RPM,
+      daily_limit_usd: KEY_DEFAULTS.DAILY_QUOTA,
     });
 
     revalidatePath("/dashboard");
+    revalidatePath("/dashboard/clients");
     return { ok: true };
   } catch (error) {
     logger.error("添加用户失败:", error);
@@ -173,8 +226,9 @@ export async function editUser(
     name?: string;
     note?: string;
     providerGroup?: string | null;
-    rpm?: number;
-    dailyQuota?: number;
+    tags?: string[];
+    expiresAt?: string | null;
+    isEnabled?: boolean;
   }
 ): Promise<ActionResult> {
   try {
@@ -185,15 +239,29 @@ export async function editUser(
 
     const validatedData = UpdateUserSchema.parse(data);
 
+    const normalizedTags =
+      validatedData.tags === undefined
+        ? undefined
+        : Array.from(new Set(validatedData.tags.map((tag) => tag.trim()).filter(Boolean)));
+
+    let expiresAtValue: Date | null | undefined = undefined;
+    if (validatedData.expiresAt !== undefined) {
+      expiresAtValue = validatedData.expiresAt
+        ? new Date(validatedData.expiresAt)
+        : null;
+    }
+
     await updateUser(userId, {
       name: validatedData.name,
       description: validatedData.note,
       providerGroup: validatedData.providerGroup,
-      rpm: validatedData.rpm,
-      dailyQuota: validatedData.dailyQuota,
+      tags: normalizedTags,
+      expiresAt: expiresAtValue,
+      isEnabled: validatedData.isEnabled,
     });
 
     revalidatePath("/dashboard");
+    revalidatePath("/dashboard/clients");
     return { ok: true };
   } catch (error) {
     logger.error("更新用户失败:", error);
@@ -212,6 +280,7 @@ export async function removeUser(userId: number): Promise<ActionResult> {
 
     await deleteUser(userId);
     revalidatePath("/dashboard");
+    revalidatePath("/dashboard/clients");
     return { ok: true };
   } catch (error) {
     logger.error("删除用户失败:", error);
@@ -220,61 +289,23 @@ export async function removeUser(userId: number): Promise<ActionResult> {
   }
 }
 
-/**
- * 获取用户限额使用情况
- */
-export async function getUserLimitUsage(userId: number): Promise<
-  ActionResult<{
-    rpm: { current: number; limit: number; window: "per_minute" };
-    dailyCost: { current: number; limit: number; resetAt: Date };
-  }>
-> {
+export async function setUserStatus(
+  userId: number,
+  enabled: boolean
+): Promise<ActionResult<{ status: "active" | "disabled" }>> {
   try {
     const session = await getSession();
-    if (!session) {
-      return { ok: false, error: "未登录" };
-    }
-
-    const user = await findUserById(userId);
-    if (!user) {
-      return { ok: false, error: "用户不存在" };
-    }
-
-    // 权限检查：用户只能查看自己，管理员可以查看所有人
-    if (session.user.role !== "admin" && session.user.id !== userId) {
+    if (!session || session.user.role !== "admin") {
       return { ok: false, error: "无权限执行此操作" };
     }
 
-    // 动态导入避免循环依赖
-    const { sumUserCostToday } = await import("@/repository/statistics");
-    const { getDailyResetTime } = await import("@/lib/rate-limit/time-utils");
-
-    // 获取当前 RPM 使用情况（从 Redis）
-    // 注意：RPM 是实时的滑动窗口，无法直接获取"当前值"，这里返回 0
-    // 实际的 RPM 检查在请求时进行
-    const rpmCurrent = 0; // RPM 是动态滑动窗口，此处无法精确获取
-
-    // 获取每日消费（直接查询数据库）
-    const dailyCost = await sumUserCostToday(userId);
-
-    return {
-      ok: true,
-      data: {
-        rpm: {
-          current: rpmCurrent,
-          limit: user.rpm || 60,
-          window: "per_minute",
-        },
-        dailyCost: {
-          current: dailyCost,
-          limit: user.dailyQuota || 100,
-          resetAt: getDailyResetTime(),
-        },
-      },
-    };
+    await updateUser(userId, { isEnabled: enabled });
+    revalidatePath("/dashboard");
+    revalidatePath("/dashboard/clients");
+    return { ok: true, data: { status: enabled ? "active" : "disabled" } };
   } catch (error) {
-    logger.error("获取用户限额使用情况失败:", error);
-    const message = error instanceof Error ? error.message : "获取用户限额使用情况失败";
+    logger.error("更新用户状态失败:", error);
+    const message = error instanceof Error ? error.message : "更新用户状态失败";
     return { ok: false, error: message };
   }
 }

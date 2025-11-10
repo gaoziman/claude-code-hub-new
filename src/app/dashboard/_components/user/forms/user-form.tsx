@@ -1,39 +1,57 @@
 "use client";
-import { useTransition } from "react";
+import { useMemo, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { addUser, editUser } from "@/actions/users";
 import { DialogFormLayout } from "@/components/form/form-layout";
 import { TextField } from "@/components/form/form-field";
 import { useZodForm } from "@/lib/hooks/use-zod-form";
 import { CreateUserSchema } from "@/lib/validation/schemas";
-import { USER_DEFAULTS } from "@/lib/constants/user.constants";
 import { toast } from "sonner";
+import { TagInput } from "@/components/ui/tag-input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
+import { ProviderGroupSelect } from "./provider-group-select";
+import { Button } from "@/components/ui/button";
 
 interface UserFormProps {
   user?: {
     id: number;
     name: string;
     note?: string;
-    rpm: number;
-    dailyQuota: number;
     providerGroup?: string | null;
+    tags?: string[];
+    expiresAt?: string | null;
+    isEnabled?: boolean;
   };
   onSuccess?: () => void;
+  providerGroupOptions?: string[];
+  availableTagOptions?: string[];
 }
 
-export function UserForm({ user, onSuccess }: UserFormProps) {
+const MAX_TAGS = 10;
+
+export function UserForm({
+  user,
+  onSuccess,
+  providerGroupOptions = [],
+  availableTagOptions = [],
+}: UserFormProps) {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
   const isEdit = Boolean(user?.id);
 
   const form = useZodForm({
-    schema: CreateUserSchema, // Use CreateUserSchema for both, it has all fields with defaults
+    schema: CreateUserSchema,
     defaultValues: {
       name: user?.name || "",
       note: user?.note || "",
-      rpm: user?.rpm || USER_DEFAULTS.RPM,
-      dailyQuota: user?.dailyQuota || USER_DEFAULTS.DAILY_QUOTA,
       providerGroup: user?.providerGroup || "",
+      tags: user?.tags || [],
+      isEnabled: user?.isEnabled ?? true,
+      expiresAt: user?.expiresAt
+        ? new Date(user.expiresAt).toISOString().slice(0, 16)
+        : "",
     },
     onSubmit: async (data) => {
       startTransition(async () => {
@@ -43,17 +61,19 @@ export function UserForm({ user, onSuccess }: UserFormProps) {
             res = await editUser(user!.id, {
               name: data.name,
               note: data.note,
-              rpm: data.rpm,
-              dailyQuota: data.dailyQuota,
               providerGroup: data.providerGroup || null,
+              tags: data.tags,
+              expiresAt: data.expiresAt ?? null,
+              isEnabled: data.isEnabled,
             });
           } else {
             res = await addUser({
               name: data.name,
               note: data.note,
-              rpm: data.rpm,
-              dailyQuota: data.dailyQuota,
               providerGroup: data.providerGroup || null,
+              tags: data.tags,
+              expiresAt: data.expiresAt ?? null,
+              isEnabled: data.isEnabled,
             });
           }
 
@@ -72,6 +92,18 @@ export function UserForm({ user, onSuccess }: UserFormProps) {
       });
     },
   });
+
+  const currentTags = (form.values.tags as string[]) || [];
+  const handleSelectSuggestedTag = (tag: string) => {
+    const normalized = tag.trim();
+    if (!normalized || currentTags.length >= MAX_TAGS) {
+      return;
+    }
+    if (currentTags.some((item) => item.toLowerCase() === normalized.toLowerCase())) {
+      return;
+    }
+    form.setValue("tags", [...currentTags, normalized]);
+  };
 
   return (
     <DialogFormLayout
@@ -103,36 +135,115 @@ export function UserForm({ user, onSuccess }: UserFormProps) {
         {...form.getFieldProps("note")}
       />
 
-      <TextField
-        label="供应商分组"
-        maxLength={50}
-        placeholder="例如: premium 或 premium,economy（可选）"
-        description="指定用户专属的供应商分组（支持多个，逗号分隔）。系统将只从 groupTag 匹配的供应商中选择。留空=使用所有供应商"
-        {...form.getFieldProps("providerGroup")}
-      />
+      <div className="space-y-2">
+        <Label>供应商分组</Label>
+        <ProviderGroupSelect
+          value={(form.values.providerGroup as string) || ""}
+          onChange={(next) => form.setValue("providerGroup", next)}
+          options={providerGroupOptions}
+          placeholder="选择或输入供应商分组（可选）"
+        />
+        <p className="text-xs text-muted-foreground">
+          指定用户专属的供应商分组。可多选，系统仅会调度 groupTag 匹配的供应商。留空表示可使用全部供应商。
+        </p>
+      </div>
 
-      <TextField
-        label="RPM限制"
-        type="number"
-        required
-        min={1}
-        max={10000}
-        placeholder="每分钟请求数限制"
-        description={`默认值: ${USER_DEFAULTS.RPM}，范围: 1-10000`}
-        {...form.getFieldProps("rpm")}
-      />
+      <div className="space-y-2">
+        <Label>标签</Label>
+        <SuggestedTags
+          suggestions={availableTagOptions}
+          selectedTags={currentTags}
+          onSelect={handleSelectSuggestedTag}
+          maxTags={MAX_TAGS}
+        />
+        <TagInput
+          value={currentTags}
+          onChange={(next) => form.setValue("tags", next)}
+          placeholder="输入后按 Enter 添加标签"
+          maxTags={MAX_TAGS}
+        />
+        <p className="text-xs text-muted-foreground">可添加多个标签，最多 10 个，自定义筛选使用。</p>
+      </div>
 
-      <TextField
-        label="每日额度"
-        type="number"
-        required
-        min={0.01}
-        max={1000}
-        step={0.01}
-        placeholder="每日消费额度限制"
-        description={`默认值: $${USER_DEFAULTS.DAILY_QUOTA}，范围: $0.01-$1000`}
-        {...form.getFieldProps("dailyQuota")}
-      />
+      <div className="grid gap-2">
+        <Label>过期时间</Label>
+        <Input
+          type="datetime-local"
+          value={(form.values.expiresAt as string) || ""}
+          onChange={(event) => form.setValue("expiresAt", event.target.value)}
+        />
+        <p className="text-xs text-muted-foreground">留空表示永不过期，超过设置时间后该用户及其密钥将被自动停用。</p>
+      </div>
+
+      <div className="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-border/70 bg-muted/10 px-4 py-3">
+        <div>
+          <Label className="text-sm font-medium">启用状态</Label>
+          <p className="text-xs text-muted-foreground mt-1">关闭后该用户及其所有密钥都将无法调用 API。</p>
+        </div>
+        <Switch
+          checked={Boolean(form.values.isEnabled ?? true)}
+          onCheckedChange={(checked) => form.setValue("isEnabled", checked)}
+        />
+      </div>
     </DialogFormLayout>
+  );
+}
+
+function SuggestedTags({
+  suggestions,
+  selectedTags,
+  onSelect,
+  maxTags = 10,
+}: {
+  suggestions?: string[];
+  selectedTags: string[];
+  onSelect: (tag: string) => void;
+  maxTags?: number;
+}) {
+  const normalized = useMemo(() => {
+    if (!suggestions || suggestions.length === 0) {
+      return [];
+    }
+    const seen = new Set<string>();
+    for (const tag of suggestions) {
+      const trimmed = tag.trim();
+      if (!trimmed) continue;
+      if (!seen.has(trimmed)) {
+        seen.add(trimmed);
+      }
+    }
+    return Array.from(seen).slice(0, 12);
+  }, [suggestions]);
+
+  if (!normalized.length) {
+    return null;
+  }
+
+  const lowerSelected = selectedTags.map((tag) => tag.toLowerCase());
+  const atLimit = selectedTags.length >= maxTags;
+
+  return (
+    <div className="rounded-2xl border border-dashed border-border/60 bg-muted/10 px-3 py-2">
+      <p className="text-xs text-muted-foreground mb-2">常用标签（点击即可添加）</p>
+      <div className="flex flex-wrap gap-2">
+        {normalized.map((tag) => {
+          const selected = lowerSelected.includes(tag.toLowerCase());
+          const disabled = selected || atLimit;
+          return (
+            <Button
+              key={tag}
+              type="button"
+              size="sm"
+              variant={selected ? "secondary" : "outline"}
+              disabled={disabled}
+              className="rounded-full px-3 py-1 text-xs"
+              onClick={() => onSelect(tag)}
+            >
+              {tag}
+            </Button>
+          );
+        })}
+      </div>
+    </div>
   );
 }

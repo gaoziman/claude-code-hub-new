@@ -206,3 +206,8 @@ export interface UpdateProviderData {
   // CC (Concurrent Connections/Requests): 同一时刻能同时处理的请求数量
   cc?: number | null;
 }
+
+export interface ProviderGroupSummary {
+  name: string;
+  count: number;
+}

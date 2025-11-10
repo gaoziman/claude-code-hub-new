@@ -7,11 +7,19 @@ import { ServerCog } from "lucide-react";
 import { ProviderForm } from "./forms/provider-form";
 import { FormErrorBoundary } from "@/components/form-error-boundary";
 
+import type { ProviderGroupSummary } from "@/types/provider";
+
 interface AddProviderDialogProps {
   enableMultiProviderTypes: boolean;
+  providerGroups: ProviderGroupSummary[];
+  canManageGroups: boolean;
 }
 
-export function AddProviderDialog({ enableMultiProviderTypes }: AddProviderDialogProps) {
+export function AddProviderDialog({
+  enableMultiProviderTypes,
+  providerGroups,
+  canManageGroups,
+}: AddProviderDialogProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   return (
@@ -26,6 +34,9 @@ export function AddProviderDialog({ enableMultiProviderTypes }: AddProviderDialo
           <ProviderForm
             mode="create"
             enableMultiProviderTypes={enableMultiProviderTypes}
+            availableGroups={providerGroups}
+            canManageGroups={canManageGroups}
+            onGroupsUpdated={() => router.refresh()}
             onSuccess={() => {
               setOpen(false);
               // 刷新页面数据以显示新添加的服务商

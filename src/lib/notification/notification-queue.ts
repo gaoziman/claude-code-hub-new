@@ -1,7 +1,7 @@
 import Queue from "bull";
 import type { Job } from "bull";
 import { logger } from "@/lib/logger";
-import { sendWeChatNotification } from "@/lib/wechat/bot";
+import { getActiveChannels, sendNotificationThroughChannel } from "@/lib/notification/channels";
 import {
   buildCircuitBreakerAlert,
   buildDailyLeaderboard,
@@ -12,6 +12,7 @@ import {
 } from "@/lib/wechat/message-templates";
 import { generateDailyLeaderboard } from "./tasks/daily-leaderboard";
 import { generateCostAlerts } from "./tasks/cost-alert";
+import type { NotificationChannelConfig } from "@/types/notification";
 
 /**
  * 通知任务类型
@@ -23,7 +24,7 @@ export type NotificationJobType = "circuit-breaker" | "daily-leaderboard" | "cos
  */
 export interface NotificationJobData {
   type: NotificationJobType;
-  webhookUrl: string;
+  channels?: NotificationChannelConfig[];
   data?: CircuitBreakerAlertData | DailyLeaderboardData | CostAlertData; // 可选：定时任务会在执行时动态生成
 }
 
@@ -86,7 +87,7 @@ function setupQueueProcessor(queue: Queue.Queue<NotificationJobData>): void {
    * 处理通知任务
    */
   queue.process(async (job: Job<NotificationJobData>) => {
-    const { type, webhookUrl, data } = job.data;
+    const { type, channels = [], data } = job.data;
 
     logger.info({
       action: "notification_job_start",
@@ -95,6 +96,26 @@ function setupQueueProcessor(queue: Queue.Queue<NotificationJobData>): void {
     });
 
     try {
+      let targetChannels = getActiveChannels(channels);
+      if (targetChannels.length === 0 && type !== "circuit-breaker") {
+        const { getNotificationSettings } = await import("@/repository/notifications");
+        const fallbackSettings = await getNotificationSettings();
+        if (type === "daily-leaderboard") {
+          targetChannels = getActiveChannels(fallbackSettings.dailyLeaderboardChannels);
+        } else if (type === "cost-alert") {
+          targetChannels = getActiveChannels(fallbackSettings.costAlertChannels);
+        }
+      }
+
+      if (targetChannels.length === 0) {
+        logger.info({
+          action: "notification_job_skipped_no_channel",
+          jobId: job.id,
+          type,
+        });
+        return { success: true, skipped: true };
+      }
+
       // 构建消息内容
       let content: string;
       switch (type) {
@@ -145,10 +166,25 @@ function setupQueueProcessor(queue: Queue.Queue<NotificationJobData>): void {
       }
 
       // 发送通知
-      const result = await sendWeChatNotification(webhookUrl, content);
+      const sendResults = [];
+      for (const channel of targetChannels) {
+        const result = await sendNotificationThroughChannel(channel, content);
+        sendResults.push(result);
+        if (!result.success) {
+          logger.error({
+            action: "notification_channel_failed",
+            jobId: job.id,
+            type,
+            channel: channel.channel,
+            error: result.error,
+          });
+        }
+      }
 
-      if (!result.success) {
-        throw new Error(result.error || "Failed to send notification");
+      const failures = sendResults.filter((result) => !result.success);
+      if (failures.length) {
+        const errorMessage = failures.map((item) => `${item.channel}:${item.error ?? "unknown"}`).join("; ");
+        throw new Error(errorMessage);
       }
 
       logger.info({
@@ -191,14 +227,23 @@ function setupQueueProcessor(queue: Queue.Queue<NotificationJobData>): void {
  */
 export async function addNotificationJob(
   type: NotificationJobType,
-  webhookUrl: string,
+  channels: NotificationChannelConfig[],
   data: CircuitBreakerAlertData | DailyLeaderboardData | CostAlertData
 ): Promise<void> {
   try {
+    const activeChannels = getActiveChannels(channels);
+    if (activeChannels.length === 0) {
+      logger.warn({
+        action: "notification_job_skipped_no_channel_on_add",
+        type,
+      });
+      return;
+    }
+
     const queue = getNotificationQueue();
     await queue.add({
       type,
-      webhookUrl,
+      channels: activeChannels,
       data,
     });
 
@@ -245,18 +290,16 @@ export async function scheduleNotifications() {
     }
 
     // 调度每日排行榜任务
-    if (
-      settings.dailyLeaderboardEnabled &&
-      settings.dailyLeaderboardWebhook &&
-      settings.dailyLeaderboardTime
-    ) {
+    const leaderboardChannels = getActiveChannels(settings.dailyLeaderboardChannels);
+
+    if (settings.dailyLeaderboardEnabled && leaderboardChannels.length && settings.dailyLeaderboardTime) {
       const [hour, minute] = settings.dailyLeaderboardTime.split(":").map(Number);
       const cron = `${minute} ${hour} * * *`; // 每天指定时间
 
       await queue.add(
         {
           type: "daily-leaderboard",
-          webhookUrl: settings.dailyLeaderboardWebhook,
+          channels: leaderboardChannels,
           // data 字段省略，任务执行时动态生成
         },
         {
@@ -274,14 +317,15 @@ export async function scheduleNotifications() {
     }
 
     // 调度成本预警任务
-    if (settings.costAlertEnabled && settings.costAlertWebhook) {
+    const costChannels = getActiveChannels(settings.costAlertChannels);
+    if (settings.costAlertEnabled && costChannels.length) {
       const interval = settings.costAlertCheckInterval; // 分钟
       const cron = `*/${interval} * * * *`; // 每 N 分钟
 
       await queue.add(
         {
           type: "cost-alert",
-          webhookUrl: settings.costAlertWebhook,
+          channels: costChannels,
           // data 字段省略，任务执行时动态生成
         },
         {

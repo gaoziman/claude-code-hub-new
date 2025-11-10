@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Filter, RotateCcw } from "lucide-react";
 import { getModelList, getStatusCodeList } from "@/actions/usage-logs";
 import { getKeys } from "@/actions/keys";
 import type { UserDisplay } from "@/types/user";
@@ -18,30 +19,36 @@ import type { ProviderDisplay } from "@/types/provider";
 import type { Key } from "@/types/key";
 
 /**
- * 将 Date 对象格式化为 datetime-local 输入所需的格式
- * 保持本地时区，不转换为 UTC
+ * 将 Date 对象格式化为 date 输入所需的格式 (YYYY-MM-DD)
  */
-function formatDateTimeLocal(date: Date): string {
+function formatDate(date: Date): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
-  const hours = String(date.getHours()).padStart(2, '0');
-  const minutes = String(date.getMinutes()).padStart(2, '0');
-  return `${year}-${month}-${day}T${hours}:${minutes}`;
+  return `${year}-${month}-${day}`;
 }
 
 /**
- * 解析 datetime-local 输入的值为 Date 对象
- * 保持本地时区语义
+ * 解析 date 输入的值为本地时间的 Date 对象
+ * 避免 new Date("2025-11-06") 被解析为 UTC 时间导致的时区问题
  */
-function parseDateTimeLocal(value: string): Date {
-  // datetime-local 返回格式: "2025-10-23T10:30"
-  // 直接用 new Date() 会按照本地时区解析
-  return new Date(value);
+function parseDate(value: string): Date {
+  // date 输入格式: "2025-11-06"
+  const [year, month, day] = value.split('-').map(Number);
+  // 创建本地时间的日期对象（注意：月份是从 0 开始的）
+  return new Date(year, month - 1, day, 0, 0, 0, 0);
+}
+
+/**
+ * 获取今天的日期（YYYY-MM-DD 格式）
+ */
+function getTodayDateString(): string {
+  return formatDate(new Date());
 }
 
 interface UsageLogsFiltersProps {
   isAdmin: boolean;
+  isChildKeyView: boolean;
   users: UserDisplay[];
   providers: ProviderDisplay[];
   initialKeys: Key[];
@@ -49,10 +56,10 @@ interface UsageLogsFiltersProps {
     userId?: number;
     keyId?: number;
     providerId?: number;
-    startDate?: Date;
-    endDate?: Date;
+    date?: Date; // 单个日期，查询当天的记录
     statusCode?: number;
     model?: string;
+    pageSize?: number;
   };
   onChange: (filters: UsageLogsFiltersProps["filters"]) => void;
   onReset: () => void;
@@ -60,6 +67,7 @@ interface UsageLogsFiltersProps {
 
 export function UsageLogsFilters({
   isAdmin,
+  isChildKeyView,
   users,
   providers,
   initialKeys,
@@ -128,33 +136,22 @@ export function UsageLogsFilters({
     onReset();
   };
 
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {/* 时间范围 */}
-        <div className="space-y-2">
-          <Label>开始时间</Label>
-          <Input
-            type="datetime-local"
-            value={localFilters.startDate ? formatDateTimeLocal(localFilters.startDate) : ""}
-            onChange={(e) =>
-              setLocalFilters({
-                ...localFilters,
-                startDate: e.target.value ? parseDateTimeLocal(e.target.value) : undefined,
-              })
-            }
-          />
-        </div>
+  const showKeySelect = isAdmin || !isChildKeyView;
 
-        <div className="space-y-2">
-          <Label>结束时间</Label>
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center gap-4 xl:gap-6">
+        {/* 日期选择 */}
+        <div className="flex w-full flex-col gap-1.5 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
+          <Label className="text-sm text-muted-foreground sm:w-12 text-nowrap">日期</Label>
           <Input
-            type="datetime-local"
-            value={localFilters.endDate ? formatDateTimeLocal(localFilters.endDate) : ""}
+            type="date"
+            className="w-full rounded-xl pl-3 pr-2 text-sm font-medium sm:w-[150px] md:w-[160px] lg:w-[170px]"
+            value={localFilters.date ? formatDate(localFilters.date) : getTodayDateString()}
             onChange={(e) =>
               setLocalFilters({
                 ...localFilters,
-                endDate: e.target.value ? parseDateTimeLocal(e.target.value) : undefined,
+                date: e.target.value ? parseDate(e.target.value) : undefined,
               })
             }
           />
@@ -162,13 +159,13 @@ export function UsageLogsFilters({
 
         {/* 用户选择（仅 Admin） */}
         {isAdmin && (
-          <div className="space-y-2">
-            <Label>用户</Label>
+          <div className="flex w-full flex-col gap-1.5 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
+            <Label className="text-sm text-muted-foreground sm:w-12 text-nowrap">用户</Label>
             <Select
               value={localFilters.userId?.toString() || ""}
               onValueChange={handleUserChange}
             >
-              <SelectTrigger>
+              <SelectTrigger className="w-full rounded-xl sm:w-[220px]">
                 <SelectValue placeholder="全部用户" />
               </SelectTrigger>
               <SelectContent>
@@ -182,36 +179,42 @@ export function UsageLogsFilters({
           </div>
         )}
 
-        {/* Key 选择 */}
-        <div className="space-y-2">
-          <Label>API 密钥</Label>
-          <Select
-            value={localFilters.keyId?.toString() || ""}
-            onValueChange={(value: string) =>
-              setLocalFilters({
-                ...localFilters,
-                keyId: value ? parseInt(value) : undefined,
-              })
-            }
-            disabled={isAdmin && !localFilters.userId && keys.length === 0}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder={isAdmin && !localFilters.userId && keys.length === 0 ? "请先选择用户" : "全部密钥"} />
-            </SelectTrigger>
-            <SelectContent>
-              {keys.map((key) => (
-                <SelectItem key={key.id} value={key.id.toString()}>
-                  {key.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {/* Key 选择（子 Key 视图不展示） */}
+        {showKeySelect && (
+          <div className="flex w-full flex-col gap-1.5 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
+            <Label className="text-sm text-muted-foreground sm:w-16 text-nowrap">API 密钥</Label>
+            <Select
+              value={localFilters.keyId?.toString() || ""}
+              onValueChange={(value: string) =>
+                setLocalFilters({
+                  ...localFilters,
+                  keyId: value ? parseInt(value) : undefined,
+                })
+              }
+              disabled={isAdmin && !localFilters.userId && keys.length === 0}
+            >
+              <SelectTrigger className="w-full rounded-xl sm:w-[220px]">
+                <SelectValue
+                  placeholder={
+                    isAdmin && !localFilters.userId && keys.length === 0 ? "请先选择用户" : "全部密钥"
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {keys.map((key) => (
+                  <SelectItem key={key.id} value={key.id.toString()}>
+                    {key.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
 
         {/* 供应商选择 */}
         {isAdmin && (
-          <div className="space-y-2">
-            <Label>供应商</Label>
+          <div className="flex w-full flex-col gap-1.5 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
+            <Label className="text-sm text-muted-foreground sm:w-12 text-nowrap">供应商</Label>
             <Select
               value={localFilters.providerId?.toString() || ""}
               onValueChange={(value: string) =>
@@ -221,7 +224,7 @@ export function UsageLogsFilters({
                 })
               }
             >
-              <SelectTrigger>
+              <SelectTrigger className="w-full rounded-xl sm:w-[220px]">
                 <SelectValue placeholder="全部供应商" />
               </SelectTrigger>
               <SelectContent>
@@ -236,15 +239,15 @@ export function UsageLogsFilters({
         )}
 
         {/* 模型选择 */}
-        <div className="space-y-2">
-          <Label>模型</Label>
+        <div className="flex w-full flex-col gap-1.5 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
+          <Label className="text-sm text-muted-foreground sm:w-12 text-nowrap">模型</Label>
           <Select
             value={localFilters.model || ""}
             onValueChange={(value: string) =>
               setLocalFilters({ ...localFilters, model: value || undefined })
             }
           >
-            <SelectTrigger>
+            <SelectTrigger className="w-full rounded-xl sm:w-[220px] md:w-[260px]">
               <SelectValue placeholder="全部模型" />
             </SelectTrigger>
             <SelectContent>
@@ -258,8 +261,8 @@ export function UsageLogsFilters({
         </div>
 
         {/* 状态码选择 */}
-        <div className="space-y-2">
-          <Label>状态码</Label>
+        <div className="flex w-full flex-col gap-1.5 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
+          <Label className="text-sm text-muted-foreground sm:w-12 text-nowrap">状态码</Label>
           <Select
             value={localFilters.statusCode?.toString() || ""}
             onValueChange={(value: string) =>
@@ -269,7 +272,7 @@ export function UsageLogsFilters({
               })
             }
           >
-            <SelectTrigger>
+            <SelectTrigger className="w-full rounded-xl sm:w-[150px]">
               <SelectValue placeholder="全部状态码" />
             </SelectTrigger>
             <SelectContent>
@@ -288,14 +291,27 @@ export function UsageLogsFilters({
             </SelectContent>
           </Select>
         </div>
-      </div>
 
-      {/* 操作按钮 */}
-      <div className="flex gap-2">
-        <Button onClick={handleApply}>应用筛选</Button>
-        <Button variant="outline" onClick={handleReset}>
-          重置
-        </Button>
+        {/* 操作按钮 */}
+        <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto sm:flex-nowrap sm:justify-end sm:ml-auto">
+          <Button
+            onClick={handleApply}
+            size="default"
+            className="min-w-[140px] rounded-xl justify-center gap-2"
+          >
+            <Filter className="h-4 w-4" />
+            <span>应用筛选</span>
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleReset}
+            size="default"
+            className="min-w-[140px] rounded-xl justify-center gap-2"
+          >
+            <RotateCcw className="h-4 w-4" />
+            <span>重置</span>
+          </Button>
+        </div>
       </div>
     </div>
   );

@@ -12,6 +12,7 @@ const AUTH_COOKIE_MAX_AGE = 60 * 60 * 24 * 7; // 7 days
 export interface AuthSession {
   user: User;
   key: Key;
+  viewMode: 'user' | 'key';
 }
 
 export async function validateKey(keyString: string): Promise<AuthSession | null> {
@@ -23,9 +24,10 @@ export async function validateKey(keyString: string): Promise<AuthSession | null
       name: "Admin Token",
       description: "Environment admin session",
       role: "admin",
-      rpm: 0,
-      dailyQuota: 0,
       providerGroup: null,
+      tags: [],
+      isEnabled: true,
+      expiresAt: null,
       createdAt: now,
       updatedAt: now,
     };
@@ -37,15 +39,19 @@ export async function validateKey(keyString: string): Promise<AuthSession | null
       key: keyString,
       isEnabled: true,
       canLoginWebUi: true, // Admin Token 始终可以登录 Web UI
+      scope: 'owner',
       limit5hUsd: null,
       limitWeeklyUsd: null,
       limitMonthlyUsd: null,
+      totalLimitUsd: null,
       limitConcurrentSessions: 0,
+      rpmLimit: null,
+      dailyLimitUsd: null,
       createdAt: now,
       updatedAt: now,
     };
 
-    return { user: adminUser, key: adminKey };
+    return { user: adminUser, key: adminKey, viewMode: 'user' };
   }
 
   const key = await findActiveKeyByKeyString(keyString);
@@ -63,7 +69,16 @@ export async function validateKey(keyString: string): Promise<AuthSession | null
     return null;
   }
 
-  return { user, key };
+  const normalizedUser =
+    key.scope === 'child' && user.role === 'admin'
+      ? { ...user, role: 'user' as User['role'] }
+      : user;
+
+  return {
+    user: normalizedUser,
+    key,
+    viewMode: key.scope === 'owner' ? 'user' : 'key',
+  };
 }
 
 export async function setAuthCookie(keyString: string) {
@@ -95,4 +110,12 @@ export async function getSession(): Promise<AuthSession | null> {
   }
 
   return validateKey(keyString);
+}
+
+export function hasOwnerView(session: AuthSession): boolean {
+  return session.viewMode === 'user';
+}
+
+export function hasChildView(session: AuthSession): boolean {
+  return session.viewMode === 'key';
 }

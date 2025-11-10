@@ -12,12 +12,16 @@ interface AddUserDialogProps {
   variant?: ButtonProps["variant"];
   size?: ButtonProps["size"];
   className?: string;
+  providerGroupOptions?: string[];
+  availableTags?: string[];
 }
 
 export function AddUserDialog({
   variant = "default",
   size = "default",
   className,
+  providerGroupOptions = [],
+  availableTags = [],
 }: AddUserDialogProps) {
   const [open, setOpen] = useState(false);
   return (
@@ -29,7 +33,11 @@ export function AddUserDialog({
       </DialogTrigger>
       <DialogContent>
         <FormErrorBoundary>
-          <UserForm onSuccess={() => setOpen(false)} />
+          <UserForm
+            onSuccess={() => setOpen(false)}
+            providerGroupOptions={providerGroupOptions}
+            availableTagOptions={availableTags}
+          />
         </FormErrorBoundary>
       </DialogContent>
     </Dialog>

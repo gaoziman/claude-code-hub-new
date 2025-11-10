@@ -160,21 +160,25 @@ src/
 
 ### 代理请求处理流程
 
-代理请求经过以下步骤 (参见 `src/app/v1/_lib/proxy-handler.ts`):
+代理请求经过以下 11 步处理 (参见 `src/app/v1/_lib/proxy-handler.ts:17-98`):
 
 1. **认证检查** (`ProxyAuthenticator`) - 验证 API Key
-2. **Session 分配** (`ProxySessionGuard`) - 并发 Session 限制检查
-3. **限流检查** (`ProxyRateLimitGuard`) - RPM + 金额限制 (5小时/周/月)
-4. **供应商选择** (`ProxyProviderResolver`) - 智能选择和故障转移
+2. **版本检查** (`ProxyVersionGuard`) - 检查客户端版本（可选功能）
+3. **探测请求拦截** - 立即返回，不执行后续逻辑（识别空 messages 的探测请求）
+4. **Session 分配** (`ProxySessionGuard`) - 并发 Session 限制检查
+5. **敏感词检查** (`ProxySensitiveWordGuard`) - 内容过滤（在计费之前）
+6. **限流检查** (`ProxyRateLimitGuard`) - RPM + 金额限制 (5小时/周/月)
+7. **供应商选择** (`ProxyProviderResolver`) - 智能选择和故障转移
    - Session 复用（5分钟缓存）
    - 权重 + 优先级 + 分组
    - 熔断器状态检查
    - 并发限制检查（原子性操作）
    - 故障转移循环（最多 3 次重试）
-5. **消息服务** (`ProxyMessageService`) - 创建消息上下文和日志记录
-6. **请求转发** (`ProxyForwarder`) - 转发到上游供应商
-7. **响应处理** (`ProxyResponseHandler`) - 流式/非流式响应处理
-8. **错误处理** (`ProxyErrorHandler`) - 统一错误处理和熔断器记录
+8. **消息上下文创建** (`ProxyMessageService`) - 创建消息日志记录
+9. **并发计数增加** (`SessionTracker`) - 追踪活跃请求
+10. **请求转发** (`ProxyForwarder`) - 转发到上游供应商
+11. **响应处理** (`ProxyResponseHandler`) - 流式/非流式响应处理
+    - **Finally**: 并发计数减少（确保无论成功失败都执行）
 
 ### OpenAI 兼容层
 
@@ -487,6 +491,33 @@ OpenAPI 文档（`/api/actions/scalar` 和 `/api/actions/docs`）中的 server U
 - 配置后，OpenAPI 文档中的 "Try it out" 功能会自动使用正确的地址
 - 避免生产环境显示 `http://localhost`，导致 API 测试失败
 
+## 架构特点与限制
+
+### 架构模式
+
+- **单体应用架构** - 适合中小规模部署（单实例可支持 1000+ QPS）
+- **模块化设计** - 清晰的分层和职责划分，便于维护
+- **推荐扩展方式** - 多实例部署 + Nginx 负载均衡（当 QPS > 10000 时考虑微服务拆分）
+
+### 性能基准
+
+- **请求延迟**: 目标 P50 < 50ms，P99 < 200ms（不含上游响应时间）
+- **并发能力**: 单实例支持 1000+ QPS
+- **数据库**: 所有查询都有对应的复合索引优化
+- **Redis**: 使用 Lua 脚本保证原子性操作
+
+### 关键限制
+
+- **内存熔断器非分布式** - 多实例部署时熔断器状态不共享，应用重启后状态丢失
+- **Redis 单点依赖** - 虽有 Fail Open 策略，但 Redis 故障会影响限流精度
+- **测试覆盖不足** - 缺少单元测试和集成测试，重构需谨慎
+
+### 安全注意
+
+- **API Key 明文存储** - 数据库泄露风险，建议使用加密存储（计划改进）
+- **Cookie 安全策略** - 生产环境建议启用 HTTPS（`ENABLE_SECURE_COOKIES=true`）
+- **操作审计缺失** - 缺少详细的操作审计日志
+
 ## 开发注意事项
 
 ### 1. Redis 依赖和降级策略
@@ -528,13 +559,21 @@ OpenAPI 文档（`/api/actions/scalar` 和 `/api/actions/docs`）中的 server U
 - 开发环境使用 `pino-pretty` 美化输出
 - 关键业务逻辑必须有 info 级别日志
 
-### 7. 代码风格
+### 7. 代码风格和质量
 
-- 使用 ESLint + Prettier
-- 提交前运行 `pnpm typecheck` 确保类型正确
+- 使用 ESLint + Prettier 强制格式化
+- **提交前必须运行** `pnpm typecheck` 确保类型正确
 - 遵循现有代码风格（参考 `src/app/v1/_lib/proxy/` 中的代码）
+- **注意**: 项目目前缺少单元测试，添加新功能时建议先添加测试（推荐使用 Vitest）
 
-### 8. 添加新的 API 端点
+### 8. 性能优化注意事项
+
+- **并行查询**: 使用 `Promise.all` 并行执行独立查询
+- **流式响应**: 代理请求支持流式转发，降低首字节时间
+- **索引优化**: 修改数据库查询时注意使用现有复合索引
+- **Redis 连接池**: 避免频繁创建 Redis 连接，复用全局客户端
+
+### 9. 添加新的 API 端点
 
 当需要将新的 Server Action 暴露为 REST API 时：
 
@@ -567,7 +606,7 @@ OpenAPI 文档（`/api/actions/scalar` 和 `/api/actions/docs`）中的 server U
 - 自动生成 OpenAPI 3.1.0 规范文档
 - 统一的 `ActionResult<T>` 响应格式
 
-### 9. 价格表数据库查询优化
+### 10. 价格表数据库查询优化
 
 分页查询使用窗口函数和 CTE，注意：
 

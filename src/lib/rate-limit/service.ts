@@ -6,12 +6,12 @@ import {
   TRACK_COST_5H_ROLLING_WINDOW,
   GET_COST_5H_ROLLING_WINDOW,
 } from "@/lib/redis/lua-scripts";
-import { sumUserCostToday } from "@/repository/statistics";
+import { sumKeyCostToday } from "@/repository/statistics";
 import { getTimeRangeForPeriod, getTTLForPeriod, getSecondsUntilMidnight } from "./time-utils";
 
 interface CostLimit {
   amount: number | null;
-  period: "5h" | "weekly" | "monthly";
+  period: "5h" | "weekly" | "monthly" | "total";
   name: string;
 }
 
@@ -29,12 +29,14 @@ export class RateLimitService {
       limit_5h_usd: number | null;
       limit_weekly_usd: number | null;
       limit_monthly_usd: number | null;
+      total_limit_usd?: number | null;
     }
   ): Promise<{ allowed: boolean; reason?: string }> {
     const costLimits: CostLimit[] = [
       { amount: limits.limit_5h_usd, period: "5h", name: "5小时" },
       { amount: limits.limit_weekly_usd, period: "weekly", name: "周" },
       { amount: limits.limit_monthly_usd, period: "monthly", name: "月" },
+      { amount: limits.total_limit_usd ?? null, period: "total", name: "总计" },
     ];
 
     try {
@@ -79,6 +81,16 @@ export class RateLimitService {
               );
               return await this.checkCostLimitsFromDatabase(id, type, costLimits);
             }
+          } else if (limit.period === "total") {
+            const value = await this.redis.get(`${type}:${id}:total_cost`);
+            if (value === null && limit.amount > 0) {
+              logger.info(
+                `[RateLimit] Cache miss for ${type}:${id}:total_cost, querying database`
+              );
+              return await this.checkCostLimitsFromDatabase(id, type, costLimits);
+            }
+
+            current = parseFloat((value as string) || "0");
           } else {
             // 周/月使用普通 GET
             const value = await this.redis.get(`${type}:${id}:cost_${limit.period}`);
@@ -130,7 +142,10 @@ export class RateLimitService {
       if (!limit.amount || limit.amount <= 0) continue;
 
       // 计算时间范围（使用新的时间工具函数）
-      const { startTime, endTime } = getTimeRangeForPeriod(limit.period);
+      const { startTime, endTime } =
+        limit.period === "total"
+          ? { startTime: new Date(0), endTime: new Date() }
+          : getTimeRangeForPeriod(limit.period);
 
       // 查询数据库
       const current =
@@ -159,6 +174,9 @@ export class RateLimitService {
 
               logger.info(`[RateLimit] Cache warmed for ${key}, value=${current} (rolling window)`);
             }
+          } else if (limit.period === "total") {
+            await this.redis.set(`${type}:${id}:total_cost`, current.toString());
+            logger.info(`[RateLimit] Cache warmed for ${type}:${id}:total_cost, value=${current}`);
           } else {
             // 周/月固定窗口：使用 STRING + 动态 TTL
             const ttl = getTTLForPeriod(limit.period);
@@ -327,6 +345,7 @@ export class RateLimitService {
 
       // 2. 周/月固定窗口：使用 STRING + 动态 TTL
       const pipeline = this.redis.pipeline();
+      const secondsUntilMidnight = getSecondsUntilMidnight();
 
       // Key 的周/月消费
       pipeline.incrbyfloat(`key:${keyId}:cost_weekly`, cost);
@@ -334,6 +353,13 @@ export class RateLimitService {
 
       pipeline.incrbyfloat(`key:${keyId}:cost_monthly`, cost);
       pipeline.expire(`key:${keyId}:cost_monthly`, ttlMonthly);
+
+      // Key 总消费（无过期）
+      pipeline.incrbyfloat(`key:${keyId}:total_cost`, cost);
+
+      // Key 的每日消费
+      pipeline.incrbyfloat(`key:${keyId}:daily_cost`, cost);
+      pipeline.expire(`key:${keyId}:daily_cost`, secondsUntilMidnight);
 
       // Provider 的周/月消费
       pipeline.incrbyfloat(`provider:${providerId}:cost_weekly`, cost);
@@ -465,23 +491,23 @@ export class RateLimitService {
   }
 
   /**
-   * 检查用户 RPM（每分钟请求数）限制
+   * 检查 Key RPM（每分钟请求数）限制
    * 使用 Redis ZSET 实现滑动窗口
    */
-  static async checkUserRPM(
-    userId: number,
-    rpmLimit: number
+  static async checkKeyRPM(
+    keyId: number,
+    rpmLimit: number | null | undefined
   ): Promise<{ allowed: boolean; reason?: string; current?: number }> {
     if (!rpmLimit || rpmLimit <= 0) {
       return { allowed: true }; // 未设置限制
     }
 
     if (!this.redis) {
-      logger.warn("[RateLimit] Redis unavailable, skipping user RPM check");
+      logger.warn("[RateLimit] Redis unavailable, skipping key RPM check");
       return { allowed: true }; // Fail Open
     }
 
-    const key = `user:${userId}:rpm_window`;
+    const key = `key:${keyId}:rpm_window`;
     const now = Date.now();
     const oneMinuteAgo = now - 60000;
 
@@ -501,7 +527,7 @@ export class RateLimitService {
       if (count >= rpmLimit) {
         return {
           allowed: false,
-          reason: `用户每分钟请求数上限已达到（${count}/${rpmLimit}）`,
+          reason: `Key 每分钟请求数上限已达到（${count}/${rpmLimit}）`,
           current: count,
         };
       }
@@ -515,24 +541,24 @@ export class RateLimitService {
 
       return { allowed: true, current: count + 1 };
     } catch (error) {
-      logger.error(`[RateLimit] User RPM check failed for user ${userId}:`, error);
+      logger.error(`[RateLimit] Key RPM check failed for key ${keyId}:`, error);
       return { allowed: true }; // Fail Open
     }
   }
 
   /**
-   * 检查用户每日消费额度限制
+   * 检查 Key 每日消费额度限制
    * 优先使用 Redis，失败时降级到数据库查询
    */
-  static async checkUserDailyCost(
-    userId: number,
-    dailyLimitUsd: number
+  static async checkKeyDailyCost(
+    keyId: number,
+    dailyLimitUsd: number | null | undefined
   ): Promise<{ allowed: boolean; reason?: string; current?: number }> {
     if (!dailyLimitUsd || dailyLimitUsd <= 0) {
       return { allowed: true }; // 未设置限制
     }
 
-    const key = `user:${userId}:daily_cost`;
+    const key = `key:${keyId}:daily_cost`;
     let currentCost = 0;
 
     try {
@@ -544,7 +570,7 @@ export class RateLimitService {
         } else {
           // Cache Miss: 从数据库恢复
           logger.info(`[RateLimit] Cache miss for ${key}, querying database`);
-          currentCost = await sumUserCostToday(userId);
+          currentCost = await sumKeyCostToday(keyId);
 
           // Cache Warming: 写回 Redis（使用新的时间工具函数）
           const secondsUntilMidnight = getSecondsUntilMidnight();
@@ -553,40 +579,70 @@ export class RateLimitService {
       } else {
         // Slow Path: 数据库查询（Redis 不可用）
         logger.warn("[RateLimit] Redis unavailable, querying database for user daily cost");
-        currentCost = await sumUserCostToday(userId);
+        currentCost = await sumKeyCostToday(keyId);
       }
 
       if (currentCost >= dailyLimitUsd) {
         return {
           allowed: false,
-          reason: `用户每日消费上限已达到（$${currentCost.toFixed(4)}/$${dailyLimitUsd}）`,
+          reason: `Key 每日消费上限已达到（$${currentCost.toFixed(4)}/$${dailyLimitUsd}）`,
           current: currentCost,
         };
       }
 
       return { allowed: true, current: currentCost };
     } catch (error) {
-      logger.error(`[RateLimit] User daily cost check failed for user ${userId}:`, error);
+      logger.error(`[RateLimit] Key daily cost check failed for key ${keyId}:`, error);
       return { allowed: true }; // Fail Open
     }
   }
 
   /**
-   * 累加用户今日消费（在 trackCost 后调用）
+   * 获取 Key 当前 RPM 使用情况（近似值）
    */
-  static async trackUserDailyCost(userId: number, cost: number): Promise<void> {
-    if (!this.redis || cost <= 0) return;
+  static async getKeyRPMUsage(keyId: number): Promise<number> {
+    if (!this.redis || this.redis.status !== "ready") {
+      return 0;
+    }
 
-    const key = `user:${userId}:daily_cost`;
+    const key = `key:${keyId}:rpm_window`;
+    const now = Date.now();
+    const oneMinuteAgo = now - 60000;
 
     try {
-      const secondsUntilMidnight = getSecondsUntilMidnight();
-
-      await this.redis.pipeline().incrbyfloat(key, cost).expire(key, secondsUntilMidnight).exec();
-
-      logger.debug(`[RateLimit] Tracked user daily cost: user=${userId}, cost=${cost}`);
+      await this.redis.zremrangebyscore(key, "-inf", oneMinuteAgo);
+      const count = await this.redis.zcard(key);
+      return count;
     } catch (error) {
-      logger.error(`[RateLimit] Failed to track user daily cost:`, error);
+      logger.error(`[RateLimit] Failed to query key RPM usage: key=${keyId}`, error);
+      return 0;
     }
+  }
+
+  /**
+   * 获取 Key 当日消费
+   */
+  static async getKeyDailyCost(keyId: number): Promise<number> {
+    const redisKey = `key:${keyId}:daily_cost`;
+
+    if (this.redis && this.redis.status === "ready") {
+      const cached = await this.redis.get(redisKey);
+      if (cached !== null) {
+        return parseFloat(cached);
+      }
+    }
+
+    const current = await sumKeyCostToday(keyId);
+
+    if (this.redis && this.redis.status === "ready") {
+      try {
+        const secondsUntilMidnight = getSecondsUntilMidnight();
+        await this.redis.set(redisKey, current.toString(), "EX", secondsUntilMidnight);
+      } catch (error) {
+        logger.error("[RateLimit] Failed to warm daily cost cache:", error);
+      }
+    }
+
+    return current;
   }
 }

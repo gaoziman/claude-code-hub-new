@@ -12,9 +12,22 @@ export function toUser(dbUser: any): User {
     ...dbUser,
     description: dbUser?.description || "",
     role: (dbUser?.role as User["role"]) || "user",
-    rpm: dbUser?.rpm || 60,
-    dailyQuota: dbUser?.dailyQuota ? parseFloat(dbUser.dailyQuota) : 0,
     providerGroup: dbUser?.providerGroup ?? null,
+    tags: Array.isArray(dbUser?.tags)
+      ? (dbUser.tags as string[])
+      : (() => {
+          if (typeof dbUser?.tags === "string") {
+            try {
+              const parsed = JSON.parse(dbUser.tags);
+              return Array.isArray(parsed) ? parsed : [];
+            } catch {
+              return [];
+            }
+          }
+          return [];
+        })(),
+    isEnabled: dbUser?.isEnabled ?? true,
+    expiresAt: dbUser?.expiresAt ? new Date(dbUser.expiresAt) : null,
     createdAt: dbUser?.createdAt ? new Date(dbUser.createdAt) : new Date(),
     updatedAt: dbUser?.updatedAt ? new Date(dbUser.updatedAt) : new Date(),
   };
@@ -26,10 +39,14 @@ export function toKey(dbKey: any): Key {
     ...dbKey,
     isEnabled: dbKey?.isEnabled ?? true,
     canLoginWebUi: dbKey?.canLoginWebUi ?? true,
+    scope: (dbKey?.scope as Key["scope"]) ?? 'owner',
     limit5hUsd: dbKey?.limit5hUsd ? parseFloat(dbKey.limit5hUsd) : null,
     limitWeeklyUsd: dbKey?.limitWeeklyUsd ? parseFloat(dbKey.limitWeeklyUsd) : null,
     limitMonthlyUsd: dbKey?.limitMonthlyUsd ? parseFloat(dbKey.limitMonthlyUsd) : null,
+    totalLimitUsd: dbKey?.totalLimitUsd ? parseFloat(dbKey.totalLimitUsd) : null,
     limitConcurrentSessions: dbKey?.limitConcurrentSessions ?? 0,
+    rpmLimit: dbKey?.rpmLimit ?? null,
+    dailyLimitUsd: dbKey?.dailyLimitUsd ? parseFloat(dbKey.dailyLimitUsd) : null,
     createdAt: dbKey?.createdAt ? new Date(dbKey.createdAt) : new Date(),
     updatedAt: dbKey?.updatedAt ? new Date(dbKey.updatedAt) : new Date(),
   };
@@ -42,7 +59,7 @@ export function toProvider(dbProvider: any): Provider {
     isEnabled: dbProvider?.isEnabled ?? true,
     weight: dbProvider?.weight ?? 1,
     priority: dbProvider?.priority ?? 0,
-    costMultiplier: dbProvider?.costMultiplier ? parseFloat(dbProvider.costMultiplier) : 1.0,
+    costMultiplier: dbProvider?.costMultiplier ? parseFloat(dbProvider.costMultiplier) : 0.6,
     groupTag: dbProvider?.groupTag ?? null,
     providerType: dbProvider?.providerType ?? "claude",
     modelRedirects: dbProvider?.modelRedirects ?? null,

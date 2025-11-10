@@ -1,4 +1,4 @@
-import { getProviders, getProvidersHealthStatus } from "@/actions/providers";
+import { getProviders, getProvidersHealthStatus, getProviderGroupsSummary } from "@/actions/providers";
 import { Section } from "@/components/section";
 import { ProviderManager } from "./_components/provider-manager";
 import { AddProviderDialog } from "./_components/add-provider-dialog";
@@ -11,15 +11,17 @@ import { getEnvConfig } from "@/lib/config/env.schema";
 export const dynamic = "force-dynamic";
 
 export default async function SettingsProvidersPage() {
-  const [providers, session, healthStatus, systemSettings] = await Promise.all([
+  const [providers, session, healthStatus, systemSettings, providerGroups] = await Promise.all([
     getProviders(),
     getSession(),
     getProvidersHealthStatus(),
     getSystemSettings(),
+    getProviderGroupsSummary(),
   ]);
 
   // 读取多供应商类型支持配置
   const enableMultiProviderTypes = getEnvConfig().ENABLE_MULTI_PROVIDER_TYPES;
+  const canManageGroups = session?.user.role === "admin";
 
   return (
     <>
@@ -31,7 +33,11 @@ export default async function SettingsProvidersPage() {
         actions={
           <div className="flex gap-2">
             <SchedulingRulesDialog />
-            <AddProviderDialog enableMultiProviderTypes={enableMultiProviderTypes} />
+            <AddProviderDialog
+              enableMultiProviderTypes={enableMultiProviderTypes}
+              providerGroups={providerGroups}
+              canManageGroups={canManageGroups}
+            />
           </div>
         }
       >
@@ -41,6 +47,8 @@ export default async function SettingsProvidersPage() {
           healthStatus={healthStatus}
           currencyCode={systemSettings.currencyDisplay}
           enableMultiProviderTypes={enableMultiProviderTypes}
+          providerGroups={providerGroups}
+          canManageGroups={canManageGroups}
         />
       </Section>
     </>

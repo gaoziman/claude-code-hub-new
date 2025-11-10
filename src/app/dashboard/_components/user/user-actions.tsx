@@ -10,9 +10,18 @@ import { FormErrorBoundary } from "@/components/form-error-boundary";
 interface UserActionsProps {
   user: UserDisplay;
   currentUser?: User;
+  showLabels?: boolean;
+  providerGroupOptions?: string[];
+  availableTags?: string[];
 }
 
-export function UserActions({ user, currentUser }: UserActionsProps) {
+export function UserActions({
+  user,
+  currentUser,
+  showLabels = false,
+  providerGroupOptions = [],
+  availableTags = [],
+}: UserActionsProps) {
   const [openEdit, setOpenEdit] = useState(false);
   const [openDelete, setOpenDelete] = useState(false);
 
@@ -32,15 +41,21 @@ export function UserActions({ user, currentUser }: UserActionsProps) {
           <button
             type="button"
             aria-label="编辑用户"
-            className="inline-flex items-center justify-center p-1 text-muted-foreground hover:text-foreground transition-colors"
+            className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
             title="编辑用户"
           >
             <SquarePen className="h-3.5 w-3.5" />
+            {showLabels && <span>编辑</span>}
           </button>
         </DialogTrigger>
         <DialogContent>
           <FormErrorBoundary>
-            <UserForm user={user} onSuccess={() => setOpenEdit(false)} />
+            <UserForm
+              user={user}
+              onSuccess={() => setOpenEdit(false)}
+              providerGroupOptions={providerGroupOptions}
+              availableTagOptions={availableTags}
+            />
           </FormErrorBoundary>
         </DialogContent>
       </Dialog>
@@ -51,10 +66,11 @@ export function UserActions({ user, currentUser }: UserActionsProps) {
           <button
             type="button"
             aria-label="删除用户"
-            className="inline-flex items-center justify-center p-1 text-muted-foreground hover:text-red-600 transition-colors"
+            className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted/60 hover:text-red-600"
             title="删除用户"
           >
             <Trash className="h-3.5 w-3.5" />
+            {showLabels && <span>删除</span>}
           </button>
         </DialogTrigger>
         <DialogContent>

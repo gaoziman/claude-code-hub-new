@@ -1,9 +1,7 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
-import { Section } from "@/components/section";
 import { UsageLogsView } from "./_components/usage-logs-view";
-import { ActiveSessionsPanel } from "@/components/customs/active-sessions-panel";
 import { getUsers } from "@/actions/users";
 import { getProviders } from "@/actions/providers";
 import { getKeys } from "@/actions/keys";
@@ -22,38 +20,41 @@ export default async function UsageLogsPage({
   }
 
   const isAdmin = session.user.role === "admin";
+  const isChildKeyView = session.viewMode === "key";
 
-  // 管理员：获取用户和供应商列表
-  // 非管理员：获取当前用户的 Keys 列表
-  const [users, providers, initialKeys, resolvedSearchParams, systemSettings] = isAdmin
-    ? await Promise.all([getUsers(), getProviders(), Promise.resolve({ ok: true, data: [] }), searchParams, getSystemSettings()])
-    : await Promise.all([
-        Promise.resolve([]),
-        Promise.resolve([]),
-        getKeys(session.user.id),
-        searchParams,
-        getSystemSettings(),
-      ]);
+  const usersPromise = isAdmin ? getUsers() : Promise.resolve([]);
+  const providersPromise = isAdmin ? getProviders() : Promise.resolve([]);
+  const keysPromise = isAdmin
+    ? Promise.resolve({ ok: true, data: [] })
+    : isChildKeyView
+      ? Promise.resolve({ ok: true, data: [session.key] })
+      : getKeys(session.user.id);
+
+  const [users, providers, initialKeys, resolvedSearchParams, systemSettings] = await Promise.all([
+    usersPromise,
+    providersPromise,
+    keysPromise,
+    searchParams,
+    getSystemSettings(),
+  ]);
 
   return (
     <div className="space-y-6">
-      <ActiveSessionsPanel currencyCode={systemSettings.currencyDisplay} />
-
-      <Section
-        title="使用记录"
-        description="查看 API 调用日志和使用统计"
-      >
-        <Suspense fallback={<div className="text-center py-8 text-muted-foreground">加载中...</div>}>
-          <UsageLogsView
-            isAdmin={isAdmin}
-            users={users}
-            providers={providers}
-            initialKeys={initialKeys.ok ? initialKeys.data : []}
-            searchParams={resolvedSearchParams}
-            currencyCode={systemSettings.currencyDisplay}
-          />
-        </Suspense>
-      </Section>
+      <div className="space-y-1">
+        <h1 className="text-lg font-semibold leading-tight">使用记录</h1>
+        <p className="text-sm text-muted-foreground">查看 API 调用日志和使用统计</p>
+      </div>
+      <Suspense fallback={<div className="text-center py-8 text-muted-foreground">加载中...</div>}>
+        <UsageLogsView
+          isAdmin={isAdmin}
+          users={users}
+          providers={providers}
+          initialKeys={initialKeys.ok ? initialKeys.data : []}
+          searchParams={resolvedSearchParams}
+          isChildKeyView={isChildKeyView}
+          currencyCode={systemSettings.currencyDisplay}
+        />
+      </Suspense>
     </div>
   );
 }

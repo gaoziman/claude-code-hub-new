@@ -11,6 +11,7 @@ import {
   index
 } from 'drizzle-orm/pg-core';
 import { relations, sql } from 'drizzle-orm';
+import type { NotificationChannelConfig } from '@/types/notification';
 
 // Users table
 export const users = pgTable('users', {
@@ -18,9 +19,10 @@ export const users = pgTable('users', {
   name: varchar('name').notNull(),
   description: text('description'),
   role: varchar('role').default('user'),
-  rpmLimit: integer('rpm_limit').default(60),
-  dailyLimitUsd: numeric('daily_limit_usd', { precision: 10, scale: 2 }).default('100.00'),
   providerGroup: varchar('provider_group', { length: 50 }),
+  isEnabled: boolean('is_enabled').notNull().default(true),
+  expiresAt: timestamp('expires_at', { withTimezone: true }),
+  tags: jsonb('tags').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
   deletedAt: timestamp('deleted_at', { withTimezone: true }),
@@ -44,11 +46,17 @@ export const keys = pgTable('keys', {
   // Web UI 登录权限控制
   canLoginWebUi: boolean('can_login_web_ui').default(true),
 
+  // Key 视角：owner 为主 Key，可查看所有数据；child 仅能查看自身
+  scope: varchar('scope', { length: 16 }).notNull().default('owner').$type<'owner' | 'child'>(),
+
   // 金额限流配置
   limit5hUsd: numeric('limit_5h_usd', { precision: 10, scale: 2 }),
   limitWeeklyUsd: numeric('limit_weekly_usd', { precision: 10, scale: 2 }),
   limitMonthlyUsd: numeric('limit_monthly_usd', { precision: 10, scale: 2 }),
+  totalLimitUsd: numeric('total_limit_usd', { precision: 12, scale: 2 }),
   limitConcurrentSessions: integer('limit_concurrent_sessions').default(0),
+  rpmLimit: integer('rpm_limit').default(100),
+  dailyLimitUsd: numeric('daily_limit_usd', { precision: 10, scale: 2 }).default('100.00'),
 
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
@@ -72,7 +80,7 @@ export const providers = pgTable('providers', {
 
   // 优先级和分组配置
   priority: integer('priority').notNull().default(0),
-  costMultiplier: numeric('cost_multiplier', { precision: 10, scale: 4 }).default('1.0'),
+  costMultiplier: numeric('cost_multiplier', { precision: 10, scale: 4 }).default('0.6'),
   groupTag: varchar('group_tag', { length: 50 }),
 
   // 供应商类型：扩展支持 5 种类型
@@ -270,18 +278,30 @@ export const notificationSettings = pgTable('notification_settings', {
   // 熔断器告警配置
   circuitBreakerEnabled: boolean('circuit_breaker_enabled').notNull().default(false),
   circuitBreakerWebhook: varchar('circuit_breaker_webhook', { length: 512 }),
+  circuitBreakerChannels: jsonb('circuit_breaker_channels')
+    .$type<NotificationChannelConfig[]>()
+    .notNull()
+    .default(sql`'[]'::jsonb`),
 
   // 每日用户消费排行榜配置
   dailyLeaderboardEnabled: boolean('daily_leaderboard_enabled').notNull().default(false),
   dailyLeaderboardWebhook: varchar('daily_leaderboard_webhook', { length: 512 }),
   dailyLeaderboardTime: varchar('daily_leaderboard_time', { length: 10 }).default('09:00'), // HH:mm 格式
   dailyLeaderboardTopN: integer('daily_leaderboard_top_n').default(5), // 显示前 N 名
+  dailyLeaderboardChannels: jsonb('daily_leaderboard_channels')
+    .$type<NotificationChannelConfig[]>()
+    .notNull()
+    .default(sql`'[]'::jsonb`),
 
   // 成本预警配置
   costAlertEnabled: boolean('cost_alert_enabled').notNull().default(false),
   costAlertWebhook: varchar('cost_alert_webhook', { length: 512 }),
   costAlertThreshold: numeric('cost_alert_threshold', { precision: 5, scale: 2 }).default('0.80'), // 阈值 0-1 (80% = 0.80)
   costAlertCheckInterval: integer('cost_alert_check_interval').default(60), // 检查间隔（分钟）
+  costAlertChannels: jsonb('cost_alert_channels')
+    .$type<NotificationChannelConfig[]>()
+    .notNull()
+    .default(sql`'[]'::jsonb`),
 
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),

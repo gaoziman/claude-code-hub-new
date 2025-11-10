@@ -3,6 +3,7 @@ import { getRedisClient } from "@/lib/redis/client";
 import { CircuitBreakerAlertData } from "@/lib/wechat/message-templates";
 import { generateDailyLeaderboard } from "./tasks/daily-leaderboard";
 import { generateCostAlerts } from "./tasks/cost-alert";
+import { getActiveChannels } from "@/lib/notification/channels";
 
 /**
  * 发送熔断器告警通知
@@ -14,7 +15,8 @@ export async function sendCircuitBreakerAlert(data: CircuitBreakerAlertData): Pr
     const { getNotificationSettings } = await import("@/repository/notifications");
     const settings = await getNotificationSettings();
 
-    if (!settings.enabled || !settings.circuitBreakerEnabled || !settings.circuitBreakerWebhook) {
+    const channels = getActiveChannels(settings.circuitBreakerChannels);
+    if (!settings.enabled || !settings.circuitBreakerEnabled || channels.length === 0) {
       logger.info({
         action: "circuit_breaker_alert_disabled",
         providerId: data.providerId,
@@ -41,14 +43,14 @@ export async function sendCircuitBreakerAlert(data: CircuitBreakerAlertData): Pr
       const { addNotificationJob } = await import("./notification-queue");
 
       // 发送告警
-      await addNotificationJob("circuit-breaker", settings.circuitBreakerWebhook, data);
+      await addNotificationJob("circuit-breaker", channels, data);
 
       // 设置缓存，5 分钟过期
       await redisClient.set(cacheKey, "1", "EX", 300);
     } else {
       // Redis 不可用，直接发送告警
       const { addNotificationJob } = await import("./notification-queue");
-      await addNotificationJob("circuit-breaker", settings.circuitBreakerWebhook, data);
+      await addNotificationJob("circuit-breaker", channels, data);
     }
 
     logger.info({
@@ -72,11 +74,9 @@ export async function sendDailyLeaderboard(): Promise<void> {
     const { getNotificationSettings } = await import("@/repository/notifications");
     const settings = await getNotificationSettings();
 
-    if (
-      !settings.enabled ||
-      !settings.dailyLeaderboardEnabled ||
-      !settings.dailyLeaderboardWebhook
-    ) {
+    const channels = getActiveChannels(settings.dailyLeaderboardChannels);
+
+    if (!settings.enabled || !settings.dailyLeaderboardEnabled || channels.length === 0) {
       logger.info({ action: "daily_leaderboard_disabled" });
       return;
     }
@@ -93,7 +93,7 @@ export async function sendDailyLeaderboard(): Promise<void> {
     const { addNotificationJob } = await import("./notification-queue");
 
     // 发送通知
-    await addNotificationJob("daily-leaderboard", settings.dailyLeaderboardWebhook, data);
+    await addNotificationJob("daily-leaderboard", channels, data);
 
     logger.info({
       action: "daily_leaderboard_sent",
@@ -115,7 +115,8 @@ export async function sendCostAlerts(): Promise<void> {
     const { getNotificationSettings } = await import("@/repository/notifications");
     const settings = await getNotificationSettings();
 
-    if (!settings.enabled || !settings.costAlertEnabled || !settings.costAlertWebhook) {
+    const channels = getActiveChannels(settings.costAlertChannels);
+    if (!settings.enabled || !settings.costAlertEnabled || channels.length === 0) {
       logger.info({ action: "cost_alert_disabled" });
       return;
     }
@@ -133,7 +134,7 @@ export async function sendCostAlerts(): Promise<void> {
 
     // 逐个发送告警
     for (const alert of alerts) {
-      await addNotificationJob("cost-alert", settings.costAlertWebhook, alert);
+      await addNotificationJob("cost-alert", channels, alert);
     }
 
     logger.info({

@@ -1,10 +1,16 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useForm } from "react-hook-form";
+import {
+  Controller,
+  useFieldArray,
+  useForm,
+  type Resolver,
+  type UseFieldArrayReturn,
+} from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, TestTube, Bell, TrendingUp, AlertTriangle } from "lucide-react";
+import { Loader2, TestTube, Bell, TrendingUp, AlertTriangle, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,6 +24,58 @@ import {
   updateNotificationSettingsAction,
   testWebhookAction,
 } from "@/actions/notifications";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import type { NotificationChannelType, NotificationChannelConfig } from "@/types/notification";
+
+const channelTypeEnum = z.enum(["wechat", "feishu", "dingtalk"]);
+
+const channelFieldSchema = z.object({
+  id: z.string().optional(),
+  channel: channelTypeEnum,
+  webhookUrl: z.string().url("请输入有效的 Webhook URL"),
+  secret: z.string().optional(),
+  enabled: z.boolean().default(true),
+});
+
+function normalizeChannelsForForm(
+  channels?: NotificationChannelConfig[] | null
+): NotificationFormData["circuitBreakerChannels"] {
+  if (!Array.isArray(channels)) return [];
+  return channels.map((item, index) => ({
+    id: `${item.channel}-${index}-${Math.random().toString(36).slice(2, 7)}`,
+    channel: item.channel,
+    webhookUrl: item.webhookUrl,
+    secret: item.secret || "",
+    enabled: item.enabled !== false,
+  }));
+}
+
+function mapChannelsForSubmit(channels: NotificationFormData["circuitBreakerChannels"]): NotificationChannelConfig[] {
+  return channels
+    .filter((channel) => channel.webhookUrl && channel.webhookUrl.trim())
+    .map((channel) => ({
+      channel: channel.channel,
+      webhookUrl: channel.webhookUrl.trim(),
+      secret: channel.secret?.trim() || null,
+      enabled: channel.enabled !== false,
+    }));
+}
+
+function createEmptyChannel(): NotificationFormData["circuitBreakerChannels"][number] {
+  return {
+    id: `channel-${Math.random().toString(36).slice(2, 8)}`,
+    channel: "wechat",
+    webhookUrl: "",
+    secret: "",
+    enabled: true,
+  };
+}
 
 /**
  * 通知设置表单 Schema
@@ -28,18 +86,21 @@ const notificationSchema = z.object({
   // 熔断器告警
   circuitBreakerEnabled: z.boolean(),
   circuitBreakerWebhook: z.string().optional(),
+  circuitBreakerChannels: z.array(channelFieldSchema),
 
   // 每日排行榜
   dailyLeaderboardEnabled: z.boolean(),
   dailyLeaderboardWebhook: z.string().optional(),
   dailyLeaderboardTime: z.string().regex(/^\d{2}:\d{2}$/, "时间格式错误，应为 HH:mm"),
   dailyLeaderboardTopN: z.number().int().min(1).max(20),
+  dailyLeaderboardChannels: z.array(channelFieldSchema),
 
   // 成本预警
   costAlertEnabled: z.boolean(),
   costAlertWebhook: z.string().optional(),
   costAlertThreshold: z.number().min(0.5).max(1.0),
   costAlertCheckInterval: z.number().int().min(10).max(1440),
+  costAlertChannels: z.array(channelFieldSchema),
 });
 
 type NotificationFormData = z.infer<typeof notificationSchema>;
@@ -54,9 +115,26 @@ export default function NotificationsPage() {
     handleSubmit,
     watch,
     setValue,
+    control,
     formState: { errors },
   } = useForm<NotificationFormData>({
-    resolver: zodResolver(notificationSchema),
+    resolver: zodResolver(notificationSchema) as Resolver<NotificationFormData>,
+    defaultValues: {
+      enabled: false,
+      circuitBreakerEnabled: false,
+      circuitBreakerWebhook: "",
+      circuitBreakerChannels: [],
+      dailyLeaderboardEnabled: false,
+      dailyLeaderboardWebhook: "",
+      dailyLeaderboardTime: "09:00",
+      dailyLeaderboardTopN: 5,
+      dailyLeaderboardChannels: [],
+      costAlertEnabled: false,
+      costAlertWebhook: "",
+      costAlertThreshold: 0.8,
+      costAlertCheckInterval: 60,
+      costAlertChannels: [],
+    },
   });
 
   const enabled = watch("enabled");
@@ -64,6 +142,25 @@ export default function NotificationsPage() {
   const dailyLeaderboardEnabled = watch("dailyLeaderboardEnabled");
   const costAlertEnabled = watch("costAlertEnabled");
   const costAlertThreshold = watch("costAlertThreshold");
+  const circuitChannelsValues = watch("circuitBreakerChannels");
+  const leaderboardChannelsValues = watch("dailyLeaderboardChannels");
+  const costChannelsValues = watch("costAlertChannels");
+  const circuitChannelErrors = errors.circuitBreakerChannels;
+  const leaderboardChannelErrors = errors.dailyLeaderboardChannels;
+  const costChannelErrors = errors.costAlertChannels;
+
+  const circuitChannelArray = useFieldArray<NotificationFormData, "circuitBreakerChannels">({
+    control,
+    name: "circuitBreakerChannels",
+  });
+  const leaderboardChannelArray = useFieldArray<NotificationFormData, "dailyLeaderboardChannels">({
+    control,
+    name: "dailyLeaderboardChannels",
+  });
+  const costChannelArray = useFieldArray<NotificationFormData, "costAlertChannels">({
+    control,
+    name: "costAlertChannels",
+  });
 
   const loadSettings = useCallback(async () => {
     try {
@@ -73,14 +170,17 @@ export default function NotificationsPage() {
       setValue("enabled", data.enabled);
       setValue("circuitBreakerEnabled", data.circuitBreakerEnabled);
       setValue("circuitBreakerWebhook", data.circuitBreakerWebhook || "");
+      setValue("circuitBreakerChannels", normalizeChannelsForForm(data.circuitBreakerChannels));
       setValue("dailyLeaderboardEnabled", data.dailyLeaderboardEnabled);
       setValue("dailyLeaderboardWebhook", data.dailyLeaderboardWebhook || "");
       setValue("dailyLeaderboardTime", data.dailyLeaderboardTime || "09:00");
       setValue("dailyLeaderboardTopN", data.dailyLeaderboardTopN || 5);
+      setValue("dailyLeaderboardChannels", normalizeChannelsForForm(data.dailyLeaderboardChannels));
       setValue("costAlertEnabled", data.costAlertEnabled);
       setValue("costAlertWebhook", data.costAlertWebhook || "");
       setValue("costAlertThreshold", parseFloat(data.costAlertThreshold || "0.80"));
       setValue("costAlertCheckInterval", data.costAlertCheckInterval || 60);
+      setValue("costAlertChannels", normalizeChannelsForForm(data.costAlertChannels));
     } catch (error) {
       toast.error("加载通知设置失败");
       console.error(error);
@@ -102,14 +202,17 @@ export default function NotificationsPage() {
         enabled: data.enabled,
         circuitBreakerEnabled: data.circuitBreakerEnabled,
         circuitBreakerWebhook: data.circuitBreakerWebhook || null,
+        circuitBreakerChannels: mapChannelsForSubmit(data.circuitBreakerChannels),
         dailyLeaderboardEnabled: data.dailyLeaderboardEnabled,
         dailyLeaderboardWebhook: data.dailyLeaderboardWebhook || null,
         dailyLeaderboardTime: data.dailyLeaderboardTime,
         dailyLeaderboardTopN: data.dailyLeaderboardTopN,
+        dailyLeaderboardChannels: mapChannelsForSubmit(data.dailyLeaderboardChannels),
         costAlertEnabled: data.costAlertEnabled,
         costAlertWebhook: data.costAlertWebhook || null,
         costAlertThreshold: data.costAlertThreshold.toString(),
         costAlertCheckInterval: data.costAlertCheckInterval,
+        costAlertChannels: mapChannelsForSubmit(data.costAlertChannels),
       });
 
       if (result.success) {
@@ -126,19 +229,26 @@ export default function NotificationsPage() {
     }
   };
 
-  const handleTestWebhook = async (webhookUrl: string, type: string) => {
-    if (!webhookUrl || !webhookUrl.trim()) {
+  const handleTestChannel = async (
+    channelConfig: NotificationChannelConfig,
+    key: string
+  ) => {
+    if (!channelConfig.webhookUrl?.trim()) {
       toast.error("请先填写 Webhook URL");
       return;
     }
 
-    setTestingWebhook(type);
+    setTestingWebhook(key);
 
     try {
-      const result = await testWebhookAction(webhookUrl);
+      const result = await testWebhookAction({
+        channel: channelConfig.channel,
+        webhookUrl: channelConfig.webhookUrl,
+        secret: channelConfig.secret,
+      });
 
       if (result.success) {
-        toast.success("测试消息已发送，请检查企业微信");
+        toast.success("测试消息已发送，请检查对应渠道");
       } else {
         toast.error(result.error || "测试失败");
       }
@@ -148,6 +258,155 @@ export default function NotificationsPage() {
     } finally {
       setTestingWebhook(null);
     }
+  };
+
+  type ChannelFieldPath =
+    | "circuitBreakerChannels"
+    | "dailyLeaderboardChannels"
+    | "costAlertChannels";
+
+  const renderChannelList = (
+    fieldPath: ChannelFieldPath,
+    sectionKey: string,
+    fieldArray: UseFieldArrayReturn<NotificationFormData, ChannelFieldPath>,
+    values: NotificationFormData[typeof fieldPath],
+    fieldErrors: typeof errors.circuitBreakerChannels,
+    disabled: boolean
+  ) => {
+    return (
+      <div className="space-y-3">
+        {fieldArray.fields.length === 0 && (
+          <p className="text-sm text-muted-foreground">暂无渠道，点击下方“添加渠道”以新增。</p>
+        )}
+        {fieldArray.fields.map((field, index) => {
+          const current = values?.[index];
+          const errorBag = fieldErrors?.[index];
+          const requiresSecret = current?.channel === "feishu" || current?.channel === "dingtalk";
+          const testKey = `${sectionKey}-${index}`;
+          const canTest = Boolean(current?.webhookUrl?.trim());
+          const payload: NotificationChannelConfig = {
+            channel: current?.channel || "wechat",
+            webhookUrl: current?.webhookUrl?.trim() || "",
+            secret: current?.secret?.trim() || null,
+            enabled: current?.enabled !== false,
+          };
+
+          return (
+            <div
+              key={field.id}
+              className="rounded-xl border border-border/70 bg-muted/5 p-3 space-y-3"
+            >
+              <div className="space-y-2">
+                <Label>渠道类型</Label>
+                <Controller
+                  control={control}
+                  name={`${fieldPath}.${index}.channel` as const}
+                  render={({ field: ctrl }) => (
+                    <Select
+                      value={ctrl.value}
+                      onValueChange={(value) => ctrl.onChange(value as NotificationChannelType)}
+                      disabled={disabled}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="选择渠道" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="wechat">企业微信</SelectItem>
+                        <SelectItem value="feishu">飞书</SelectItem>
+                        <SelectItem value="dingtalk">钉钉</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Webhook URL</Label>
+                <Input
+                  {...register(`${fieldPath}.${index}.webhookUrl` as const)}
+                  disabled={disabled}
+                  placeholder="粘贴机器人 Webhook 地址"
+                />
+                {errorBag?.webhookUrl && (
+                  <p className="text-sm text-red-500">{errorBag.webhookUrl.message}</p>
+                )}
+              </div>
+
+              {(requiresSecret || current?.secret) && (
+                <div className="space-y-2">
+                  <Label>签名 Secret（飞书/钉钉可选）</Label>
+                  <Input
+                    {...register(`${fieldPath}.${index}.secret` as const)}
+                    disabled={disabled}
+                    placeholder={
+                      current?.channel === "wechat"
+                        ? "企业微信无需 Secret"
+                        : "填写飞书/钉钉的签名 Secret"
+                    }
+                  />
+                </div>
+              )}
+
+              <div className="flex flex-wrap items-center gap-3 justify-between">
+                <Controller
+                  control={control}
+                  name={`${fieldPath}.${index}.enabled` as const}
+                  render={({ field: ctrl }) => (
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={ctrl.value !== false}
+                        onCheckedChange={(checked) => ctrl.onChange(checked)}
+                        disabled={disabled}
+                      />
+                      <span className="text-sm text-muted-foreground">启用此渠道</span>
+                    </div>
+                  )}
+                />
+
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={disabled || !canTest || testingWebhook === testKey}
+                    onClick={() => handleTestChannel(payload, testKey)}
+                  >
+                    {testingWebhook === testKey ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" /> 测试中...
+                      </>
+                    ) : (
+                      <>
+                        <TestTube className="w-4 h-4 mr-2" /> 测试连接
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={disabled}
+                    onClick={() => fieldArray.remove(index)}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" /> 删除渠道
+                  </Button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={disabled}
+          onClick={() => fieldArray.append(createEmptyChannel())}
+        >
+          <Plus className="w-4 h-4 mr-2" /> 添加渠道
+        </Button>
+      </div>
+    );
   };
 
   if (isLoading) {
@@ -162,7 +421,7 @@ export default function NotificationsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">消息推送</h1>
-        <p className="text-muted-foreground mt-2">配置企业微信机器人消息推送</p>
+        <p className="text-muted-foreground mt-2">配置企业微信、飞书或钉钉机器人消息推送</p>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -210,40 +469,14 @@ export default function NotificationsPage() {
             {circuitBreakerEnabled && (
               <div className="space-y-4 pt-4">
                 <Separator />
-                <div className="space-y-2">
-                  <Label htmlFor="circuitBreakerWebhook">Webhook URL</Label>
-                  <Input
-                    id="circuitBreakerWebhook"
-                    {...register("circuitBreakerWebhook")}
-                    placeholder="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=..."
-                    disabled={!enabled}
-                  />
-                  {errors.circuitBreakerWebhook && (
-                    <p className="text-sm text-red-500">{errors.circuitBreakerWebhook.message}</p>
-                  )}
-                </div>
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={!enabled || testingWebhook === "circuitBreaker"}
-                  onClick={() =>
-                    handleTestWebhook(watch("circuitBreakerWebhook") || "", "circuitBreaker")
-                  }
-                >
-                  {testingWebhook === "circuitBreaker" ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      测试中...
-                    </>
-                  ) : (
-                    <>
-                      <TestTube className="w-4 h-4 mr-2" />
-                      测试连接
-                    </>
-                  )}
-                </Button>
+                {renderChannelList(
+                  "circuitBreakerChannels",
+                  "circuit",
+                  circuitChannelArray,
+                  circuitChannelsValues,
+                  circuitChannelErrors,
+                  !enabled
+                )}
               </div>
             )}
           </CardContent>
@@ -272,18 +505,14 @@ export default function NotificationsPage() {
             {dailyLeaderboardEnabled && (
               <div className="space-y-4 pt-4">
                 <Separator />
-                <div className="space-y-2">
-                  <Label htmlFor="dailyLeaderboardWebhook">Webhook URL</Label>
-                  <Input
-                    id="dailyLeaderboardWebhook"
-                    {...register("dailyLeaderboardWebhook")}
-                    placeholder="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=..."
-                    disabled={!enabled}
-                  />
-                  {errors.dailyLeaderboardWebhook && (
-                    <p className="text-sm text-red-500">{errors.dailyLeaderboardWebhook.message}</p>
-                  )}
-                </div>
+                {renderChannelList(
+                  "dailyLeaderboardChannels",
+                  "leaderboard",
+                  leaderboardChannelArray,
+                  leaderboardChannelsValues,
+                  leaderboardChannelErrors,
+                  !enabled
+                )}
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -314,28 +543,6 @@ export default function NotificationsPage() {
                     )}
                   </div>
                 </div>
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={!enabled || testingWebhook === "leaderboard"}
-                  onClick={() =>
-                    handleTestWebhook(watch("dailyLeaderboardWebhook") || "", "leaderboard")
-                  }
-                >
-                  {testingWebhook === "leaderboard" ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      测试中...
-                    </>
-                  ) : (
-                    <>
-                      <TestTube className="w-4 h-4 mr-2" />
-                      测试连接
-                    </>
-                  )}
-                </Button>
               </div>
             )}
           </CardContent>
@@ -364,18 +571,14 @@ export default function NotificationsPage() {
             {costAlertEnabled && (
               <div className="space-y-4 pt-4">
                 <Separator />
-                <div className="space-y-2">
-                  <Label htmlFor="costAlertWebhook">Webhook URL</Label>
-                  <Input
-                    id="costAlertWebhook"
-                    {...register("costAlertWebhook")}
-                    placeholder="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=..."
-                    disabled={!enabled}
-                  />
-                  {errors.costAlertWebhook && (
-                    <p className="text-sm text-red-500">{errors.costAlertWebhook.message}</p>
-                  )}
-                </div>
+                {renderChannelList(
+                  "costAlertChannels",
+                  "cost",
+                  costChannelArray,
+                  costChannelsValues,
+                  costChannelErrors,
+                  !enabled
+                )}
 
                 <div className="space-y-2">
                   <Label htmlFor="costAlertThreshold">
@@ -410,26 +613,6 @@ export default function NotificationsPage() {
                     <p className="text-sm text-red-500">{errors.costAlertCheckInterval.message}</p>
                   )}
                 </div>
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={!enabled || testingWebhook === "cost"}
-                  onClick={() => handleTestWebhook(watch("costAlertWebhook") || "", "cost")}
-                >
-                  {testingWebhook === "cost" ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      测试中...
-                    </>
-                  ) : (
-                    <>
-                      <TestTube className="w-4 h-4 mr-2" />
-                      测试连接
-                    </>
-                  )}
-                </Button>
               </div>
             )}
           </CardContent>

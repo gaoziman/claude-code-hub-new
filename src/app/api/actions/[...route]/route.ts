@@ -103,19 +103,6 @@ const { route: removeUserRoute, handler: removeUserHandler } = createActionRoute
 );
 app.openapi(removeUserRoute, removeUserHandler);
 
-const { route: getUserLimitUsageRoute, handler: getUserLimitUsageHandler } = createActionRoute(
-  "users",
-  "getUserLimitUsage",
-  userActions.getUserLimitUsage,
-  {
-    requestSchema: z.object({
-      userId: z.number().int().positive(),
-    }),
-    description: "获取用户限额使用情况",
-    tags: ["用户管理"],
-  }
-);
-app.openapi(getUserLimitUsageRoute, getUserLimitUsageHandler);
 
 // ==================== 密钥管理 ====================
 
@@ -194,19 +181,6 @@ const { route: removeKeyRoute, handler: removeKeyHandler } = createActionRoute(
 );
 app.openapi(removeKeyRoute, removeKeyHandler);
 
-const { route: getKeyLimitUsageRoute, handler: getKeyLimitUsageHandler } = createActionRoute(
-  "keys",
-  "getKeyLimitUsage",
-  keyActions.getKeyLimitUsage,
-  {
-    requestSchema: z.object({
-      keyId: z.number().int().positive(),
-    }),
-    description: "获取密钥限额使用情况",
-    tags: ["密钥管理"],
-  }
-);
-app.openapi(getKeyLimitUsageRoute, getKeyLimitUsageHandler);
 
 // ==================== 供应商管理 ====================
 
@@ -290,16 +264,6 @@ const { route: resetProviderCircuitRoute, handler: resetProviderCircuitHandler }
   });
 app.openapi(resetProviderCircuitRoute, resetProviderCircuitHandler);
 
-const { route: getProviderLimitUsageRoute, handler: getProviderLimitUsageHandler } =
-  createActionRoute("providers", "getProviderLimitUsage", providerActions.getProviderLimitUsage, {
-    requestSchema: z.object({
-      providerId: z.number().int().positive(),
-    }),
-    description: "获取供应商限额使用情况 (管理员)",
-    tags: ["供应商管理"],
-    requiredRole: "admin",
-  });
-app.openapi(getProviderLimitUsageRoute, getProviderLimitUsageHandler);
 
 // ==================== 模型价格管理 ====================
 
@@ -579,6 +543,13 @@ app.openapi(getSessionMessagesRoute, getSessionMessagesHandler);
 
 // ==================== 通知管理 ====================
 
+const notificationChannelSchema = z.object({
+  channel: z.enum(["wechat", "feishu", "dingtalk"]),
+  webhookUrl: z.string().url(),
+  secret: z.string().optional(),
+  enabled: z.boolean().optional(),
+});
+
 const { route: getNotificationSettingsRoute, handler: getNotificationSettingsHandler } =
   createActionRoute(
     "notifications",
@@ -598,8 +569,20 @@ const { route: updateNotificationSettingsRoute, handler: updateNotificationSetti
     notificationActions.updateNotificationSettingsAction,
     {
       requestSchema: z.object({
-        webhookUrl: z.string().url().optional(),
-        enabledEvents: z.array(z.string()).optional(),
+        enabled: z.boolean().optional(),
+        circuitBreakerEnabled: z.boolean().optional(),
+        circuitBreakerWebhook: z.string().optional().nullable(),
+        circuitBreakerChannels: z.array(notificationChannelSchema).optional(),
+        dailyLeaderboardEnabled: z.boolean().optional(),
+        dailyLeaderboardWebhook: z.string().optional().nullable(),
+        dailyLeaderboardTime: z.string().optional(),
+        dailyLeaderboardTopN: z.number().optional(),
+        dailyLeaderboardChannels: z.array(notificationChannelSchema).optional(),
+        costAlertEnabled: z.boolean().optional(),
+        costAlertWebhook: z.string().optional().nullable(),
+        costAlertThreshold: z.string().optional(),
+        costAlertCheckInterval: z.number().optional(),
+        costAlertChannels: z.array(notificationChannelSchema).optional(),
       }),
       description: "更新通知设置",
       tags: ["通知管理"],
@@ -613,7 +596,9 @@ const { route: testWebhookRoute, handler: testWebhookHandler } = createActionRou
   notificationActions.testWebhookAction,
   {
     requestSchema: z.object({
+      channel: z.enum(["wechat", "feishu", "dingtalk"]),
       webhookUrl: z.string().url(),
+      secret: z.string().optional(),
     }),
     description: "测试 Webhook 配置",
     tags: ["通知管理"],
@@ -713,8 +698,8 @@ HTTP 状态码:
   },
   servers: getOpenAPIServers(),
   tags: [
-    { name: "用户管理", description: "用户的 CRUD 操作和限额管理" },
-    { name: "密钥管理", description: "API 密钥的生成、编辑和限额配置" },
+    { name: "用户管理", description: "用户的 CRUD 操作与角色管理" },
+    { name: "密钥管理", description: "API 密钥的生成、编辑与状态管理" },
     { name: "供应商管理", description: "上游供应商配置、熔断器和健康检查" },
     { name: "模型价格", description: "模型价格配置和 LiteLLM 价格同步" },
     { name: "统计分析", description: "使用统计和数据分析" },

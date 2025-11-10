@@ -1,5 +1,8 @@
 import type { ProviderChainItem } from "@/types/message";
 
+const TIMELINE_CODE_START = "[[[CODE_START]]]";
+const TIMELINE_CODE_END = "[[[CODE_END]]]";
+
 /**
  * 辅助函数：判断供应商请求状态
  *
@@ -308,10 +311,11 @@ export function formatProviderTimeline(chain: ProviderChainItem[]): {
 
         // 错误详情（格式化 JSON）
         if (p.upstreamParsed) {
-          timeline += `\n错误详情:\n`;
+          timeline += `\n错误详情:\n${TIMELINE_CODE_START}`;
           timeline += JSON.stringify(p.upstreamParsed, null, 2);
+          timeline += `${TIMELINE_CODE_END}`;
         } else if (p.upstreamBody) {
-          timeline += `\n错误详情:\n${p.upstreamBody}`;
+          timeline += `\n错误详情:\n${TIMELINE_CODE_START}${p.upstreamBody}${TIMELINE_CODE_END}`;
         }
       } else {
         // 降级：使用 errorMessage

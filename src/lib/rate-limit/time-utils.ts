@@ -7,7 +7,7 @@ import { startOfMonth, startOfWeek, addMonths, addWeeks, addDays } from "date-fn
 import { toZonedTime, fromZonedTime } from "date-fns-tz";
 import { getEnvConfig } from "@/lib/config";
 
-export type TimePeriod = "5h" | "weekly" | "monthly";
+export type TimePeriod = "5h" | "weekly" | "monthly" | "total";
 
 export interface TimeRange {
   startTime: Date;
@@ -55,6 +55,15 @@ export function getTimeRangeForPeriod(period: TimePeriod): TimeRange {
       startTime = fromZonedTime(zonedStartOfMonth, timezone);
       break;
     }
+
+    case "total": {
+      startTime = new Date(0);
+      break;
+    }
+
+    default:
+      startTime = new Date(0);
+      break;
   }
 
   return { startTime, endTime };
@@ -93,7 +102,13 @@ export function getTTLForPeriod(period: TimePeriod): number {
 
       return Math.ceil((nextMonth.getTime() - now.getTime()) / 1000);
     }
+
+    case "total":
+      return 0; // 永不过期
+
   }
+
+  return 0;
 }
 
 /**
@@ -133,7 +148,17 @@ export function getResetInfo(period: TimePeriod): ResetInfo {
         resetAt,
       };
     }
+
+    case "total":
+      return {
+        type: "rolling",
+        period: "生命周期",
+      };
   }
+
+  return {
+    type: "rolling",
+  };
 }
 
 /**

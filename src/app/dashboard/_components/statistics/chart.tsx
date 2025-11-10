@@ -133,9 +133,14 @@ export function UserStatisticsChart({
 
   const numericChartData = React.useMemo(() => {
     return data.chartData.map((day) => {
-      const normalized: Record<string, string | number> = { ...day };
+      const normalized: Record<string, string | number> = {};
 
-      // 只处理可见用户的数据
+      // 复制基本字段（date等）
+      if (typeof day.date === "string") {
+        normalized.date = day.date;
+      }
+
+      // 处理可见用户的数据
       visibleUsers.forEach((user) => {
         const costKey = `${user.dataKey}_cost`;
         const costDecimal = toDecimal(day[costKey]);
@@ -299,11 +304,7 @@ export function UserStatisticsChart({
         </div>
         {/* 时间范围选择器 */}
         {onTimeRangeChange && (
-          <TimeRangeSelector
-            value={data.timeRange}
-            onChange={onTimeRangeChange}
-            className="border-t lg:border-t-0"
-          />
+          <TimeRangeSelector value={data.timeRange} onChange={onTimeRangeChange} />
         )}
         {/* 如果没有时间范围选择回调，显示原有的指标切换按钮 */}
         {!onTimeRangeChange && (
@@ -516,35 +517,36 @@ export function UserStatisticsChart({
                       const isSelected = selectedUserIds.has(user.id);
 
                       return (
-                        <div
+                        <button
+                          type="button"
                           key={user.dataKey}
                           onClick={() => enableUserFilter && toggleUserSelection(user.id)}
                           className={cn(
-                            "rounded-md px-3 py-2 text-center transition-all min-w-16",
+                            "group flex min-w-[92px] items-center gap-2 rounded-full border px-3 py-1.5 text-left text-xs font-medium shadow-sm transition-all duration-200",
                             enableUserFilter && "cursor-pointer",
                             isSelected
-                              ? "bg-muted/50 hover:bg-muted/70 ring-1 ring-border"
-                              : "bg-muted/10 hover:bg-muted/30 opacity-50"
+                              ? "border-transparent bg-white shadow-[0_6px_18px_rgba(15,23,42,0.08)]"
+                              : "border-border/60 bg-white/60 text-muted-foreground hover:border-border hover:bg-white"
                           )}
                         >
-                          {/* 上方：颜色点 + 用户名 */}
-                          <div className="flex items-center justify-center gap-1 mb-1">
-                            <div
-                              className="h-2 w-2 rounded-full flex-shrink-0"
-                              style={{ backgroundColor: color }}
-                            />
-                            <span className="text-xs font-medium text-foreground truncate max-w-12">
-                              {user.name}
-                            </span>
-                          </div>
-
-                          {/* 下方：数据值 */}
-                          <div className="text-xs font-bold text-foreground">
+                          <span
+                            className="h-2 w-2 rounded-full"
+                            style={{ backgroundColor: color }}
+                          />
+                          <span className="truncate" title={user.name}>
+                            {user.name}
+                          </span>
+                          <span
+                            className={cn(
+                              "ml-auto font-semibold text-foreground",
+                              !isSelected && "text-muted-foreground"
+                            )}
+                          >
                             {activeChart === "cost"
                               ? formatCurrency(userTotal.cost, currencyCode)
-                              : userTotal.calls.toLocaleString()}
-                          </div>
-                        </div>
+                              : `${userTotal.calls.toLocaleString()} 次`}
+                          </span>
+                        </button>
                       );
                     })}
                   </div>

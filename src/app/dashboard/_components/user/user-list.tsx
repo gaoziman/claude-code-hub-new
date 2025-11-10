@@ -9,9 +9,18 @@ interface UserListProps {
   activeUserId: number | null;
   onUserSelect: (userId: number) => void;
   currentUser?: User;
+  providerGroupOptions?: string[];
+  availableTags?: string[];
 }
 
-export function UserList({ users, activeUserId, onUserSelect, currentUser }: UserListProps) {
+export function UserList({
+  users,
+  activeUserId,
+  onUserSelect,
+  currentUser,
+  providerGroupOptions = [],
+  availableTags = [],
+}: UserListProps) {
   // 转换数据格式
   const listItems: ListItemData[] = users.map((user) => ({
     id: user.id,
@@ -55,7 +64,14 @@ export function UserList({ users, activeUserId, onUserSelect, currentUser }: Use
       </ListContainer>
 
       {/* 新增用户按钮：列表下方、与列表同宽，中性配色 - 仅管理员可见 */}
-      {currentUser?.role === "admin" && <AddUserDialog variant="secondary" className="w-full" />}
+      {currentUser?.role === "admin" && (
+        <AddUserDialog
+          variant="secondary"
+          className="w-full"
+          providerGroupOptions={providerGroupOptions}
+          availableTags={availableTags}
+        />
+      )}
     </div>
   );
 }

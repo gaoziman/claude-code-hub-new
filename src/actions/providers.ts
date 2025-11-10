@@ -6,11 +6,13 @@ import {
   updateProvider,
   deleteProvider,
   getProviderStatistics,
-  findProviderById,
+  listProviderGroups,
+  renameProviderGroup,
+  clearProviderGroup,
 } from "@/repository/provider";
 import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
-import { type ProviderDisplay, type ProviderType } from "@/types/provider";
+import { type ProviderDisplay, type ProviderType, type ProviderGroupSummary } from "@/types/provider";
 import { maskKey } from "@/lib/utils/validation";
 import { getSession } from "@/lib/auth";
 import { CreateProviderSchema, UpdateProviderSchema } from "@/lib/validation/schemas";
@@ -261,6 +263,58 @@ export async function addProvider(data: {
   }
 }
 
+export async function getProviderGroupsSummary(): Promise<ProviderGroupSummary[]> {
+  const session = await getSession();
+  if (!session || session.user.role !== "admin") {
+    return [];
+  }
+  return listProviderGroups();
+}
+
+export async function renameProviderGroupAction(
+  oldName: string,
+  newName: string
+): Promise<ActionResult> {
+  const session = await getSession();
+  if (!session || session.user.role !== "admin") {
+    return { ok: false, error: "无权限执行此操作" };
+  }
+
+  const trimmedOld = oldName.trim();
+  const trimmedNew = newName.trim();
+  if (!trimmedOld || !trimmedNew) {
+    return { ok: false, error: "分组名称不能为空" };
+  }
+  if (trimmedOld === trimmedNew) {
+    return { ok: false, error: "新名称需不同于原名称" };
+  }
+
+  const affected = await renameProviderGroup(trimmedOld, trimmedNew);
+  if (affected === 0) {
+    return { ok: false, error: "未找到对应的分组" };
+  }
+
+  revalidatePath("/settings/providers");
+  return { ok: true };
+}
+
+export async function deleteProviderGroupAction(name: string): Promise<ActionResult> {
+  const session = await getSession();
+  if (!session || session.user.role !== "admin") {
+    return { ok: false, error: "无权限执行此操作" };
+  }
+  const trimmed = name.trim();
+  if (!trimmed) {
+    return { ok: false, error: "分组名称不能为空" };
+  }
+  const affected = await clearProviderGroup(trimmed);
+  if (affected === 0) {
+    return { ok: false, error: "未找到对应的分组" };
+  }
+  revalidatePath("/settings/providers");
+  return { ok: true };
+}
+
 // 更新服务商
 export async function editProvider(
   providerId: number,
@@ -458,77 +512,6 @@ export async function resetProviderCircuit(providerId: number): Promise<ActionRe
 }
 
 /**
- * 获取供应商限额使用情况
- */
-export async function getProviderLimitUsage(providerId: number): Promise<
-  ActionResult<{
-    cost5h: { current: number; limit: number | null; resetInfo: string };
-    costWeekly: { current: number; limit: number | null; resetAt: Date };
-    costMonthly: { current: number; limit: number | null; resetAt: Date };
-    concurrentSessions: { current: number; limit: number };
-  }>
-> {
-  try {
-    const session = await getSession();
-    if (!session || session.user.role !== "admin") {
-      return { ok: false, error: "无权限执行此操作" };
-    }
-
-    const provider = await findProviderById(providerId);
-    if (!provider) {
-      return { ok: false, error: "供应商不存在" };
-    }
-
-    // 动态导入避免循环依赖
-    const { RateLimitService } = await import("@/lib/rate-limit");
-    const { SessionTracker } = await import("@/lib/session-tracker");
-    const { getResetInfo } = await import("@/lib/rate-limit/time-utils");
-
-    // 获取金额消费（优先 Redis，降级数据库）
-    const [cost5h, costWeekly, costMonthly, concurrentSessions] = await Promise.all([
-      RateLimitService.getCurrentCost(providerId, "provider", "5h"),
-      RateLimitService.getCurrentCost(providerId, "provider", "weekly"),
-      RateLimitService.getCurrentCost(providerId, "provider", "monthly"),
-      SessionTracker.getProviderSessionCount(providerId),
-    ]);
-
-    // 获取重置时间信息
-    const reset5h = getResetInfo("5h");
-    const resetWeekly = getResetInfo("weekly");
-    const resetMonthly = getResetInfo("monthly");
-
-    return {
-      ok: true,
-      data: {
-        cost5h: {
-          current: cost5h,
-          limit: provider.limit5hUsd,
-          resetInfo: reset5h.type === "rolling" ? `滚动窗口（${reset5h.period}）` : "自然时间窗口",
-        },
-        costWeekly: {
-          current: costWeekly,
-          limit: provider.limitWeeklyUsd,
-          resetAt: resetWeekly.resetAt!,
-        },
-        costMonthly: {
-          current: costMonthly,
-          limit: provider.limitMonthlyUsd,
-          resetAt: resetMonthly.resetAt!,
-        },
-        concurrentSessions: {
-          current: concurrentSessions,
-          limit: provider.limitConcurrentSessions || 0,
-        },
-      },
-    };
-  } catch (error) {
-    logger.error("获取供应商限额使用情况失败:", error);
-    const message = error instanceof Error ? error.message : "获取供应商限额使用情况失败";
-    return { ok: false, error: message };
-  }
-}
-
-/**
  * 测试代理连接
  * 通过代理访问供应商 URL，验证代理配置是否正确
  */
@@ -657,4 +640,27 @@ export async function testProviderProxy(data: {
     const message = error instanceof Error ? error.message : "测试代理连接失败";
     return { ok: false, error: message };
   }
+}
+
+export async function getProviderGroupOptions(): Promise<string[]> {
+  const providers = await getProviders();
+
+  if (!providers.length) {
+    return [];
+  }
+
+  const groupSet = new Set<string>();
+  for (const provider of providers) {
+    const normalized = provider.groupTag?.trim();
+    if (normalized && provider.isEnabled) {
+      groupSet.add(normalized);
+    }
+  }
+
+  if (groupSet.size === 0) {
+    return [];
+  }
+
+  const collator = new Intl.Collator("zh-CN", { sensitivity: "base", numeric: false });
+  return Array.from(groupSet).sort(collator.compare);
 }

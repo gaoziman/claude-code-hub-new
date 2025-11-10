@@ -12,29 +12,28 @@ export class ProxyRateLimitGuard {
 
     if (!user || !key) return null;
 
-    // ========== 用户层限流检查 ==========
-
-    // 1. 检查用户 RPM 限制
-    const rpmCheck = await RateLimitService.checkUserRPM(user.id, user.rpm);
-    if (!rpmCheck.allowed) {
-      logger.warn(`[RateLimit] User RPM exceeded: user=${user.id}, ${rpmCheck.reason}`);
-      return this.buildRateLimitResponse(user.id, "user", rpmCheck.reason!);
-    }
-
-    // 2. 检查用户每日额度
-    const dailyCheck = await RateLimitService.checkUserDailyCost(user.id, user.dailyQuota);
-    if (!dailyCheck.allowed) {
-      logger.warn(`[RateLimit] User daily limit exceeded: user=${user.id}, ${dailyCheck.reason}`);
-      return this.buildRateLimitResponse(user.id, "user", dailyCheck.reason!);
-    }
-
     // ========== Key 层限流检查 ==========
+
+    // 1. 检查 Key RPM 限制
+    const rpmCheck = await RateLimitService.checkKeyRPM(key.id, key.rpmLimit);
+    if (!rpmCheck.allowed) {
+      logger.warn(`[RateLimit] Key RPM exceeded: key=${key.id}, ${rpmCheck.reason}`);
+      return this.buildRateLimitResponse(key.id, "key", rpmCheck.reason!);
+    }
+
+    // 2. 检查 Key 每日额度
+    const dailyCheck = await RateLimitService.checkKeyDailyCost(key.id, key.dailyLimitUsd);
+    if (!dailyCheck.allowed) {
+      logger.warn(`[RateLimit] Key daily limit exceeded: key=${key.id}, ${dailyCheck.reason}`);
+      return this.buildRateLimitResponse(key.id, "key", dailyCheck.reason!);
+    }
 
     // 3. 检查 Key 金额限制
     const costCheck = await RateLimitService.checkCostLimits(key.id, "key", {
       limit_5h_usd: key.limit5hUsd,
       limit_weekly_usd: key.limitWeeklyUsd,
       limit_monthly_usd: key.limitMonthlyUsd,
+      total_limit_usd: key.totalLimitUsd,
     });
 
     if (!costCheck.allowed) {

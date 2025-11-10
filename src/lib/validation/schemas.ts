@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { PROVIDER_LIMITS, PROVIDER_DEFAULTS } from "@/lib/constants/provider.constants";
-import { USER_LIMITS, USER_DEFAULTS } from "@/lib/constants/user.constants";
+import { KEY_LIMITS } from "@/lib/constants/key.constants";
 import { CURRENCY_CONFIG } from "@/lib/utils/currency";
 
 /**
@@ -10,19 +10,21 @@ export const CreateUserSchema = z.object({
   name: z.string().min(1, "用户名不能为空").max(64, "用户名不能超过64个字符"),
   note: z.string().max(200, "备注不能超过200个字符").optional().default(""),
   providerGroup: z.string().max(50, "供应商分组不能超过50个字符").optional().default(""),
-  rpm: z.coerce
-    .number()
-    .int("RPM必须是整数")
-    .min(USER_LIMITS.RPM.MIN, `RPM不能低于${USER_LIMITS.RPM.MIN}`)
-    .max(USER_LIMITS.RPM.MAX, `RPM不能超过${USER_LIMITS.RPM.MAX}`)
+  tags: z
+    .array(z.string().trim().min(1, "标签不能为空").max(24, "标签长度不能超过24个字符"))
+    .max(10, "最多可添加10个标签")
     .optional()
-    .default(USER_DEFAULTS.RPM),
-  dailyQuota: z.coerce
-    .number()
-    .min(USER_LIMITS.DAILY_QUOTA.MIN, `每日额度不能低于${USER_LIMITS.DAILY_QUOTA.MIN}美元`)
-    .max(USER_LIMITS.DAILY_QUOTA.MAX, `每日额度不能超过${USER_LIMITS.DAILY_QUOTA.MAX}美元`)
+    .default([]),
+  isEnabled: z.boolean().optional().default(true),
+  expiresAt: z
+    .union([z.string(), z.null()])
     .optional()
-    .default(USER_DEFAULTS.DAILY_QUOTA),
+    .transform((value) => {
+      if (typeof value === "string" && value.trim().length > 0) {
+        return value;
+      }
+      return null;
+    }),
 });
 
 /**
@@ -32,17 +34,20 @@ export const UpdateUserSchema = z.object({
   name: z.string().min(1, "用户名不能为空").max(64, "用户名不能超过64个字符").optional(),
   note: z.string().max(200, "备注不能超过200个字符").optional(),
   providerGroup: z.string().max(50, "供应商分组不能超过50个字符").nullable().optional(),
-  rpm: z.coerce
-    .number()
-    .int("RPM必须是整数")
-    .min(USER_LIMITS.RPM.MIN, `RPM不能低于${USER_LIMITS.RPM.MIN}`)
-    .max(USER_LIMITS.RPM.MAX, `RPM不能超过${USER_LIMITS.RPM.MAX}`)
+  tags: z
+    .array(z.string().trim().min(1, "标签不能为空").max(24, "标签长度不能超过24个字符"))
+    .max(10, "最多可添加10个标签")
     .optional(),
-  dailyQuota: z.coerce
-    .number()
-    .min(USER_LIMITS.DAILY_QUOTA.MIN, `每日额度不能低于${USER_LIMITS.DAILY_QUOTA.MIN}美元`)
-    .max(USER_LIMITS.DAILY_QUOTA.MAX, `每日额度不能超过${USER_LIMITS.DAILY_QUOTA.MAX}美元`)
-    .optional(),
+  isEnabled: z.boolean().optional(),
+  expiresAt: z
+    .union([z.string(), z.null()])
+    .optional()
+    .transform((value) => {
+      if (typeof value === "string" && value.trim().length > 0) {
+        return value;
+      }
+      return null;
+    }),
 });
 
 /**
@@ -57,6 +62,7 @@ export const KeyFormSchema = z.object({
     .transform((val) => (val === "" ? undefined : val)),
   // Web UI 登录权限控制
   canLoginWebUi: z.boolean().optional().default(true),
+  scope: z.enum(["owner", "child"]).optional().default("child"),
   // 金额限流配置
   limit5hUsd: z.coerce
     .number()
@@ -76,6 +82,22 @@ export const KeyFormSchema = z.object({
     .max(200000, "月消费上限不能超过200000美元")
     .nullable()
     .optional(),
+  totalLimitUsd: z
+    .union([
+      z.coerce
+        .number()
+        .min(
+          KEY_LIMITS.TOTAL_LIMIT.MIN,
+          `总费用上限不能低于${KEY_LIMITS.TOTAL_LIMIT.MIN}美元`
+        )
+        .max(
+          KEY_LIMITS.TOTAL_LIMIT.MAX,
+          `总费用上限不能超过${KEY_LIMITS.TOTAL_LIMIT.MAX}美元`
+        ),
+      z.literal(null),
+    ])
+    .optional()
+    .default(null),
   limitConcurrentSessions: z.coerce
     .number()
     .int("并发Session上限必须是整数")
@@ -83,6 +105,27 @@ export const KeyFormSchema = z.object({
     .max(1000, "并发Session上限不能超过1000")
     .optional()
     .default(0),
+  rpmLimit: z
+    .union([
+      z.coerce
+        .number()
+        .int("RPM必须是整数")
+        .min(KEY_LIMITS.RPM.MIN, `RPM不能低于${KEY_LIMITS.RPM.MIN}`)
+        .max(KEY_LIMITS.RPM.MAX, `RPM不能超过${KEY_LIMITS.RPM.MAX}`),
+      z.literal(null),
+    ])
+    .optional()
+    .default(null),
+  dailyQuota: z
+    .union([
+      z.coerce
+        .number()
+        .min(KEY_LIMITS.DAILY_QUOTA.MIN, `每日额度不能低于${KEY_LIMITS.DAILY_QUOTA.MIN}美元`)
+        .max(KEY_LIMITS.DAILY_QUOTA.MAX, `每日额度不能超过${KEY_LIMITS.DAILY_QUOTA.MAX}美元`),
+      z.literal(null),
+    ])
+    .optional()
+    .default(null),
 });
 
 /**
@@ -108,7 +151,7 @@ export const CreateProviderSchema = z.object({
     .max(2147483647, "优先级超出整数范围")
     .optional()
     .default(0),
-  cost_multiplier: z.coerce.number().min(0, "成本倍率不能为负数").optional().default(1.0),
+  cost_multiplier: z.coerce.number().min(0, "成本倍率不能为负数").optional().default(0.6),
   group_tag: z.string().max(50, "分组标签不能超过50个字符").nullable().optional(),
   // Codex 支持:供应商类型和模型重定向
   provider_type: z

@@ -18,10 +18,14 @@ export async function findKeyById(id: number): Promise<Key | null> {
       isEnabled: keys.isEnabled,
       expiresAt: keys.expiresAt,
       canLoginWebUi: keys.canLoginWebUi,
+      scope: keys.scope,
       limit5hUsd: keys.limit5hUsd,
       limitWeeklyUsd: keys.limitWeeklyUsd,
       limitMonthlyUsd: keys.limitMonthlyUsd,
+      totalLimitUsd: keys.totalLimitUsd,
       limitConcurrentSessions: keys.limitConcurrentSessions,
+      rpmLimit: keys.rpmLimit,
+      dailyLimitUsd: keys.dailyLimitUsd,
       createdAt: keys.createdAt,
       updatedAt: keys.updatedAt,
       deletedAt: keys.deletedAt,
@@ -43,10 +47,14 @@ export async function findKeyList(userId: number): Promise<Key[]> {
       isEnabled: keys.isEnabled,
       expiresAt: keys.expiresAt,
       canLoginWebUi: keys.canLoginWebUi,
+      scope: keys.scope,
       limit5hUsd: keys.limit5hUsd,
       limitWeeklyUsd: keys.limitWeeklyUsd,
       limitMonthlyUsd: keys.limitMonthlyUsd,
+      totalLimitUsd: keys.totalLimitUsd,
       limitConcurrentSessions: keys.limitConcurrentSessions,
+      rpmLimit: keys.rpmLimit,
+      dailyLimitUsd: keys.dailyLimitUsd,
       createdAt: keys.createdAt,
       updatedAt: keys.updatedAt,
       deletedAt: keys.deletedAt,
@@ -66,11 +74,21 @@ export async function createKey(keyData: CreateKeyData): Promise<Key> {
     isEnabled: keyData.is_enabled,
     expiresAt: keyData.expires_at,
     canLoginWebUi: keyData.can_login_web_ui ?? true,
+    scope: keyData.scope ?? 'owner',
     limit5hUsd: keyData.limit_5h_usd != null ? keyData.limit_5h_usd.toString() : null,
     limitWeeklyUsd: keyData.limit_weekly_usd != null ? keyData.limit_weekly_usd.toString() : null,
     limitMonthlyUsd:
       keyData.limit_monthly_usd != null ? keyData.limit_monthly_usd.toString() : null,
+    totalLimitUsd:
+      keyData.total_limit_usd != null ? keyData.total_limit_usd.toString() : null,
     limitConcurrentSessions: keyData.limit_concurrent_sessions,
+    rpmLimit: keyData.rpm_limit === undefined ? undefined : keyData.rpm_limit,
+    dailyLimitUsd:
+      keyData.daily_limit_usd === undefined
+        ? undefined
+        : keyData.daily_limit_usd != null
+          ? keyData.daily_limit_usd.toString()
+          : null,
   };
 
   const [key] = await db.insert(keys).values(dbData).returning({
@@ -81,10 +99,14 @@ export async function createKey(keyData: CreateKeyData): Promise<Key> {
     isEnabled: keys.isEnabled,
     expiresAt: keys.expiresAt,
     canLoginWebUi: keys.canLoginWebUi,
+    scope: keys.scope,
     limit5hUsd: keys.limit5hUsd,
     limitWeeklyUsd: keys.limitWeeklyUsd,
     limitMonthlyUsd: keys.limitMonthlyUsd,
+    totalLimitUsd: keys.totalLimitUsd,
     limitConcurrentSessions: keys.limitConcurrentSessions,
+    rpmLimit: keys.rpmLimit,
+    dailyLimitUsd: keys.dailyLimitUsd,
     createdAt: keys.createdAt,
     updatedAt: keys.updatedAt,
     deletedAt: keys.deletedAt,
@@ -106,6 +128,7 @@ export async function updateKey(id: number, keyData: UpdateKeyData): Promise<Key
   if (keyData.is_enabled !== undefined) dbData.isEnabled = keyData.is_enabled;
   if (keyData.expires_at !== undefined) dbData.expiresAt = keyData.expires_at;
   if (keyData.can_login_web_ui !== undefined) dbData.canLoginWebUi = keyData.can_login_web_ui;
+  if (keyData.scope !== undefined) dbData.scope = keyData.scope;
   if (keyData.limit_5h_usd !== undefined)
     dbData.limit5hUsd = keyData.limit_5h_usd != null ? keyData.limit_5h_usd.toString() : null;
   if (keyData.limit_weekly_usd !== undefined)
@@ -114,8 +137,15 @@ export async function updateKey(id: number, keyData: UpdateKeyData): Promise<Key
   if (keyData.limit_monthly_usd !== undefined)
     dbData.limitMonthlyUsd =
       keyData.limit_monthly_usd != null ? keyData.limit_monthly_usd.toString() : null;
+  if (keyData.total_limit_usd !== undefined)
+    dbData.totalLimitUsd =
+      keyData.total_limit_usd != null ? keyData.total_limit_usd.toString() : null;
   if (keyData.limit_concurrent_sessions !== undefined)
     dbData.limitConcurrentSessions = keyData.limit_concurrent_sessions;
+  if (keyData.rpm_limit !== undefined) dbData.rpmLimit = keyData.rpm_limit;
+  if (keyData.daily_limit_usd !== undefined)
+    dbData.dailyLimitUsd =
+      keyData.daily_limit_usd != null ? keyData.daily_limit_usd.toString() : null;
 
   const [key] = await db
     .update(keys)
@@ -129,10 +159,14 @@ export async function updateKey(id: number, keyData: UpdateKeyData): Promise<Key
       isEnabled: keys.isEnabled,
       expiresAt: keys.expiresAt,
       canLoginWebUi: keys.canLoginWebUi,
+      scope: keys.scope,
       limit5hUsd: keys.limit5hUsd,
       limitWeeklyUsd: keys.limitWeeklyUsd,
-      limitMonthlyUsd: keys.limitMonthlyUsd,
+    limitMonthlyUsd: keys.limitMonthlyUsd,
+    totalLimitUsd: keys.totalLimitUsd,
       limitConcurrentSessions: keys.limitConcurrentSessions,
+      rpmLimit: keys.rpmLimit,
+      dailyLimitUsd: keys.dailyLimitUsd,
       createdAt: keys.createdAt,
       updatedAt: keys.updatedAt,
       deletedAt: keys.deletedAt,
@@ -155,22 +189,28 @@ export async function findActiveKeyByUserIdAndName(
       isEnabled: keys.isEnabled,
       expiresAt: keys.expiresAt,
       canLoginWebUi: keys.canLoginWebUi,
+      scope: keys.scope,
       limit5hUsd: keys.limit5hUsd,
       limitWeeklyUsd: keys.limitWeeklyUsd,
       limitMonthlyUsd: keys.limitMonthlyUsd,
       limitConcurrentSessions: keys.limitConcurrentSessions,
+      rpmLimit: keys.rpmLimit,
+      dailyLimitUsd: keys.dailyLimitUsd,
       createdAt: keys.createdAt,
       updatedAt: keys.updatedAt,
       deletedAt: keys.deletedAt,
     })
     .from(keys)
+    .innerJoin(users, and(eq(users.id, keys.userId), isNull(users.deletedAt)))
     .where(
       and(
         eq(keys.userId, userId),
         eq(keys.name, name),
         isNull(keys.deletedAt),
         eq(keys.isEnabled, true),
-        or(isNull(keys.expiresAt), gt(keys.expiresAt, new Date()))
+        or(isNull(keys.expiresAt), gt(keys.expiresAt, new Date())),
+        eq(users.isEnabled, true),
+        or(isNull(users.expiresAt), gt(users.expiresAt, new Date()))
       )
     );
 
@@ -178,13 +218,30 @@ export async function findActiveKeyByUserIdAndName(
   return toKey(key);
 }
 
-export async function findKeyUsageToday(
-  userId: number
+export interface DateRangeFilter {
+  start?: Date;
+  end?: Date;
+}
+
+export async function findKeyUsageInRange(
+  userId: number,
+  range?: DateRangeFilter
 ): Promise<Array<{ keyId: number; totalCost: number }>> {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
+  const dateFilter = range ?? (() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return { start: today, end: tomorrow };
+  })();
+
+  const joinConditions = [eq(messageRequest.key, keys.key), isNull(messageRequest.deletedAt)];
+  if (dateFilter.start) {
+    joinConditions.push(gte(messageRequest.createdAt, dateFilter.start));
+  }
+  if (dateFilter.end) {
+    joinConditions.push(lt(messageRequest.createdAt, dateFilter.end));
+  }
 
   const rows = await db
     .select({
@@ -192,15 +249,7 @@ export async function findKeyUsageToday(
       totalCost: sum(messageRequest.costUsd),
     })
     .from(keys)
-    .leftJoin(
-      messageRequest,
-      and(
-        eq(messageRequest.key, keys.key),
-        isNull(messageRequest.deletedAt),
-        gte(messageRequest.createdAt, today),
-        lt(messageRequest.createdAt, tomorrow)
-      )
-    )
+    .leftJoin(messageRequest, and(...joinConditions))
     .where(and(eq(keys.userId, userId), isNull(keys.deletedAt)))
     .groupBy(keys.id);
 
@@ -242,23 +291,30 @@ export async function findActiveKeyByKeyString(keyString: string): Promise<Key |
       isEnabled: keys.isEnabled,
       expiresAt: keys.expiresAt,
       canLoginWebUi: keys.canLoginWebUi,
+      scope: keys.scope,
       limit5hUsd: keys.limit5hUsd,
       limitWeeklyUsd: keys.limitWeeklyUsd,
       limitMonthlyUsd: keys.limitMonthlyUsd,
       limitConcurrentSessions: keys.limitConcurrentSessions,
+      rpmLimit: keys.rpmLimit,
+      dailyLimitUsd: keys.dailyLimitUsd,
       createdAt: keys.createdAt,
       updatedAt: keys.updatedAt,
       deletedAt: keys.deletedAt,
     })
     .from(keys)
+    .innerJoin(users, and(eq(users.id, keys.userId), isNull(users.deletedAt)))
     .where(
       and(
         eq(keys.key, keyString),
         isNull(keys.deletedAt),
         eq(keys.isEnabled, true),
-        or(isNull(keys.expiresAt), gt(keys.expiresAt, new Date()))
+        or(isNull(keys.expiresAt), gt(keys.expiresAt, new Date())),
+        eq(users.isEnabled, true),
+        or(isNull(users.expiresAt), gt(users.expiresAt, new Date()))
       )
-    );
+    )
+    .limit(1);
 
   if (!key) return null;
   return toKey(key);
@@ -278,10 +334,14 @@ export async function validateApiKeyAndGetUser(
       keyIsEnabled: keys.isEnabled,
       keyExpiresAt: keys.expiresAt,
       keyCanLoginWebUi: keys.canLoginWebUi,
+      keyScope: keys.scope,
       keyLimit5hUsd: keys.limit5hUsd,
       keyLimitWeeklyUsd: keys.limitWeeklyUsd,
       keyLimitMonthlyUsd: keys.limitMonthlyUsd,
+      keyTotalLimitUsd: keys.totalLimitUsd,
       keyLimitConcurrentSessions: keys.limitConcurrentSessions,
+      keyRpmLimit: keys.rpmLimit,
+      keyDailyLimitUsd: keys.dailyLimitUsd,
       keyCreatedAt: keys.createdAt,
       keyUpdatedAt: keys.updatedAt,
       keyDeletedAt: keys.deletedAt,
@@ -290,9 +350,10 @@ export async function validateApiKeyAndGetUser(
       userName: users.name,
       userDescription: users.description,
       userRole: users.role,
-      userRpm: users.rpmLimit,
-      userDailyQuota: users.dailyLimitUsd,
       userProviderGroup: users.providerGroup,
+      userTags: users.tags,
+      userIsEnabled: users.isEnabled,
+      userExpiresAt: users.expiresAt,
       userCreatedAt: users.createdAt,
       userUpdatedAt: users.updatedAt,
       userDeletedAt: users.deletedAt,
@@ -305,7 +366,9 @@ export async function validateApiKeyAndGetUser(
         isNull(keys.deletedAt),
         eq(keys.isEnabled, true),
         or(isNull(keys.expiresAt), gt(keys.expiresAt, new Date())),
-        isNull(users.deletedAt)
+        isNull(users.deletedAt),
+        eq(users.isEnabled, true),
+        or(isNull(users.expiresAt), gt(users.expiresAt, new Date()))
       )
     );
 
@@ -320,9 +383,10 @@ export async function validateApiKeyAndGetUser(
     name: row.userName,
     description: row.userDescription,
     role: row.userRole,
-    rpm: row.userRpm,
-    dailyQuota: row.userDailyQuota,
     providerGroup: row.userProviderGroup,
+    tags: row.userTags,
+    isEnabled: row.userIsEnabled,
+    expiresAt: row.userExpiresAt,
     createdAt: row.userCreatedAt,
     updatedAt: row.userUpdatedAt,
     deletedAt: row.userDeletedAt,
@@ -336,10 +400,14 @@ export async function validateApiKeyAndGetUser(
     isEnabled: row.keyIsEnabled,
     expiresAt: row.keyExpiresAt,
     canLoginWebUi: row.keyCanLoginWebUi,
+    scope: row.keyScope,
     limit5hUsd: row.keyLimit5hUsd,
     limitWeeklyUsd: row.keyLimitWeeklyUsd,
     limitMonthlyUsd: row.keyLimitMonthlyUsd,
     limitConcurrentSessions: row.keyLimitConcurrentSessions,
+    rpmLimit: row.keyRpmLimit,
+    dailyLimitUsd: row.keyDailyLimitUsd,
+    totalLimitUsd: row.keyTotalLimitUsd,
     createdAt: row.keyCreatedAt,
     updatedAt: row.keyUpdatedAt,
     deletedAt: row.keyDeletedAt,
@@ -363,29 +431,36 @@ export interface KeyStatistics {
   }>;
 }
 
-export async function findKeysWithStatistics(userId: number): Promise<KeyStatistics[]> {
+export async function findKeysWithStatistics(
+  userId: number,
+  range?: DateRangeFilter
+): Promise<KeyStatistics[]> {
   const userKeys = await findKeyList(userId);
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
+  const dateFilter = range ?? (() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return { start: today, end: tomorrow };
+  })();
 
   const stats: KeyStatistics[] = [];
 
   for (const key of userKeys) {
     // 查询今日调用次数
+    const dateConditions = [eq(messageRequest.key, key.key), isNull(messageRequest.deletedAt)];
+    if (dateFilter.start) {
+      dateConditions.push(gte(messageRequest.createdAt, dateFilter.start));
+    }
+    if (dateFilter.end) {
+      dateConditions.push(lt(messageRequest.createdAt, dateFilter.end));
+    }
+
     const [todayCount] = await db
       .select({ count: count() })
       .from(messageRequest)
-      .where(
-        and(
-          eq(messageRequest.key, key.key),
-          isNull(messageRequest.deletedAt),
-          gte(messageRequest.createdAt, today),
-          lt(messageRequest.createdAt, tomorrow)
-        )
-      );
+      .where(and(...dateConditions));
 
     // 查询最后使用时间和供应商
     const [lastUsage] = await db
@@ -409,10 +484,7 @@ export async function findKeysWithStatistics(userId: number): Promise<KeyStatist
       .from(messageRequest)
       .where(
         and(
-          eq(messageRequest.key, key.key),
-          isNull(messageRequest.deletedAt),
-          gte(messageRequest.createdAt, today),
-          lt(messageRequest.createdAt, tomorrow),
+          ...dateConditions,
           sql`${messageRequest.model} IS NOT NULL`
         )
       )

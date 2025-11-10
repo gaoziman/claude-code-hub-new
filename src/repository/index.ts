@@ -13,7 +13,7 @@ export {
   createKey,
   updateKey,
   findActiveKeyByUserIdAndName,
-  findKeyUsageToday,
+  findKeyUsageInRange,
   countActiveKeysByUser,
   deleteKey,
   findActiveKeyByKeyString,

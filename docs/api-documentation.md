@@ -86,7 +86,7 @@ const response = await axios.post(
 
 ## API 模块
 
-### 1. 用户管理 (5 个端点)
+### 1. 用户管理 (4 个端点)
 
 **基础路径**：`/api/actions/users/`
 
@@ -94,7 +94,6 @@ const response = await axios.post(
 - `POST /addUser` - 创建新用户（管理员）
 - `POST /editUser` - 编辑用户信息（管理员）
 - `POST /removeUser` - 删除用户（管理员）
-- `POST /getUserLimitUsage` - 获取用户限额使用情况
 
 **示例：创建用户**
 
@@ -125,7 +124,7 @@ curl -X POST http://localhost:23000/api/actions/users/addUser \
 }
 ```
 
-### 2. 密钥管理 (5 个端点)
+### 2. 密钥管理 (4 个端点)
 
 **基础路径**：`/api/actions/keys/`
 
@@ -133,7 +132,6 @@ curl -X POST http://localhost:23000/api/actions/users/addUser \
 - `POST /addKey` - 创建新密钥
 - `POST /editKey` - 编辑密钥信息
 - `POST /removeKey` - 删除密钥
-- `POST /getKeyLimitUsage` - 获取密钥限额使用情况
 
 **示例：创建密钥**
 
@@ -148,7 +146,7 @@ curl -X POST http://localhost:23000/api/actions/keys/addKey \
   }'
 ```
 
-### 3. 供应商管理 (7 个端点)
+### 3. 供应商管理 (6 个端点)
 
 **基础路径**：`/api/actions/providers/`
 
@@ -158,7 +156,6 @@ curl -X POST http://localhost:23000/api/actions/keys/addKey \
 - `POST /removeProvider` - 删除供应商（管理员）
 - `POST /getProvidersHealthStatus` - 获取熔断器健康状态
 - `POST /resetProviderCircuit` - 重置熔断器状态（管理员）
-- `POST /getProviderLimitUsage` - 获取供应商限额使用情况
 
 **示例：添加供应商**
 

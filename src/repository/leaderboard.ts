@@ -2,7 +2,7 @@
 
 import { db } from "@/drizzle/db";
 import { messageRequest, users } from "@/drizzle/schema";
-import { and, gte, lt, desc, sql, isNull } from "drizzle-orm";
+import { and, gte, lt, desc, sql, isNull, eq } from "drizzle-orm";
 
 /**
  * 排行榜条目类型
@@ -59,12 +59,16 @@ async function findLeaderboard(startTime: Date, endTime: Date): Promise<Leaderbo
       )`,
     })
     .from(messageRequest)
-    .innerJoin(users, and(sql`${messageRequest.userId} = ${users.id}`, isNull(users.deletedAt)))
+    .innerJoin(
+      users,
+      and(sql`${messageRequest.userId} = ${users.id}`, isNull(users.deletedAt))
+    )
     .where(
       and(
         isNull(messageRequest.deletedAt),
         gte(messageRequest.createdAt, startTime),
-        lt(messageRequest.createdAt, endTime)
+        lt(messageRequest.createdAt, endTime),
+        eq(users.role, "user")
       )
     )
     .groupBy(messageRequest.userId, users.name)

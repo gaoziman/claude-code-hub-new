@@ -4,7 +4,13 @@ import { db } from "@/drizzle/db";
 import { logger } from "@/lib/logger";
 import { providers } from "@/drizzle/schema";
 import { eq, isNull, and, desc, sql } from "drizzle-orm";
-import type { Provider, CreateProviderData, UpdateProviderData } from "@/types/provider";
+import type {
+  Provider,
+  CreateProviderData,
+  UpdateProviderData,
+  ProviderType,
+  ProviderGroupSummary,
+} from "@/types/provider";
 import { toProvider } from "./_shared/transformers";
 import { getEnvConfig } from "@/lib/config";
 
@@ -17,7 +23,7 @@ export async function createProvider(providerData: CreateProviderData): Promise<
     weight: providerData.weight,
     priority: providerData.priority,
     costMultiplier:
-      providerData.cost_multiplier != null ? providerData.cost_multiplier.toString() : "1.0",
+      providerData.cost_multiplier != null ? providerData.cost_multiplier.toString() : "0.6",
     groupTag: providerData.group_tag,
     providerType: providerData.provider_type,
     modelRedirects: providerData.model_redirects,
@@ -190,7 +196,7 @@ export async function updateProvider(
   if (providerData.priority !== undefined) dbData.priority = providerData.priority;
   if (providerData.cost_multiplier !== undefined)
     dbData.costMultiplier =
-      providerData.cost_multiplier != null ? providerData.cost_multiplier.toString() : "1.0";
+      providerData.cost_multiplier != null ? providerData.cost_multiplier.toString() : "0.6";
   if (providerData.group_tag !== undefined) dbData.groupTag = providerData.group_tag;
   if (providerData.provider_type !== undefined) dbData.providerType = providerData.provider_type;
   if (providerData.model_redirects !== undefined)
@@ -265,6 +271,56 @@ export async function updateProvider(
 
   if (!provider) return null;
   return toProvider(provider);
+}
+
+export async function listProviderGroups(): Promise<ProviderGroupSummary[]> {
+  const rows = await db
+    .select({
+      name: providers.groupTag,
+      count: sql<number>`count(*)`,
+    })
+    .from(providers)
+    .where(and(isNull(providers.deletedAt), sql`${providers.groupTag} IS NOT NULL`))
+    .groupBy(providers.groupTag)
+    .orderBy(desc(sql`count(*)`), providers.groupTag);
+
+  return rows
+    .filter((row) => row.name)
+    .map((row) => ({
+      name: row.name as string,
+      count: Number(row.count),
+    }));
+}
+
+export async function renameProviderGroup(oldName: string, newName: string): Promise<number> {
+  const result = await db
+    .update(providers)
+    .set({ groupTag: newName, updatedAt: new Date() })
+    .where(and(isNull(providers.deletedAt), eq(providers.groupTag, oldName)))
+    .returning({ id: providers.id });
+
+  return result.length;
+}
+
+export async function clearProviderGroup(name: string): Promise<number> {
+  const result = await db
+    .update(providers)
+    .set({ groupTag: null, updatedAt: new Date() })
+    .where(and(isNull(providers.deletedAt), eq(providers.groupTag, name)))
+    .returning({ id: providers.id });
+
+  return result.length;
+}
+
+export async function getActiveProviderTypes(): Promise<ProviderType[]> {
+  const rows = await db
+    .selectDistinct({ providerType: providers.providerType })
+    .from(providers)
+    .where(and(eq(providers.isEnabled, true), isNull(providers.deletedAt)));
+
+  return rows
+    .map((row) => row.providerType)
+    .filter((type): type is ProviderType => Boolean(type));
 }
 
 export async function deleteProvider(id: number): Promise<boolean> {

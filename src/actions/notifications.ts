@@ -1,6 +1,5 @@
 "use server";
 
-import { WeChatBot } from "@/lib/wechat/bot";
 import { logger } from "@/lib/logger";
 import {
   getNotificationSettings,
@@ -8,6 +7,8 @@ import {
   type NotificationSettings,
   type UpdateNotificationSettingsInput,
 } from "@/repository/notifications";
+import { testNotificationChannel } from "@/lib/notification/channels";
+import type { NotificationChannelConfig, NotificationChannelType } from "@/types/notification";
 
 /**
  * 获取通知设置
@@ -50,17 +51,24 @@ export async function updateNotificationSettingsAction(
 /**
  * 测试 Webhook 连通性
  */
-export async function testWebhookAction(
-  webhookUrl: string
-): Promise<{ success: boolean; error?: string }> {
-  if (!webhookUrl || !webhookUrl.trim()) {
+export async function testWebhookAction(input: {
+  channel: NotificationChannelType;
+  webhookUrl: string;
+  secret?: string | null;
+}): Promise<{ success: boolean; error?: string }> {
+  if (!input.webhookUrl || !input.webhookUrl.trim()) {
     return { success: false, error: "Webhook URL 不能为空" };
   }
 
-  try {
-    const bot = new WeChatBot(webhookUrl.trim());
-    const result = await bot.testConnection();
+  const config: NotificationChannelConfig = {
+    channel: input.channel,
+    webhookUrl: input.webhookUrl.trim(),
+    secret: input.secret?.trim() || null,
+    enabled: true,
+  };
 
+  try {
+    const result = await testNotificationChannel(config);
     return result;
   } catch (error) {
     return {

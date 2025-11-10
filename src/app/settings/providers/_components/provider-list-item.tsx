@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Edit, Globe, Key, RotateCcw, Copy } from "lucide-react";
-import type { ProviderDisplay } from "@/types/provider";
+import { Edit, Globe, Key, RotateCcw, Copy, Trash2 } from "lucide-react";
+import type { ProviderDisplay, ProviderGroupSummary } from "@/types/provider";
 import type { User } from "@/types/user";
 import { getProviderTypeConfig } from "@/lib/provider-type-utils";
 import { ProviderForm } from "./forms/provider-form";
@@ -26,7 +26,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { resetProviderCircuit } from "@/actions/providers";
+import { removeProvider, resetProviderCircuit } from "@/actions/providers";
 import { toast } from "sonner";
 import type { CurrencyCode } from "@/lib/utils/currency";
 import { formatCurrency } from "@/lib/utils/currency";
@@ -43,6 +43,9 @@ interface ProviderListItemProps {
   };
   currencyCode?: CurrencyCode;
   enableMultiProviderTypes: boolean;
+  providerGroups: ProviderGroupSummary[];
+  canManageGroups: boolean;
+  onGroupsUpdated?: () => void;
 }
 
 export function ProviderListItem({
@@ -51,11 +54,15 @@ export function ProviderListItem({
   healthStatus,
   currencyCode = "USD",
   enableMultiProviderTypes,
+  providerGroups,
+  canManageGroups,
+  onGroupsUpdated,
 }: ProviderListItemProps) {
   const router = useRouter();
   const [openEdit, setOpenEdit] = useState(false);
   const [openClone, setOpenClone] = useState(false);
   const [resetPending, startResetTransition] = useTransition();
+  const [deletePending, startDeleteTransition] = useTransition();
   const canEdit = currentUser?.role === "admin";
 
   const {
@@ -226,6 +233,11 @@ export function ProviderListItem({
                         mode="edit"
                         provider={item}
                         enableMultiProviderTypes={enableMultiProviderTypes}
+                        availableGroups={providerGroups}
+                        canManageGroups={canManageGroups}
+                        onGroupsUpdated={() => {
+                          onGroupsUpdated?.();
+                        }}
                         onSuccess={() => {
                           setOpenEdit(false);
                           // 刷新页面数据以同步所有字段
@@ -254,6 +266,11 @@ export function ProviderListItem({
                         mode="create"
                         cloneProvider={item}
                         enableMultiProviderTypes={enableMultiProviderTypes}
+                        availableGroups={providerGroups}
+                        canManageGroups={canManageGroups}
+                        onGroupsUpdated={() => {
+                          onGroupsUpdated?.();
+                        }}
                         onSuccess={() => {
                           setOpenClone(false);
                           // 刷新页面数据以显示新添加的服务商
@@ -263,6 +280,60 @@ export function ProviderListItem({
                     </FormErrorBoundary>
                   </DialogContent>
                 </Dialog>
+                {/* 删除按钮 */}
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      type="button"
+                      aria-label="删除服务商"
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive/80 hover:bg-destructive/10"
+                      disabled={deletePending}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>删除供应商</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        确定要删除供应商 &ldquo;{item.name}&rdquo; 吗？此操作会立即停止调度该供应商，但历史
+                        日志与统计将被保留，且无法通过界面恢复。
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <div className="flex gap-2 justify-end">
+                      <AlertDialogCancel disabled={deletePending}>取消</AlertDialogCancel>
+                      <AlertDialogAction
+                        disabled={deletePending}
+                        onClick={() => {
+                          startDeleteTransition(async () => {
+                            try {
+                              const res = await removeProvider(item.id);
+                              if (!res.ok) {
+                                toast.error("删除供应商失败", {
+                                  description: res.error || "操作过程中出现未知错误",
+                                });
+                                return;
+                              }
+                              toast.success("供应商已删除", {
+                                description: `供应商 "${item.name}" 已从调度列表移除`,
+                              });
+                              router.refresh();
+                            } catch (error) {
+                              console.error("删除供应商失败:", error);
+                              toast.error("删除供应商失败", {
+                                description: "操作过程中出现异常",
+                              });
+                            }
+                          });
+                        }}
+                      >
+                        {deletePending ? "删除中..." : "确认删除"}
+                      </AlertDialogAction>
+                    </div>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             )}
           </div>

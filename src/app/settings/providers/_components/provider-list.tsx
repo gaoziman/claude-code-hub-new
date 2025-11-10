@@ -1,9 +1,11 @@
 "use client";
 import { Globe } from "lucide-react";
-import type { ProviderDisplay } from "@/types/provider";
+import type { ProviderDisplay, ProviderGroupSummary } from "@/types/provider";
 import type { User } from "@/types/user";
 import { ProviderListItem } from "./provider-list-item";
 import type { CurrencyCode } from "@/lib/utils/currency";
+import { ProviderListTable } from "./provider-list-table";
+import type { ProviderViewMode } from "./provider-view-toggle";
 
 interface ProviderListProps {
   providers: ProviderDisplay[];
@@ -20,6 +22,10 @@ interface ProviderListProps {
   >;
   currencyCode?: CurrencyCode;
   enableMultiProviderTypes: boolean;
+  providerGroups: ProviderGroupSummary[];
+  canManageGroups: boolean;
+  onGroupsUpdated?: () => void;
+  viewMode: ProviderViewMode;
 }
 
 export function ProviderList({
@@ -28,7 +34,14 @@ export function ProviderList({
   healthStatus,
   currencyCode = "USD",
   enableMultiProviderTypes,
+  providerGroups,
+  canManageGroups,
+  onGroupsUpdated,
+  viewMode,
 }: ProviderListProps) {
+  const handleGroupsUpdated = () => {
+    onGroupsUpdated?.();
+  };
   if (providers.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 px-4">
@@ -38,6 +51,21 @@ export function ProviderList({
         <h3 className="font-medium text-foreground mb-1">暂无服务商配置</h3>
         <p className="text-sm text-muted-foreground text-center">添加你的第一个 API 服务商</p>
       </div>
+    );
+  }
+
+  if (viewMode === "table") {
+    return (
+      <ProviderListTable
+        providers={providers}
+        currentUser={currentUser}
+        healthStatus={healthStatus}
+        currencyCode={currencyCode}
+        enableMultiProviderTypes={enableMultiProviderTypes}
+        providerGroups={providerGroups}
+        canManageGroups={canManageGroups}
+        onGroupsUpdated={handleGroupsUpdated}
+      />
     );
   }
 
@@ -51,6 +79,9 @@ export function ProviderList({
           healthStatus={healthStatus[provider.id]}
           currencyCode={currencyCode}
           enableMultiProviderTypes={enableMultiProviderTypes}
+          providerGroups={providerGroups}
+          canManageGroups={canManageGroups}
+          onGroupsUpdated={handleGroupsUpdated}
         />
       ))}
     </div>
