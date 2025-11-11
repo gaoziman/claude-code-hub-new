@@ -1,6 +1,6 @@
 {
   "name": "claude-code-hub",
-  "version": "0.2.27",
+  "version": "1.0.2",
   "private": true,
   "scripts": {
     "dev": "next dev --port 13500 --turbo",
