@@ -113,32 +113,28 @@
       "when": 1762333515926,
       "tag": "0015_narrow_gunslinger",
       "breakpoints": true
-    }
-    ,
+    },
     {
       "idx": 16,
       "version": "7",
       "when": 1762404000000,
       "tag": "0016_user_tags_status",
       "breakpoints": true
-    }
-    ,
+    },
     {
       "idx": 17,
       "version": "7",
       "when": 1762527088000,
       "tag": "0017_key_limits",
       "breakpoints": true
-    }
-    ,
+    },
     {
       "idx": 18,
       "version": "7",
       "when": 1762527089000,
       "tag": "0018_drop_user_limits",
       "breakpoints": true
-    }
-    ,
+    },
     {
       "idx": 19,
       "version": "7",
@@ -159,13 +155,19 @@
       "when": 1762890000000,
       "tag": "0021_key_total_limit",
       "breakpoints": true
-    }
-    ,
+    },
     {
       "idx": 22,
       "version": "7",
       "when": 1763000000000,
       "tag": "0022_provider_cost_multiplier_default",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1762847045733,
+      "tag": "0023_graceful_prowler",
       "breakpoints": true
     }
   ]

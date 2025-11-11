@@ -12,6 +12,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { relations, sql } from 'drizzle-orm';
 import type { NotificationChannelConfig } from '@/types/notification';
+import type { SystemThemeConfig } from '@/types/system-config';
 
 // Users table
 export const users = pgTable('users', {
@@ -254,6 +255,14 @@ export const systemSettings = pgTable('system_settings', {
 
   // 货币显示配置
   currencyDisplay: varchar('currency_display', { length: 10 }).notNull().default('USD'),
+
+  // 主题配置
+  themeConfig: jsonb('theme_config')
+    .$type<SystemThemeConfig>()
+    .notNull()
+    .default(
+      sql`jsonb_build_object('baseColor', '#FF8A00', 'accentColor', '#FFB347', 'neutralColor', '#FFE8CC')`
+    ),
 
   // 日志清理配置
   enableAutoCleanup: boolean('enable_auto_cleanup').default(false),
