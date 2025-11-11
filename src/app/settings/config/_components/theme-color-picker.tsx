@@ -93,7 +93,11 @@ export function ThemeColorPicker({
     () =>
       defaultValue ??
       DEFAULT_THEME_CONFIG[
-        label.includes("Primary") ? "baseColor" : label.includes("Accent") ? "accentColor" : "neutralColor"
+        label.includes("Primary")
+          ? "baseColor"
+          : label.includes("Accent")
+            ? "accentColor"
+            : "neutralColor"
       ],
     [defaultValue, label]
   );
@@ -115,7 +119,9 @@ export function ThemeColorPicker({
             <SheetContent side="right" className="sm:max-w-lg">
               <SheetHeader>
                 <SheetTitle>{label} 高级调节</SheetTitle>
-                <SheetDescription>通过色相、饱和度、亮度滑块实现更精细的品牌色调整。</SheetDescription>
+                <SheetDescription>
+                  通过色相、饱和度、亮度滑块实现更精细的品牌色调整。
+                </SheetDescription>
               </SheetHeader>
               <div className="flex flex-col gap-6 px-4 pb-8">
                 <AdvancedSlider

@@ -2,11 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Command,
   CommandEmpty,
@@ -118,12 +114,12 @@ export function ProviderGroupSelect({
         </PopoverTrigger>
         <PopoverContent className="w-[320px] p-0" align="start" side="bottom">
           <Command shouldFilter={normalizedOptions.length > 6}>
-            {normalizedOptions.length > 0 && (
-              <CommandInput placeholder="搜索供应商分组..." />
-            )}
+            {normalizedOptions.length > 0 && <CommandInput placeholder="搜索供应商分组..." />}
             <CommandList className="max-h-56">
               <CommandEmpty>
-                {normalizedOptions.length === 0 ? "暂无供应商配置分组，可手动添加" : "没有匹配的分组"}
+                {normalizedOptions.length === 0
+                  ? "暂无供应商配置分组，可手动添加"
+                  : "没有匹配的分组"}
               </CommandEmpty>
               {normalizedOptions.length > 0 && (
                 <CommandGroup heading="供应商分组">

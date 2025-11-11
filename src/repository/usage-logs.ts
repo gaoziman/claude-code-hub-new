@@ -106,16 +106,7 @@ export interface MonthlyUsageStatsResult {
  * 查询使用日志（支持多种筛选条件和分页）
  */
 export async function findUsageLogsWithDetails(filters: UsageLogFilters): Promise<UsageLogsResult> {
-  const {
-    userId,
-    keyId,
-    providerId,
-    date,
-    statusCode,
-    model,
-    page = 1,
-    pageSize = 20,
-  } = filters;
+  const { userId, keyId, providerId, date, statusCode, model, page = 1, pageSize = 20 } = filters;
 
   // 将单个日期转换为时间范围（当天 00:00:00 到 23:59:59.999）
   let startDate: Date | undefined;

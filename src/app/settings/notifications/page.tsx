@@ -56,7 +56,9 @@ function normalizeChannelsForForm(
   }));
 }
 
-function mapChannelsForSubmit(channels: NotificationFormData["circuitBreakerChannels"]): NotificationChannelConfig[] {
+function mapChannelsForSubmit(
+  channels: NotificationFormData["circuitBreakerChannels"]
+): NotificationChannelConfig[] {
   return channels
     .filter((channel) => channel.webhookUrl && channel.webhookUrl.trim())
     .map((channel) => ({
@@ -229,10 +231,7 @@ export default function NotificationsPage() {
     }
   };
 
-  const handleTestChannel = async (
-    channelConfig: NotificationChannelConfig,
-    key: string
-  ) => {
+  const handleTestChannel = async (channelConfig: NotificationChannelConfig, key: string) => {
     if (!channelConfig.webhookUrl?.trim()) {
       toast.error("请先填写 Webhook URL");
       return;

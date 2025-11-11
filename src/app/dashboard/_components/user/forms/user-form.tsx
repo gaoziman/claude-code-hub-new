@@ -49,9 +49,7 @@ export function UserForm({
       providerGroup: user?.providerGroup || "",
       tags: user?.tags || [],
       isEnabled: user?.isEnabled ?? true,
-      expiresAt: user?.expiresAt
-        ? new Date(user.expiresAt).toISOString().slice(0, 16)
-        : "",
+      expiresAt: user?.expiresAt ? new Date(user.expiresAt).toISOString().slice(0, 16) : "",
     },
     onSubmit: async (data) => {
       startTransition(async () => {
@@ -144,7 +142,8 @@ export function UserForm({
           placeholder="选择或输入供应商分组（可选）"
         />
         <p className="text-xs text-muted-foreground">
-          指定用户专属的供应商分组。可多选，系统仅会调度 groupTag 匹配的供应商。留空表示可使用全部供应商。
+          指定用户专属的供应商分组。可多选，系统仅会调度 groupTag
+          匹配的供应商。留空表示可使用全部供应商。
         </p>
       </div>
 
@@ -162,7 +161,9 @@ export function UserForm({
           placeholder="输入后按 Enter 添加标签"
           maxTags={MAX_TAGS}
         />
-        <p className="text-xs text-muted-foreground">可添加多个标签，最多 10 个，自定义筛选使用。</p>
+        <p className="text-xs text-muted-foreground">
+          可添加多个标签，最多 10 个，自定义筛选使用。
+        </p>
       </div>
 
       <div className="grid gap-2">
@@ -172,13 +173,17 @@ export function UserForm({
           value={(form.values.expiresAt as string) || ""}
           onChange={(event) => form.setValue("expiresAt", event.target.value)}
         />
-        <p className="text-xs text-muted-foreground">留空表示永不过期，超过设置时间后该用户及其密钥将被自动停用。</p>
+        <p className="text-xs text-muted-foreground">
+          留空表示永不过期，超过设置时间后该用户及其密钥将被自动停用。
+        </p>
       </div>
 
       <div className="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-border/70 bg-muted/10 px-4 py-3">
         <div>
           <Label className="text-sm font-medium">启用状态</Label>
-          <p className="text-xs text-muted-foreground mt-1">关闭后该用户及其所有密钥都将无法调用 API。</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            关闭后该用户及其所有密钥都将无法调用 API。
+          </p>
         </div>
         <Switch
           checked={Boolean(form.values.isEnabled ?? true)}

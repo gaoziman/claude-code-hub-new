@@ -678,7 +678,11 @@ export async function sumProviderCostInTimeRange(
 export async function getProviderUsageTrendsFromDB(
   providerType: ProviderType,
   days = 7
-): Promise<{ providerMeta: { id: number; name: string }[]; rows: ProviderTrendRow[]; days: number }> {
+): Promise<{
+  providerMeta: { id: number; name: string }[];
+  rows: ProviderTrendRow[];
+  days: number;
+}> {
   const timezone = getEnvConfig().TZ;
   const clampedDays = Math.max(1, Math.min(days, 30));
 
@@ -686,7 +690,11 @@ export async function getProviderUsageTrendsFromDB(
     .select({ id: providers.id, name: providers.name })
     .from(providers)
     .where(
-      and(eq(providers.providerType, providerType), eq(providers.isEnabled, true), isNull(providers.deletedAt))
+      and(
+        eq(providers.providerType, providerType),
+        eq(providers.isEnabled, true),
+        isNull(providers.deletedAt)
+      )
     );
 
   if (providerMeta.length === 0) {
@@ -766,7 +774,11 @@ export async function getTopKeysUsageTrendsFromDB(
   `;
 
   const topKeysResult = await db.execute(topKeysQuery);
-  const keyMeta = Array.from(topKeysResult) as unknown as { id: number; name: string; total_cost: string }[];
+  const keyMeta = Array.from(topKeysResult) as unknown as {
+    id: number;
+    name: string;
+    total_cost: string;
+  }[];
 
   if (keyMeta.length === 0) {
     return { keyMeta: [], rows: [], days: clampedDays };
@@ -811,4 +823,3 @@ export async function getTopKeysUsageTrendsFromDB(
     days: clampedDays,
   };
 }
-

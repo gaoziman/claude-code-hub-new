@@ -193,12 +193,7 @@ export function DataPagination({
             disabled={isDisabled}
           />
           <span className="text-muted-foreground">页</span>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleJump}
-            disabled={isDisabled}
-          >
+          <Button variant="outline" size="sm" onClick={handleJump} disabled={isDisabled}>
             跳转
           </Button>
         </div>

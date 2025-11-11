@@ -102,7 +102,8 @@ export function KeyListHeader({
   const [keyResult, setKeyResult] = useState<{ generatedKey: string; name: string } | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const totalRangeUsage = activeUser?.keys.reduce((sum, key) => sum + (key.todayUsage ?? 0), 0) ?? 0;
+  const totalRangeUsage =
+    activeUser?.keys.reduce((sum, key) => sum + (key.todayUsage ?? 0), 0) ?? 0;
 
   const proxyStatusEnabled = Boolean(activeUser);
   const {
@@ -207,12 +208,12 @@ export function KeyListHeader({
           <div className="flex items-center gap-2 text-base font-semibold tracking-tight">
             <span>{activeUser ? activeUser.name : "-"}</span>
             {activeUser && showUserActions && (
-                            <UserActions
-                              user={activeUser}
-                              currentUser={currentUser}
-                              providerGroupOptions={providerGroupOptions}
-                              availableTags={availableTags}
-                            />
+              <UserActions
+                user={activeUser}
+                currentUser={currentUser}
+                providerGroupOptions={providerGroupOptions}
+                availableTags={availableTags}
+              />
             )}
           </div>
           <div className="mt-1">

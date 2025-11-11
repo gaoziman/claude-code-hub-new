@@ -40,7 +40,7 @@ export function toKey(dbKey: any): Key {
     ...dbKey,
     isEnabled: dbKey?.isEnabled ?? true,
     canLoginWebUi: dbKey?.canLoginWebUi ?? true,
-    scope: (dbKey?.scope as Key["scope"]) ?? 'owner',
+    scope: (dbKey?.scope as Key["scope"]) ?? "owner",
     limit5hUsd: dbKey?.limit5hUsd ? parseFloat(dbKey.limit5hUsd) : null,
     limitWeeklyUsd: dbKey?.limitWeeklyUsd ? parseFloat(dbKey.limitWeeklyUsd) : null,
     limitMonthlyUsd: dbKey?.limitMonthlyUsd ? parseFloat(dbKey.limitMonthlyUsd) : null,

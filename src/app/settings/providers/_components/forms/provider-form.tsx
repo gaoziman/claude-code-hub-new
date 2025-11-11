@@ -81,9 +81,7 @@ export function ProviderForm({
   const [priority, setPriority] = useState<number>(sourceProvider?.priority ?? 0);
   const [weight, setWeight] = useState<number>(sourceProvider?.weight ?? 1);
   const [costMultiplier, setCostMultiplier] = useState<string>(
-    sourceProvider?.costMultiplier !== undefined
-      ? String(sourceProvider.costMultiplier)
-      : "0.6"
+    sourceProvider?.costMultiplier !== undefined ? String(sourceProvider.costMultiplier) : "0.6"
   );
   const [groupTag, setGroupTag] = useState<string>(sourceProvider?.groupTag ?? "");
   const [limit5hUsd, setLimit5hUsd] = useState<number | null>(sourceProvider?.limit5hUsd ?? null);
@@ -178,10 +176,10 @@ export function ProviderForm({
             join_claude_pool: joinClaudePool,
             priority: priority,
             weight: weight,
-          cost_multiplier:
-            Number.isFinite(parseFloat(costMultiplier)) && costMultiplier !== ""
-              ? Math.max(0, parseFloat(costMultiplier))
-              : 0.6,
+            cost_multiplier:
+              Number.isFinite(parseFloat(costMultiplier)) && costMultiplier !== ""
+                ? Math.max(0, parseFloat(costMultiplier))
+                : 0.6,
             group_tag: groupTag.trim() || null,
             limit_5h_usd: limit5hUsd,
             limit_weekly_usd: limitWeeklyUsd,
@@ -221,10 +219,10 @@ export function ProviderForm({
             is_enabled: PROVIDER_DEFAULTS.IS_ENABLED,
             weight: weight,
             priority: priority,
-          cost_multiplier:
-            Number.isFinite(parseFloat(costMultiplier)) && costMultiplier !== ""
-              ? Math.max(0, parseFloat(costMultiplier))
-              : 0.6,
+            cost_multiplier:
+              Number.isFinite(parseFloat(costMultiplier)) && costMultiplier !== ""
+                ? Math.max(0, parseFloat(costMultiplier))
+                : 0.6,
             group_tag: groupTag.trim() || null,
             limit_5h_usd: limit5hUsd,
             limit_weekly_usd: limitWeeklyUsd,

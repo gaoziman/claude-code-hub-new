@@ -15,7 +15,12 @@ export interface UsageTimeRangeBounds extends UsageTimeRangeMeta {
 export const USAGE_TIME_RANGE_META: UsageTimeRangeMeta[] = [
   { value: "today", label: "今日", shortLabel: "今日", description: "统计今天的数据" },
   { value: "last7", label: "最近7天", shortLabel: "近7天", description: "统计最近7天（含今天）" },
-  { value: "last30", label: "最近30天", shortLabel: "近30天", description: "统计最近30天（含今天）" },
+  {
+    value: "last30",
+    label: "最近30天",
+    shortLabel: "近30天",
+    description: "统计最近30天（含今天）",
+  },
   { value: "all", label: "全部时间", shortLabel: "累计", description: "统计所有历史数据" },
 ];
 
@@ -26,7 +31,8 @@ function startOfToday(): Date {
 }
 
 export function resolveUsageTimeRange(value: UsageTimeRangeValue): UsageTimeRangeBounds {
-  const meta = USAGE_TIME_RANGE_META.find((item) => item.value === value) ?? USAGE_TIME_RANGE_META[0];
+  const meta =
+    USAGE_TIME_RANGE_META.find((item) => item.value === value) ?? USAGE_TIME_RANGE_META[0];
   const todayStart = startOfToday();
   const end = new Date(todayStart);
   end.setDate(end.getDate() + 1); // 明日 00:00

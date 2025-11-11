@@ -103,7 +103,6 @@ const { route: removeUserRoute, handler: removeUserHandler } = createActionRoute
 );
 app.openapi(removeUserRoute, removeUserHandler);
 
-
 // ==================== 密钥管理 ====================
 
 const { route: getKeysRoute, handler: getKeysHandler } = createActionRoute(
@@ -180,7 +179,6 @@ const { route: removeKeyRoute, handler: removeKeyHandler } = createActionRoute(
   }
 );
 app.openapi(removeKeyRoute, removeKeyHandler);
-
 
 // ==================== 供应商管理 ====================
 
@@ -263,7 +261,6 @@ const { route: resetProviderCircuitRoute, handler: resetProviderCircuitHandler }
     requiredRole: "admin",
   });
 app.openapi(resetProviderCircuitRoute, resetProviderCircuitHandler);
-
 
 // ==================== 模型价格管理 ====================
 

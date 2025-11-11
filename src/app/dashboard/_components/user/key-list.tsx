@@ -223,7 +223,9 @@ export function KeyList({
           keyOwnerUserId={keyOwnerUserId}
           canDelete={canDeleteKeys}
           showLabels
-          allowManage={currentUser?.role === "admin" || (allowManageKeys && currentUser?.id === keyOwnerUserId)}
+          allowManage={
+            currentUser?.role === "admin" || (allowManageKeys && currentUser?.id === keyOwnerUserId)
+          }
         />
       </div>
     )),
@@ -242,7 +244,10 @@ export function KeyList({
         maxHeight="600px"
         stickyHeader
       />
-      <Dialog open={Boolean(modelStatsKey)} onOpenChange={(open) => !open && setModelStatsKey(null)}>
+      <Dialog
+        open={Boolean(modelStatsKey)}
+        onOpenChange={(open) => !open && setModelStatsKey(null)}
+      >
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>模型使用情况</DialogTitle>

@@ -42,7 +42,7 @@ export async function getUsers(params?: GetUsersParam): Promise<UserDisplay[]> {
 
     const now = Date.now();
 
-    const rangeValue = typeof params === "string" ? params : params?.timeRange ?? "today";
+    const rangeValue = typeof params === "string" ? params : (params?.timeRange ?? "today");
     const rangeBounds = resolveUsageTimeRange(rangeValue);
     const rangeFilter = { start: rangeBounds.start, end: rangeBounds.end };
 
@@ -204,7 +204,7 @@ export async function addUser(data: {
       key: generatedKey,
       is_enabled: validatedData.isEnabled ?? true,
       expires_at: undefined,
-      scope: 'owner',
+      scope: "owner",
       rpm_limit: KEY_DEFAULTS.RPM,
       daily_limit_usd: KEY_DEFAULTS.DAILY_QUOTA,
     });
@@ -246,9 +246,7 @@ export async function editUser(
 
     let expiresAtValue: Date | null | undefined = undefined;
     if (validatedData.expiresAt !== undefined) {
-      expiresAtValue = validatedData.expiresAt
-        ? new Date(validatedData.expiresAt)
-        : null;
+      expiresAtValue = validatedData.expiresAt ? new Date(validatedData.expiresAt) : null;
     }
 
     await updateUser(userId, {

@@ -42,7 +42,9 @@ export function SystemSettingsForm({ initialSettings }: SystemSettingsFormProps)
     initialSettings.currencyDisplay
   );
   const [themeConfig, setThemeConfig] = useState<SystemThemeConfig>(initialSettings.themeConfig);
-  const [lastSavedTheme, setLastSavedTheme] = useState<SystemThemeConfig>(initialSettings.themeConfig);
+  const [lastSavedTheme, setLastSavedTheme] = useState<SystemThemeConfig>(
+    initialSettings.themeConfig
+  );
   const [isThemeExpanded, setIsThemeExpanded] = useState(false);
   const [isPending, startTransition] = useTransition();
 
@@ -197,7 +199,11 @@ export function SystemSettingsForm({ initialSettings }: SystemSettingsFormProps)
               className="gap-1 text-xs"
               onClick={() => setIsThemeExpanded((prev) => !prev)}
             >
-              {isThemeExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              {isThemeExpanded ? (
+                <ChevronUp className="h-4 w-4" />
+              ) : (
+                <ChevronDown className="h-4 w-4" />
+              )}
               {isThemeExpanded ? "折叠预览" : "展开预览"}
             </Button>
           </div>

@@ -26,7 +26,7 @@ export async function addKey(data: {
   name: string;
   expiresAt?: string;
   canLoginWebUi?: boolean;
-  scope?: 'owner' | 'child';
+  scope?: "owner" | "child";
   limit5hUsd?: number | null;
   limitWeeklyUsd?: number | null;
   limitMonthlyUsd?: number | null;
@@ -108,7 +108,7 @@ export async function editKey(
     name: string;
     expiresAt?: string;
     canLoginWebUi?: boolean;
-    scope?: 'owner' | 'child';
+    scope?: "owner" | "child";
     limit5hUsd?: number | null;
     limitWeeklyUsd?: number | null;
     limitMonthlyUsd?: number | null;

@@ -145,9 +145,7 @@ export async function getProviderHealthReport(params?: {
   const providerCount = providers.length;
   const totalRequests = providers.reduce((sum, p) => sum + p.totalRequests, 0);
   const averageSuccessRate =
-    providerCount > 0
-      ? providers.reduce((sum, p) => sum + p.successRate, 0) / providerCount
-      : 0;
+    providerCount > 0 ? providers.reduce((sum, p) => sum + p.successRate, 0) / providerCount : 0;
   const averageP95Latency =
     providerCount > 0
       ? (() => {

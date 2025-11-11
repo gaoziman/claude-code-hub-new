@@ -26,7 +26,9 @@ export async function getUsageLogs(
     }
 
     const isAdmin = session.user.role === "admin";
-    let finalFilters: UsageLogFilters = isAdmin ? { ...filters } : { ...filters, userId: session.user.id };
+    let finalFilters: UsageLogFilters = isAdmin
+      ? { ...filters }
+      : { ...filters, userId: session.user.id };
 
     if (session.viewMode === "key") {
       finalFilters = {
@@ -85,7 +87,9 @@ export async function getStatusCodeList(): Promise<ActionResult<number[]>> {
 /**
  * 获取月度使用统计（按天聚合）
  */
-export async function getMonthlyUsageStatsAction(month?: string): Promise<ActionResult<MonthlyUsageStatsResult>> {
+export async function getMonthlyUsageStatsAction(
+  month?: string
+): Promise<ActionResult<MonthlyUsageStatsResult>> {
   try {
     const session = await getSession();
     if (!session) {

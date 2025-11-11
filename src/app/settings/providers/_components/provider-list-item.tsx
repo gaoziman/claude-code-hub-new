@@ -298,7 +298,8 @@ export function ProviderListItem({
                     <AlertDialogHeader>
                       <AlertDialogTitle>删除供应商</AlertDialogTitle>
                       <AlertDialogDescription>
-                        确定要删除供应商 &ldquo;{item.name}&rdquo; 吗？此操作会立即停止调度该供应商，但历史
+                        确定要删除供应商 &ldquo;{item.name}&rdquo;
+                        吗？此操作会立即停止调度该供应商，但历史
                         日志与统计将被保留，且无法通过界面恢复。
                       </AlertDialogDescription>
                     </AlertDialogHeader>

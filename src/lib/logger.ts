@@ -50,19 +50,22 @@ if (isDevelopment()) {
     // 动态导入 pino-pretty（避免 instrumentation 阶段加载失败）
     const pinoPretty = require("pino-pretty");
 
-    pinoInstance = pino({
-      level: getInitialLogLevel(),
-      formatters: {
-        level: (label) => {
-          return { level: label };
+    pinoInstance = pino(
+      {
+        level: getInitialLogLevel(),
+        formatters: {
+          level: (label) => {
+            return { level: label };
+          },
         },
       },
-    }, pinoPretty({
-      colorize: true,
-      translateTime: "SYS:standard",
-      ignore: "pid,hostname",
-      sync: true, // 同步模式，避免 worker 线程
-    }));
+      pinoPretty({
+        colorize: true,
+        translateTime: "SYS:standard",
+        ignore: "pid,hostname",
+        sync: true, // 同步模式，避免 worker 线程
+      })
+    );
   } catch (error) {
     // 降级：如果 pino-pretty 加载失败，使用普通 pino
     console.warn("[Logger] pino-pretty initialization failed, using plain pino:", error);

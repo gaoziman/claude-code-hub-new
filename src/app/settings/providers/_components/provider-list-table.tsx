@@ -258,7 +258,7 @@ function ProviderTableRow({
               disabled={!canEdit || togglePending}
             />
             <div className="space-y-1">
-            <div className="flex flex-wrap items-center gap-1 text-sm font-medium">
+              <div className="flex flex-wrap items-center gap-1 text-sm font-medium">
                 <span>{provider.name}</span>
                 <Badge
                   variant="outline"

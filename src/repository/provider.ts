@@ -327,9 +327,7 @@ export async function getActiveProviderTypes(): Promise<ProviderType[]> {
     .from(providers)
     .where(and(eq(providers.isEnabled, true), isNull(providers.deletedAt)));
 
-  return rows
-    .map((row) => row.providerType)
-    .filter((type): type is ProviderType => Boolean(type));
+  return rows.map((row) => row.providerType).filter((type): type is ProviderType => Boolean(type));
 }
 
 export async function deleteProvider(id: number): Promise<boolean> {

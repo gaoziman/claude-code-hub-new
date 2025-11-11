@@ -86,14 +86,8 @@ export const KeyFormSchema = z.object({
     .union([
       z.coerce
         .number()
-        .min(
-          KEY_LIMITS.TOTAL_LIMIT.MIN,
-          `总费用上限不能低于${KEY_LIMITS.TOTAL_LIMIT.MIN}美元`
-        )
-        .max(
-          KEY_LIMITS.TOTAL_LIMIT.MAX,
-          `总费用上限不能超过${KEY_LIMITS.TOTAL_LIMIT.MAX}美元`
-        ),
+        .min(KEY_LIMITS.TOTAL_LIMIT.MIN, `总费用上限不能低于${KEY_LIMITS.TOTAL_LIMIT.MIN}美元`)
+        .max(KEY_LIMITS.TOTAL_LIMIT.MAX, `总费用上限不能超过${KEY_LIMITS.TOTAL_LIMIT.MAX}美元`),
       z.literal(null),
     ])
     .optional()

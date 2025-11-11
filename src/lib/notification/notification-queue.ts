@@ -183,7 +183,9 @@ function setupQueueProcessor(queue: Queue.Queue<NotificationJobData>): void {
 
       const failures = sendResults.filter((result) => !result.success);
       if (failures.length) {
-        const errorMessage = failures.map((item) => `${item.channel}:${item.error ?? "unknown"}`).join("; ");
+        const errorMessage = failures
+          .map((item) => `${item.channel}:${item.error ?? "unknown"}`)
+          .join("; ");
         throw new Error(errorMessage);
       }
 
@@ -292,7 +294,11 @@ export async function scheduleNotifications() {
     // 调度每日排行榜任务
     const leaderboardChannels = getActiveChannels(settings.dailyLeaderboardChannels);
 
-    if (settings.dailyLeaderboardEnabled && leaderboardChannels.length && settings.dailyLeaderboardTime) {
+    if (
+      settings.dailyLeaderboardEnabled &&
+      leaderboardChannels.length &&
+      settings.dailyLeaderboardTime
+    ) {
       const [hour, minute] = settings.dailyLeaderboardTime.split(":").map(Number);
       const cron = `${minute} ${hour} * * *`; // 每天指定时间
 

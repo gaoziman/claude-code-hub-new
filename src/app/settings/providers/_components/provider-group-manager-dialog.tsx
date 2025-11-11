@@ -107,7 +107,9 @@ export function ProviderGroupManagerDialog({
         <div className="max-h-[60vh] overflow-y-auto pr-2 space-y-3">
           <div className="space-y-3">
             {localGroups.length === 0 ? (
-              <p className="text-sm text-muted-foreground">暂无分组，创建新供应商时可输入新名称。</p>
+              <p className="text-sm text-muted-foreground">
+                暂无分组，创建新供应商时可输入新名称。
+              </p>
             ) : (
               localGroups.map((group) => (
                 <div

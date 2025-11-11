@@ -66,7 +66,7 @@ export interface UserKeyDisplay {
   dailyQuota: number | null; // Key 每日额度限制
   // Web UI 登录权限控制
   canLoginWebUi: boolean; // 是否允许使用该 Key 登录 Web UI
-  scope: 'owner' | 'child';
+  scope: "owner" | "child";
   canManage?: boolean; // 当前登录视角是否允许管理该 Key
   // 限额配置
   limit5hUsd: number | null; // 5小时消费上限（美元）

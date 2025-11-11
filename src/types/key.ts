@@ -13,7 +13,7 @@ export interface Key {
   canLoginWebUi: boolean;
 
   // Key 视角范围：owner(主 key) / child(子 key)
-  scope: 'owner' | 'child';
+  scope: "owner" | "child";
 
   // 金额限流配置
   limit5hUsd: number | null;
@@ -40,7 +40,7 @@ export interface CreateKeyData {
   expires_at?: Date;
   // Web UI 登录权限控制
   can_login_web_ui?: boolean;
-  scope?: 'owner' | 'child';
+  scope?: "owner" | "child";
   // 金额限流配置
   limit_5h_usd?: number | null;
   limit_weekly_usd?: number | null;
@@ -60,7 +60,7 @@ export interface UpdateKeyData {
   expires_at?: Date;
   // Web UI 登录权限控制
   can_login_web_ui?: boolean;
-  scope?: 'owner' | 'child';
+  scope?: "owner" | "child";
   // 金额限流配置
   limit_5h_usd?: number | null;
   limit_weekly_usd?: number | null;

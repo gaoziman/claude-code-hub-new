@@ -1,13 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { getProviderHealthReport } from "@/repository/provider-health";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -50,10 +44,14 @@ function formatNumber(value: number) {
   return value.toString();
 }
 
-function sortProviders<T extends { healthScore: number; successRate: number; p95LatencyMs: number | null; totalRequests: number }>(
-  providers: T[],
-  sortKey: string
-) {
+function sortProviders<
+  T extends {
+    healthScore: number;
+    successRate: number;
+    p95LatencyMs: number | null;
+    totalRequests: number;
+  },
+>(providers: T[], sortKey: string) {
   const sorted = [...providers];
   switch (sortKey) {
     case "success":
@@ -92,7 +90,9 @@ export default async function ProvidersHealthPage({ searchParams }: ProvidersHea
   const windowParam = Array.isArray(resolvedParams.window)
     ? resolvedParams.window[0]
     : resolvedParams.window;
-  const sortParam = Array.isArray(resolvedParams.sort) ? resolvedParams.sort[0] : resolvedParams.sort;
+  const sortParam = Array.isArray(resolvedParams.sort)
+    ? resolvedParams.sort[0]
+    : resolvedParams.sort;
 
   const windowHoursRaw = Number(windowParam);
   const windowHours = Number.isNaN(windowHoursRaw) ? undefined : windowHoursRaw;
@@ -135,8 +135,12 @@ export default async function ProvidersHealthPage({ searchParams }: ProvidersHea
             <CardDescription>所有供应商平均值</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-semibold">{formatPercent(report.summary.averageSuccessRate)}</div>
-            <p className="text-xs text-muted-foreground">共 {report.summary.providerCount} 个供应商参与统计</p>
+            <div className="text-3xl font-semibold">
+              {formatPercent(report.summary.averageSuccessRate)}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              共 {report.summary.providerCount} 个供应商参与统计
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -146,7 +150,9 @@ export default async function ProvidersHealthPage({ searchParams }: ProvidersHea
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-semibold">
-              {report.summary.averageP95Latency ? formatLatency(report.summary.averageP95Latency) : "--"}
+              {report.summary.averageP95Latency
+                ? formatLatency(report.summary.averageP95Latency)
+                : "--"}
             </div>
             <p className="text-xs text-muted-foreground">数据来源：message_request 表</p>
           </CardContent>
@@ -157,8 +163,12 @@ export default async function ProvidersHealthPage({ searchParams }: ProvidersHea
             <CardDescription>统计窗口内全部请求</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-semibold">{formatNumber(report.summary.totalRequests)}</div>
-            <p className="text-xs text-muted-foreground">生成时间：{report.generatedAt.toLocaleString()}</p>
+            <div className="text-3xl font-semibold">
+              {formatNumber(report.summary.totalRequests)}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              生成时间：{report.generatedAt.toLocaleString()}
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -215,7 +225,9 @@ export default async function ProvidersHealthPage({ searchParams }: ProvidersHea
                         <span className="font-medium">{provider.providerName}</span>
                         <div className="flex flex-wrap gap-1">
                           <Badge variant="outline">{provider.providerType}</Badge>
-                          {provider.groupTag && <Badge variant="secondary">{provider.groupTag}</Badge>}
+                          {provider.groupTag && (
+                            <Badge variant="secondary">{provider.groupTag}</Badge>
+                          )}
                         </div>
                       </div>
                     </TableCell>

@@ -68,9 +68,7 @@ export function DashboardNav({ items }: DashboardNavProps) {
         const isActive = getIsActive(item.href);
         const className = cn(
           "group relative flex items-center gap-1 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors",
-          isActive
-            ? "text-primary"
-            : "text-muted-foreground hover:text-foreground"
+          isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
         );
         const Icon = item.icon ? ICON_MAP[item.icon] : undefined;
 
@@ -91,7 +89,8 @@ export function DashboardNav({ items }: DashboardNavProps) {
               aria-hidden
               className={cn(
                 "pointer-events-none absolute inset-0 rounded-full border border-transparent bg-transparent opacity-0 transition-all",
-                isActive && "border-primary/50 bg-primary/10 opacity-100 shadow-[0_6px_18px_rgba(79,70,229,0.12)]"
+                isActive &&
+                  "border-primary/50 bg-primary/10 opacity-100 shadow-[0_6px_18px_rgba(79,70,229,0.12)]"
               )}
             />
           </>

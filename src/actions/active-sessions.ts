@@ -42,7 +42,9 @@ export async function getActiveSessions(): Promise<ActionResult<ActiveSessionInf
       logger.debug("[SessionCache] Active sessions cache hit");
 
       // 过滤：根据 allowGlobalUsageView 配置决定
-      const filteredData = shouldShowGlobal ? cached : cached.filter((s) => s.userId === currentUserId);
+      const filteredData = shouldShowGlobal
+        ? cached
+        : cached.filter((s) => s.userId === currentUserId);
 
       return {
         ok: true,
@@ -172,7 +174,9 @@ export async function getAllSessions(): Promise<
       logger.debug("[SessionCache] All sessions cache hit");
 
       // 过滤：根据 allowGlobalUsageView 配置决定
-      const filteredCached = shouldShowGlobal ? cached : cached.filter((s) => s.userId === currentUserId);
+      const filteredCached = shouldShowGlobal
+        ? cached
+        : cached.filter((s) => s.userId === currentUserId);
 
       // 分离活跃和非活跃（5 分钟内有请求为活跃）
       const now = Date.now();

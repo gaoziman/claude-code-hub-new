@@ -1,4 +1,9 @@
-import { DEFAULT_THEME_CONFIG, type ResolvedTheme, type SystemThemeConfig, type ThemeVariableMap } from "@/types/system-config";
+import {
+  DEFAULT_THEME_CONFIG,
+  type ResolvedTheme,
+  type SystemThemeConfig,
+  type ThemeVariableMap,
+} from "@/types/system-config";
 
 type Oklch = {
   l: number;
@@ -34,7 +39,10 @@ export function mergeThemeConfig(
   current: SystemThemeConfig | undefined,
   overrides: Partial<SystemThemeConfig>
 ): SystemThemeConfig {
-  const base = normalizeHexColor(overrides.baseColor ?? current?.baseColor, DEFAULT_THEME_CONFIG.baseColor);
+  const base = normalizeHexColor(
+    overrides.baseColor ?? current?.baseColor,
+    DEFAULT_THEME_CONFIG.baseColor
+  );
   const accent = normalizeHexColor(
     overrides.accentColor ?? current?.accentColor,
     DEFAULT_THEME_CONFIG.accentColor
@@ -85,8 +93,12 @@ function createPalette(config: SystemThemeConfig, mode: "light" | "dark"): Theme
   const neutral = hexToOklch(config.neutralColor);
 
   const primary = mode === "light" ? base : adjust(base, { deltaL: -0.25 });
-  const accentTone = mode === "light" ? adjust(accent, { deltaL: 0.08 }) : adjust(accent, { deltaL: -0.18 });
-  const neutralTone = mode === "light" ? adjust(neutral, { deltaL: 0.12, deltaC: -0.05 }) : adjust(neutral, { deltaL: -0.15, deltaC: -0.07 });
+  const accentTone =
+    mode === "light" ? adjust(accent, { deltaL: 0.08 }) : adjust(accent, { deltaL: -0.18 });
+  const neutralTone =
+    mode === "light"
+      ? adjust(neutral, { deltaL: 0.12, deltaC: -0.05 })
+      : adjust(neutral, { deltaL: -0.15, deltaC: -0.07 });
 
   const chart = DEFAULT_CHART_ROTATIONS.map((rotation, index) => {
     const reference = index % 2 === 0 ? base : accent;
@@ -97,7 +109,9 @@ function createPalette(config: SystemThemeConfig, mode: "light" | "dark"): Theme
   return {
     "--primary": toCssColor(primary),
     "--primary-foreground": mode === "light" ? TEXT_LIGHT : TEXT_LIGHT,
-    "--ring": toCssColor(adjust(primary, { deltaC: -0.05, deltaL: mode === "light" ? -0.02 : 0.08 })),
+    "--ring": toCssColor(
+      adjust(primary, { deltaC: -0.05, deltaL: mode === "light" ? -0.02 : 0.08 })
+    ),
     "--accent": toCssColor(accentTone),
     "--accent-foreground": mode === "light" ? TEXT_DARK : TEXT_LIGHT,
     "--muted": toCssColor(neutralTone),
@@ -140,9 +154,9 @@ function hexToOklch(hex: string): Oklch {
   const m_ = Math.cbrt(0.2119034982 * l + 0.6806995451 * m + 0.1073969566 * s);
   const s_ = Math.cbrt(0.0883024619 * l + 0.2817188376 * m + 0.6299787005 * s);
 
-  const L = 0.2104542553 * l_ + 0.7936177850 * m_ - 0.0040720468 * s_;
-  const a = 1.9779984951 * l_ - 2.4285922050 * m_ + 0.4505937099 * s_;
-  const bLab = 0.0259040371 * l_ + 0.7827717662 * m_ - 0.8086757660 * s_;
+  const L = 0.2104542553 * l_ + 0.793617785 * m_ - 0.0040720468 * s_;
+  const a = 1.9779984951 * l_ - 2.428592205 * m_ + 0.4505937099 * s_;
+  const bLab = 0.0259040371 * l_ + 0.7827717662 * m_ - 0.808675766 * s_;
 
   const C = Math.sqrt(a * a + bLab * bLab);
   let H = (Math.atan2(bLab, a) * 180) / Math.PI;

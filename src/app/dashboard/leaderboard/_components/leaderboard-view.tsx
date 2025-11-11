@@ -199,7 +199,10 @@ export function LeaderboardView({ viewer, currencyCode }: LeaderboardViewProps) 
     return formatTokenAmount(Math.round(totals.tokens / count));
   }, [filteredData.length, totals, metric, currencyCode]);
 
-  const currentIds = useMemo(() => new Set(currentData.map((entry) => entry.userId)), [currentData]);
+  const currentIds = useMemo(
+    () => new Set(currentData.map((entry) => entry.userId)),
+    [currentData]
+  );
   const comparisonIds = useMemo(
     () => new Set(comparisonData.map((entry) => entry.userId)),
     [comparisonData]
@@ -300,7 +303,11 @@ export function LeaderboardView({ viewer, currencyCode }: LeaderboardViewProps) 
             meta={[
               {
                 label:
-                  metric === "cost" ? "人均消耗" : metric === "requests" ? "人均调用" : "人均 Token",
+                  metric === "cost"
+                    ? "人均消耗"
+                    : metric === "requests"
+                      ? "人均调用"
+                      : "人均 Token",
                 value: filteredData.length ? metricAverageText : "—",
               },
               {

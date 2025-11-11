@@ -59,10 +59,7 @@ async function findLeaderboard(startTime: Date, endTime: Date): Promise<Leaderbo
       )`,
     })
     .from(messageRequest)
-    .innerJoin(
-      users,
-      and(sql`${messageRequest.userId} = ${users.id}`, isNull(users.deletedAt))
-    )
+    .innerJoin(users, and(sql`${messageRequest.userId} = ${users.id}`, isNull(users.deletedAt)))
     .where(
       and(
         isNull(messageRequest.deletedAt),

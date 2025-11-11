@@ -34,10 +34,7 @@ export default async function UserKeysPage({
   const resolvedSearchParams = await searchParams;
   const range = resolveRange(resolvedSearchParams?.range);
 
-  const [users, systemSettings] = await Promise.all([
-    getUsers(range),
-    getSystemSettings(),
-  ]);
+  const [users, systemSettings] = await Promise.all([getUsers(range), getSystemSettings()]);
 
   if (!users || users.length === 0) {
     return (

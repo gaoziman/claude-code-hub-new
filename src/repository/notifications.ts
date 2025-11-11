@@ -155,13 +155,20 @@ function normalizeChannelList(
     : [];
 
   if ((!normalized || normalized.length === 0) && legacyWebhook?.trim()) {
-    normalized.push({ channel: "wechat", webhookUrl: legacyWebhook.trim(), secret: null, enabled: true });
+    normalized.push({
+      channel: "wechat",
+      webhookUrl: legacyWebhook.trim(),
+      secret: null,
+      enabled: true,
+    });
   }
 
   return normalized;
 }
 
-function prepareChannelList(list?: NotificationChannelConfig[] | null): NotificationChannelConfig[] {
+function prepareChannelList(
+  list?: NotificationChannelConfig[] | null
+): NotificationChannelConfig[] {
   if (!Array.isArray(list)) return [];
   return list
     .map((item) => cleanChannelConfig(item))
@@ -301,58 +308,61 @@ export async function updateNotificationSettings(
     if (payload.circuitBreakerEnabled !== undefined) {
       updates.circuitBreakerEnabled = payload.circuitBreakerEnabled;
     }
-  if (payload.circuitBreakerWebhook !== undefined) {
-    updates.circuitBreakerWebhook = payload.circuitBreakerWebhook;
-  }
-  if (payload.circuitBreakerChannels !== undefined) {
-    const channels = prepareChannelList(payload.circuitBreakerChannels);
-    updates.circuitBreakerChannels = channels;
-    if (payload.circuitBreakerWebhook === undefined) {
-      updates.circuitBreakerWebhook = channels.find((item) => item.channel === "wechat")?.webhookUrl ?? null;
+    if (payload.circuitBreakerWebhook !== undefined) {
+      updates.circuitBreakerWebhook = payload.circuitBreakerWebhook;
     }
-  }
+    if (payload.circuitBreakerChannels !== undefined) {
+      const channels = prepareChannelList(payload.circuitBreakerChannels);
+      updates.circuitBreakerChannels = channels;
+      if (payload.circuitBreakerWebhook === undefined) {
+        updates.circuitBreakerWebhook =
+          channels.find((item) => item.channel === "wechat")?.webhookUrl ?? null;
+      }
+    }
 
     // 每日排行榜配置
     if (payload.dailyLeaderboardEnabled !== undefined) {
       updates.dailyLeaderboardEnabled = payload.dailyLeaderboardEnabled;
     }
-  if (payload.dailyLeaderboardWebhook !== undefined) {
-    updates.dailyLeaderboardWebhook = payload.dailyLeaderboardWebhook;
-  }
+    if (payload.dailyLeaderboardWebhook !== undefined) {
+      updates.dailyLeaderboardWebhook = payload.dailyLeaderboardWebhook;
+    }
     if (payload.dailyLeaderboardTime !== undefined) {
       updates.dailyLeaderboardTime = payload.dailyLeaderboardTime;
     }
-  if (payload.dailyLeaderboardTopN !== undefined) {
-    updates.dailyLeaderboardTopN = payload.dailyLeaderboardTopN;
-  }
-  if (payload.dailyLeaderboardChannels !== undefined) {
-    const channels = prepareChannelList(payload.dailyLeaderboardChannels);
-    updates.dailyLeaderboardChannels = channels;
-    if (payload.dailyLeaderboardWebhook === undefined) {
-      updates.dailyLeaderboardWebhook = channels.find((item) => item.channel === "wechat")?.webhookUrl ?? null;
+    if (payload.dailyLeaderboardTopN !== undefined) {
+      updates.dailyLeaderboardTopN = payload.dailyLeaderboardTopN;
     }
-  }
+    if (payload.dailyLeaderboardChannels !== undefined) {
+      const channels = prepareChannelList(payload.dailyLeaderboardChannels);
+      updates.dailyLeaderboardChannels = channels;
+      if (payload.dailyLeaderboardWebhook === undefined) {
+        updates.dailyLeaderboardWebhook =
+          channels.find((item) => item.channel === "wechat")?.webhookUrl ?? null;
+      }
+    }
 
     // 成本预警配置
     if (payload.costAlertEnabled !== undefined) {
       updates.costAlertEnabled = payload.costAlertEnabled;
     }
-  if (payload.costAlertWebhook !== undefined) {
-    updates.costAlertWebhook = payload.costAlertWebhook;
-  }
+    if (payload.costAlertWebhook !== undefined) {
+      updates.costAlertWebhook = payload.costAlertWebhook;
+    }
     if (payload.costAlertThreshold !== undefined) {
       updates.costAlertThreshold = payload.costAlertThreshold;
     }
-  if (payload.costAlertCheckInterval !== undefined) {
-    updates.costAlertCheckInterval = payload.costAlertCheckInterval;
-  }
-  if (payload.costAlertChannels !== undefined) {
-    const channels = prepareChannelList(payload.costAlertChannels);
-    updates.costAlertChannels = channels;
-    if (payload.costAlertWebhook === undefined) {
-      updates.costAlertWebhook = channels.find((item) => item.channel === "wechat")?.webhookUrl ?? null;
+    if (payload.costAlertCheckInterval !== undefined) {
+      updates.costAlertCheckInterval = payload.costAlertCheckInterval;
     }
-  }
+    if (payload.costAlertChannels !== undefined) {
+      const channels = prepareChannelList(payload.costAlertChannels);
+      updates.costAlertChannels = channels;
+      if (payload.costAlertWebhook === undefined) {
+        updates.costAlertWebhook =
+          channels.find((item) => item.channel === "wechat")?.webhookUrl ?? null;
+      }
+    }
 
     const [updated] = await db
       .update(notificationSettings)

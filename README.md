@@ -134,16 +134,13 @@ _首页面板 - 系统概览与快速访问_
 
 _供应商管理 - 配置上游服务、权重分配、流量限制、代理设置_
 
-
 ![排行榜](https://gaoziman.oss-cn-hangzhou.aliyuncs.com/uPic/%E6%8E%92%E8%A1%8C%E6%A6%9C.png)
 
 _统计排行榜 - 用户和供应商使用情况一目了然_
 
-
 ![日志](https://gaoziman.oss-cn-hangzhou.aliyuncs.com/uPic/%E6%97%A5%E5%BF%97.png)
 
 _详细日志记录 - Token 使用、成本计算、决策链追踪_
-
 
 ![image-20251110202951330](https://gaoziman.oss-cn-hangzhou.aliyuncs.com/uPic/image-20251110202951330.png)
 
@@ -297,18 +294,21 @@ docker compose down && rm -rf ./data/ && docker compose up -d
 进入 **设置 → 供应商管理**，点击"添加供应商"：
 
 **基础配置**：
+
 - 供应商名称和描述
 - API 端点地址
 - API 密钥
 - 启用/禁用状态
 
 **流量控制**：
+
 - 权重（流量分配比例）
 - 优先级（数字越小优先级越高）
 - 并发 Session 限制
 - 成本倍数（计费倍率）
 
 **高级功能**：
+
 - **模型重定向**：将 Claude 模型重定向到其他 AI 服务
 - **模型白名单**：限制可调用的模型列表
 - **代理配置**：配置 HTTP/HTTPS/SOCKS 代理
@@ -348,6 +348,7 @@ docker compose down && rm -rf ./data/ && docker compose up -d
 **使用场景**：中国大陆访问海外 API、企业内网代理、IP 限制绕过。
 
 **支持的代理类型**：
+
 - HTTP 代理：`http://proxy.example.com:8080`
 - HTTPS 代理：`https://proxy.example.com:8080`
 - SOCKS4 代理：`socks4://127.0.0.1:1080`
@@ -443,6 +444,7 @@ curl -X POST http://localhost:23000/v1/chat/completions \
 进入 **设置 → 价格管理**，配置各模型的计费单价：
 
 **价格配置**：
+
 - 模型名称
 - 输入价格（USD/M tokens）
 - 输出价格（USD/M tokens）
@@ -452,6 +454,7 @@ curl -X POST http://localhost:23000/v1/chat/completions \
 **批量导入**：
 
 点击"同步 LiteLLM 价格"一键拉取最新价格表，支持：
+
 - Claude 模型（含缓存 Token 定价）
 - OpenAI 模型
 - Codex 模型

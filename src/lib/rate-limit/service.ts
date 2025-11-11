@@ -84,9 +84,7 @@ export class RateLimitService {
           } else if (limit.period === "total") {
             const value = await this.redis.get(`${type}:${id}:total_cost`);
             if (value === null && limit.amount > 0) {
-              logger.info(
-                `[RateLimit] Cache miss for ${type}:${id}:total_cost, querying database`
-              );
+              logger.info(`[RateLimit] Cache miss for ${type}:${id}:total_cost, querying database`);
               return await this.checkCostLimitsFromDatabase(id, type, costLimits);
             }
 

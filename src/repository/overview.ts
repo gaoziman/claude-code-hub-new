@@ -2,18 +2,7 @@
 
 import { db } from "@/drizzle/db";
 import { messageRequest, providers } from "@/drizzle/schema";
-import {
-  isNull,
-  and,
-  gte,
-  lt,
-  count,
-  sum,
-  avg,
-  eq,
-  desc,
-  sql,
-} from "drizzle-orm";
+import { isNull, and, gte, lt, count, sum, avg, eq, desc, sql } from "drizzle-orm";
 import { Decimal, toCostDecimal } from "@/lib/utils/currency";
 
 /**
@@ -182,9 +171,7 @@ export async function getTopProvidersToday(limit = 3): Promise<ProviderUsageSnap
   return rows.map((row) => {
     const totalRequests = row.totalRequests || 0;
     const successRate =
-      totalRequests > 0
-        ? Math.round(((row.successCount || 0) / totalRequests) * 1000) / 10
-        : 0;
+      totalRequests > 0 ? Math.round(((row.successCount || 0) / totalRequests) * 1000) / 10 : 0;
 
     return {
       providerId: row.providerId ?? 0,
@@ -316,12 +303,7 @@ export async function getUserPreferenceSnapshot(
       total: sql<number>`count(*)::double precision`,
     })
     .from(messageRequest)
-    .where(
-      and(
-        ...baseConditions,
-        sql`${messageRequest.model} IS NOT NULL`
-      )
-    )
+    .where(and(...baseConditions, sql`${messageRequest.model} IS NOT NULL`))
     .groupBy(messageRequest.model)
     .orderBy(desc(sql`count(*)`))
     .limit(1);

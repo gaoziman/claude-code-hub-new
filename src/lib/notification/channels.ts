@@ -36,7 +36,10 @@ async function sendFeishuNotification(
   if (config.secret?.trim()) {
     const timestamp = Math.floor(Date.now() / 1000).toString();
     const stringToSign = `${timestamp}\n${config.secret.trim()}`;
-    const sign = crypto.createHmac("sha256", config.secret.trim()).update(stringToSign).digest("base64");
+    const sign = crypto
+      .createHmac("sha256", config.secret.trim())
+      .update(stringToSign)
+      .digest("base64");
     body.timestamp = timestamp;
     body.sign = sign;
   }
@@ -66,8 +69,7 @@ async function sendFeishuNotification(
     StatusMessage?: string;
   };
 
-  const code =
-    result.StatusCode ?? result.status_code ?? result.Code ?? result.code ?? 0;
+  const code = result.StatusCode ?? result.status_code ?? result.Code ?? result.code ?? 0;
 
   if (code === 0) {
     return { channel: "feishu", success: true };
@@ -184,5 +186,7 @@ export function getActiveChannels(
   channels?: NotificationChannelConfig[] | null
 ): NotificationChannelConfig[] {
   if (!Array.isArray(channels)) return [];
-  return channels.filter((channel) => Boolean(channel?.webhookUrl?.trim()) && channel.enabled !== false);
+  return channels.filter(
+    (channel) => Boolean(channel?.webhookUrl?.trim()) && channel.enabled !== false
+  );
 }

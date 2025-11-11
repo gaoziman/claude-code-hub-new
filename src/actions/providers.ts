@@ -13,7 +13,11 @@ import {
 } from "@/repository/provider";
 import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
-import { type ProviderDisplay, type ProviderType, type ProviderGroupSummary } from "@/types/provider";
+import {
+  type ProviderDisplay,
+  type ProviderType,
+  type ProviderGroupSummary,
+} from "@/types/provider";
 import { maskKey } from "@/lib/utils/validation";
 import { getSession } from "@/lib/auth";
 import { CreateProviderSchema, UpdateProviderSchema } from "@/lib/validation/schemas";

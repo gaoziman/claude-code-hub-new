@@ -198,12 +198,14 @@ export function ClientManager({
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
-  const [selectedUserId, setSelectedUserId] = useState<number | null>(() => initialUsers[0]?.id ?? null);
+  const [selectedUserId, setSelectedUserId] = useState<number | null>(
+    () => initialUsers[0]?.id ?? null
+  );
   const [detailTab, setDetailTab] = useState<"table" | "card">("table");
 
-useEffect(() => {
-  setPage(1);
-}, [searchTerm, statusFilter, tagFilter, providerGroupFilter, users, timeRange]);
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, statusFilter, tagFilter, providerGroupFilter, users, timeRange]);
 
   const paginatedUsers = useMemo(() => {
     const start = (page - 1) * pageSize;
@@ -224,8 +226,8 @@ useEffect(() => {
   }, [paginatedUsers, selectedUserId]);
 
   const selectedUser = selectedUserId
-    ? paginatedUsers.find((user) => user.id === selectedUserId) ?? paginatedUsers[0] ?? null
-    : paginatedUsers[0] ?? null;
+    ? (paginatedUsers.find((user) => user.id === selectedUserId) ?? paginatedUsers[0] ?? null)
+    : (paginatedUsers[0] ?? null);
   const selectedMetrics = selectedUser ? getUserMetrics(selectedUser) : null;
 
   useEffect(() => {
@@ -254,7 +256,9 @@ useEffect(() => {
                 {key.status === "enabled" ? "启用" : "禁用"}
               </Badge>
             </div>
-            <p className="font-mono text-xs text-muted-foreground break-all">{key.maskedKey ?? "—"}</p>
+            <p className="font-mono text-xs text-muted-foreground break-all">
+              {key.maskedKey ?? "—"}
+            </p>
             <div className="grid gap-2 text-xs text-muted-foreground">
               <div className="flex items-center justify-between">
                 <span>供应商</span>
@@ -262,11 +266,15 @@ useEffect(() => {
               </div>
               <div className="flex items-center justify-between">
                 <span>今日调用</span>
-                <span className="text-foreground">{(key.todayCallCount ?? 0).toLocaleString()} 次</span>
+                <span className="text-foreground">
+                  {(key.todayCallCount ?? 0).toLocaleString()} 次
+                </span>
               </div>
               <div className="flex items-center justify-between">
                 <span>今日消耗</span>
-                <span className="text-foreground">{formatCurrency(key.todayUsage ?? 0, currencyCode)}</span>
+                <span className="text-foreground">
+                  {formatCurrency(key.todayUsage ?? 0, currencyCode)}
+                </span>
               </div>
               <div className="flex items-center justify-between">
                 <span>最近使用</span>
@@ -281,7 +289,8 @@ useEffect(() => {
     );
   };
 
-  const selectedRangeMeta = TIME_RANGE_OPTIONS.find((item) => item.value === timeRange) || TIME_RANGE_OPTIONS[0];
+  const selectedRangeMeta =
+    TIME_RANGE_OPTIONS.find((item) => item.value === timeRange) || TIME_RANGE_OPTIONS[0];
   const metricLabel = selectedRangeMeta.shortLabel;
   const metricLabelFull = selectedRangeMeta.label;
 
@@ -402,108 +411,116 @@ useEffect(() => {
           <CardTitle className="text-base font-semibold">用户与密钥</CardTitle>
         </CardHeader>
         <CardContent className="space-y-8 px-4 pb-8 pt-2 sm:px-6">
-            <div className="space-y-3">
-              <div className="grid gap-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-[repeat(6,minmax(0,1fr))]">
-                <div className="flex h-11 items-center gap-2 rounded-xl border border-border/70 bg-muted/30 px-3">
-                  <Search className="h-4 w-4 text-muted-foreground" />
-                  <Input
-                    value={searchTerm}
-                    placeholder="搜索用户或密钥"
-                    onChange={(event) => setSearchTerm(event.target.value)}
-                    className="h-full border-0 bg-transparent px-0 py-0 shadow-none focus-visible:ring-0"
-                  />
-                </div>
-                <div>
-                  <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as StatusFilter)}>
-                    <SelectTrigger className="h-11 w-full rounded-xl border border-border/70 bg-muted/30 px-3 text-sm">
-                      <SelectValue placeholder="全部状态" />
-                    </SelectTrigger>
-                    <SelectContent align="end">
-                      {statusOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Select value={timeRange} onValueChange={(value) => handleTimeRangeChange(value as UsageTimeRangeValue)}>
-                    <SelectTrigger
-                      disabled={isTimeChanging}
-                      className="h-11 w-full rounded-xl border border-border/70 bg-muted/30 px-3 text-sm"
-                    >
-                      <SelectValue className="flex items-center gap-2" placeholder="统计范围" />
-                    </SelectTrigger>
-                    <SelectContent align="end">
-                      {TIME_RANGE_OPTIONS.map((option) => {
-                        const OptionIcon = option.icon;
-                        return (
-                          <SelectItem key={option.value} value={option.value}>
-                            <span className="flex items-center gap-2">
-                              <OptionIcon className="h-4 w-4 text-muted-foreground" />
-                              <span>{option.label}</span>
-                            </span>
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Select
-                    value={tagFilter || "all"}
-                    onValueChange={(value) => setTagFilter(value === "all" ? "" : value)}
-                    disabled={availableTags.length === 0}
-                  >
-                    <SelectTrigger className="h-11 w-full rounded-xl border border-border/70 bg-muted/30 px-3 text-sm">
-                      <SelectValue className="flex items-center gap-2" placeholder="全部标签" />
-                    </SelectTrigger>
-                    <SelectContent align="end">
-                      <SelectItem value="all" disabled={availableTags.length === 0}>
-                        <span className="flex items-center gap-2">
-                          <Tags className="h-4 w-4 text-muted-foreground" />
-                          <span>全部标签</span>
-                        </span>
+          <div className="space-y-3">
+            <div className="grid gap-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-[repeat(6,minmax(0,1fr))]">
+              <div className="flex h-11 items-center gap-2 rounded-xl border border-border/70 bg-muted/30 px-3">
+                <Search className="h-4 w-4 text-muted-foreground" />
+                <Input
+                  value={searchTerm}
+                  placeholder="搜索用户或密钥"
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  className="h-full border-0 bg-transparent px-0 py-0 shadow-none focus-visible:ring-0"
+                />
+              </div>
+              <div>
+                <Select
+                  value={statusFilter}
+                  onValueChange={(value) => setStatusFilter(value as StatusFilter)}
+                >
+                  <SelectTrigger className="h-11 w-full rounded-xl border border-border/70 bg-muted/30 px-3 text-sm">
+                    <SelectValue placeholder="全部状态" />
+                  </SelectTrigger>
+                  <SelectContent align="end">
+                    {statusOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
                       </SelectItem>
-                      {availableTags.map((tag) => (
-                        <SelectItem key={tag} value={tag}>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Select
+                  value={timeRange}
+                  onValueChange={(value) => handleTimeRangeChange(value as UsageTimeRangeValue)}
+                >
+                  <SelectTrigger
+                    disabled={isTimeChanging}
+                    className="h-11 w-full rounded-xl border border-border/70 bg-muted/30 px-3 text-sm"
+                  >
+                    <SelectValue className="flex items-center gap-2" placeholder="统计范围" />
+                  </SelectTrigger>
+                  <SelectContent align="end">
+                    {TIME_RANGE_OPTIONS.map((option) => {
+                      const OptionIcon = option.icon;
+                      return (
+                        <SelectItem key={option.value} value={option.value}>
                           <span className="flex items-center gap-2">
-                            <Tag className="h-4 w-4 text-muted-foreground" />
-                            <span className="truncate">{tag}</span>
+                            <OptionIcon className="h-4 w-4 text-muted-foreground" />
+                            <span>{option.label}</span>
                           </span>
                         </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Select
-                    value={providerGroupFilter}
-                    onValueChange={(value) => setProviderGroupFilter(value as typeof providerGroupFilter)}
-                    disabled={combinedProviderGroups.length === 0}
-                  >
-                    <SelectTrigger className="h-11 w-full rounded-xl border border-border/70 bg-muted/30 px-3 text-sm">
-                      <SelectValue placeholder="全部分组" />
-                    </SelectTrigger>
-                    <SelectContent align="end">
-                      <SelectItem value="all">全部分组</SelectItem>
-                      {combinedProviderGroups.map((group) => (
-                        <SelectItem key={group} value={group}>
-                          {group}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex justify-end">
-                  <AddUserDialog
-                    providerGroupOptions={combinedProviderGroups}
-                    availableTags={availableTags}
-                  />
-                </div>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Select
+                  value={tagFilter || "all"}
+                  onValueChange={(value) => setTagFilter(value === "all" ? "" : value)}
+                  disabled={availableTags.length === 0}
+                >
+                  <SelectTrigger className="h-11 w-full rounded-xl border border-border/70 bg-muted/30 px-3 text-sm">
+                    <SelectValue className="flex items-center gap-2" placeholder="全部标签" />
+                  </SelectTrigger>
+                  <SelectContent align="end">
+                    <SelectItem value="all" disabled={availableTags.length === 0}>
+                      <span className="flex items-center gap-2">
+                        <Tags className="h-4 w-4 text-muted-foreground" />
+                        <span>全部标签</span>
+                      </span>
+                    </SelectItem>
+                    {availableTags.map((tag) => (
+                      <SelectItem key={tag} value={tag}>
+                        <span className="flex items-center gap-2">
+                          <Tag className="h-4 w-4 text-muted-foreground" />
+                          <span className="truncate">{tag}</span>
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Select
+                  value={providerGroupFilter}
+                  onValueChange={(value) =>
+                    setProviderGroupFilter(value as typeof providerGroupFilter)
+                  }
+                  disabled={combinedProviderGroups.length === 0}
+                >
+                  <SelectTrigger className="h-11 w-full rounded-xl border border-border/70 bg-muted/30 px-3 text-sm">
+                    <SelectValue placeholder="全部分组" />
+                  </SelectTrigger>
+                  <SelectContent align="end">
+                    <SelectItem value="all">全部分组</SelectItem>
+                    {combinedProviderGroups.map((group) => (
+                      <SelectItem key={group} value={group}>
+                        {group}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex justify-end">
+                <AddUserDialog
+                  providerGroupOptions={combinedProviderGroups}
+                  availableTags={availableTags}
+                />
               </div>
             </div>
+          </div>
 
           {paginatedUsers.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border/70 bg-muted/10 py-12 text-center text-sm text-muted-foreground">
@@ -520,52 +537,68 @@ useEffect(() => {
                       const isSelected = user.id === selectedUserId;
                       return (
                         <button
-                      type="button"
-                      key={user.id}
-                      onClick={() => setSelectedUserId(user.id)}
-                      className={cn(
-                        "group relative w-full rounded-2xl border px-4 py-4 text-left transition-all",
-                        isSelected
-                          ? "border-primary/60 bg-gradient-to-br from-primary/10 to-primary/5 shadow-[0_12px_30px_rgba(79,70,229,0.15)]"
-                          : "border-border/70 bg-card hover:border-primary/30"
-                      )}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="space-y-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-base font-semibold text-foreground">{user.name}</span>
-                            {user.tags?.map((tag) => (
-                              <Badge key={tag} variant="outline" className="text-[10px]">
-                                {tag}
-                              </Badge>
-                            ))}
-                            <Badge variant={statusBadge.variant} className={statusBadge.className}>
-                              {statusBadge.label}
-                            </Badge>
+                          type="button"
+                          key={user.id}
+                          onClick={() => setSelectedUserId(user.id)}
+                          className={cn(
+                            "group relative w-full rounded-2xl border px-4 py-4 text-left transition-all",
+                            isSelected
+                              ? "border-primary/60 bg-gradient-to-br from-primary/10 to-primary/5 shadow-[0_12px_30px_rgba(79,70,229,0.15)]"
+                              : "border-border/70 bg-card hover:border-primary/30"
+                          )}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="space-y-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-base font-semibold text-foreground">
+                                  {user.name}
+                                </span>
+                                {user.tags?.map((tag) => (
+                                  <Badge key={tag} variant="outline" className="text-[10px]">
+                                    {tag}
+                                  </Badge>
+                                ))}
+                                <Badge
+                                  variant={statusBadge.variant}
+                                  className={statusBadge.className}
+                                >
+                                  {statusBadge.label}
+                                </Badge>
+                              </div>
+                              <p className="text-xs text-muted-foreground">
+                                {metricLabelFull}用量{" "}
+                                {formatCurrency(metrics.todayUsage, currencyCode)} · 调用{" "}
+                                {metrics.todayCalls.toLocaleString()} 次
+                              </p>
+                            </div>
+                            <ChevronRight
+                              className={cn(
+                                "h-4 w-4 text-muted-foreground",
+                                isSelected && "text-primary"
+                              )}
+                            />
                           </div>
-                          <p className="text-xs text-muted-foreground">
-                            {metricLabelFull}用量 {formatCurrency(metrics.todayUsage, currencyCode)} · 调用 {metrics.todayCalls.toLocaleString()} 次
-                          </p>
-                        </div>
-                        <ChevronRight className={cn("h-4 w-4 text-muted-foreground", isSelected && "text-primary")} />
-                      </div>
-                      <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
-                        <div className="rounded-xl bg-muted/20 px-3 py-2">
-                          <p className="text-[11px]">启用密钥</p>
-                          <p className="text-sm font-semibold text-foreground">
-                            {metrics.activeKeyCount}/{metrics.totalKeys}
-                          </p>
-                        </div>
-                        <div className="rounded-xl bg-muted/20 px-3 py-2">
-                          <p className="text-[11px]">最近活跃</p>
-                          <p className="text-sm font-semibold text-foreground">
-                            {metrics.lastActivity ? <RelativeTime date={metrics.lastActivity} /> : "暂无"}
-                          </p>
-                        </div>
-                      </div>
-                    </button>
-                    );
-                  })}
+                          <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
+                            <div className="rounded-xl bg-muted/20 px-3 py-2">
+                              <p className="text-[11px]">启用密钥</p>
+                              <p className="text-sm font-semibold text-foreground">
+                                {metrics.activeKeyCount}/{metrics.totalKeys}
+                              </p>
+                            </div>
+                            <div className="rounded-xl bg-muted/20 px-3 py-2">
+                              <p className="text-[11px]">最近活跃</p>
+                              <p className="text-sm font-semibold text-foreground">
+                                {metrics.lastActivity ? (
+                                  <RelativeTime date={metrics.lastActivity} />
+                                ) : (
+                                  "暂无"
+                                )}
+                              </p>
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -576,13 +609,18 @@ useEffect(() => {
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                       <div>
                         <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="text-xl font-semibold text-foreground">{selectedUser.name}</h3>
+                          <h3 className="text-xl font-semibold text-foreground">
+                            {selectedUser.name}
+                          </h3>
                           {selectedUser.tags?.map((tag) => (
                             <Badge key={tag} variant="outline" className="text-[11px]">
                               {tag}
                             </Badge>
                           ))}
-                          <Badge variant={getStatusBadge(selectedUser).variant} className={getStatusBadge(selectedUser).className}>
+                          <Badge
+                            variant={getStatusBadge(selectedUser).variant}
+                            className={getStatusBadge(selectedUser).className}
+                          >
                             {getStatusBadge(selectedUser).label}
                           </Badge>
                         </div>
@@ -590,7 +628,8 @@ useEffect(() => {
                           <p className="mt-2 text-sm text-muted-foreground">{selectedUser.note}</p>
                         ) : null}
                         <p className="mt-2 text-xs text-muted-foreground">
-                          {metricLabelFull}用量 {formatCurrency(selectedMetrics?.todayUsage ?? 0, currencyCode)} · 调用 {" "}
+                          {metricLabelFull}用量{" "}
+                          {formatCurrency(selectedMetrics?.todayUsage ?? 0, currencyCode)} · 调用{" "}
                           {(selectedMetrics?.todayCalls ?? 0).toLocaleString()} 次
                         </p>
                       </div>
@@ -610,7 +649,9 @@ useEffect(() => {
                               </span>
                               <Switch
                                 checked={selectedUser.status === "active"}
-                                onCheckedChange={(checked) => handleStatusToggle(selectedUser, checked)}
+                                onCheckedChange={(checked) =>
+                                  handleStatusToggle(selectedUser, checked)
+                                }
                                 disabled={isStatusPending && pendingUserId === selectedUser.id}
                                 aria-label="切换用户启用状态"
                               />
@@ -650,7 +691,10 @@ useEffect(() => {
                           ),
                         },
                       ].map((metric) => (
-                        <div key={metric.label} className="rounded-2xl border border-border/60 bg-muted/10 px-4 py-3">
+                        <div
+                          key={metric.label}
+                          className="rounded-2xl border border-border/60 bg-muted/10 px-4 py-3"
+                        >
                           <p className="text-xs text-muted-foreground">{metric.label}</p>
                           <p className="text-base font-semibold text-foreground">{metric.value}</p>
                         </div>
@@ -658,7 +702,11 @@ useEffect(() => {
                     </div>
 
                     <div className="mt-6 space-y-4">
-                      <Tabs value={detailTab} onValueChange={(value) => setDetailTab(value as typeof detailTab)} className="space-y-4">
+                      <Tabs
+                        value={detailTab}
+                        onValueChange={(value) => setDetailTab(value as typeof detailTab)}
+                        className="space-y-4"
+                      >
                         <TabsList className="w-full justify-start rounded-full bg-muted/40 p-1">
                           <TabsTrigger
                             value="table"

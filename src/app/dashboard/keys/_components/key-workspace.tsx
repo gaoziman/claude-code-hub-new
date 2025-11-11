@@ -156,11 +156,18 @@ export function KeyWorkspace({
     });
   };
 
-  const overviewMetrics = useMemo(() => (activeUser ? getUserMetrics(activeUser) : null), [activeUser]);
+  const overviewMetrics = useMemo(
+    () => (activeUser ? getUserMetrics(activeUser) : null),
+    [activeUser]
+  );
 
   const showUserSelect = currentUser.role === "admin" && users.length > 1;
-  const allowManageKeys = currentUser.role === "admin" || (viewMode === "user" && activeUser?.id === currentUser.id);
-  const canManageActiveUser = allowManageKeys && activeUser ? currentUser.role === "admin" || currentUser.id === activeUser.id : false;
+  const allowManageKeys =
+    currentUser.role === "admin" || (viewMode === "user" && activeUser?.id === currentUser.id);
+  const canManageActiveUser =
+    allowManageKeys && activeUser
+      ? currentUser.role === "admin" || currentUser.id === activeUser.id
+      : false;
 
   return (
     <div className="space-y-6">
@@ -178,7 +185,10 @@ export function KeyWorkspace({
               <AlertTriangle className="h-4 w-4" />
               <AlertTitle>有 {expiringKeys.length} 个密钥即将过期</AlertTitle>
               <AlertDescription>
-                {expiringKeys.slice(0, 3).map((key) => key.name).join("、")}
+                {expiringKeys
+                  .slice(0, 3)
+                  .map((key) => key.name)
+                  .join("、")}
                 {expiringKeys.length > 3 ? ` 等 ${expiringKeys.length} 个密钥` : ""}。
                 建议提前创建新的密钥或延长有效期。
               </AlertDescription>
@@ -238,7 +248,11 @@ export function KeyWorkspace({
         </div>
       </Card>
 
-      <KeyUsageInsights keys={filteredKeys} currencyCode={currencyCode} metricLabel={metricMeta.shortLabel} />
+      <KeyUsageInsights
+        keys={filteredKeys}
+        currencyCode={currencyCode}
+        metricLabel={metricMeta.shortLabel}
+      />
 
       <KeyDetailSheet
         keyData={selectedKey}
@@ -341,7 +355,10 @@ function KeyFilterBar({
           placeholder="搜索密钥名称 / Key"
           className="min-w-[200px] flex-1"
         />
-        <Select value={statusFilter} onValueChange={(value) => onStatusChange(value as StatusFilter)}>
+        <Select
+          value={statusFilter}
+          onValueChange={(value) => onStatusChange(value as StatusFilter)}
+        >
           <SelectTrigger className="w-[130px]">
             <SelectValue placeholder="状态" />
           </SelectTrigger>
@@ -352,7 +369,10 @@ function KeyFilterBar({
             <SelectItem value="expiring">即将过期</SelectItem>
           </SelectContent>
         </Select>
-        <Select value={loginFilter} onValueChange={(value) => onLoginFilterChange(value as LoginFilter)}>
+        <Select
+          value={loginFilter}
+          onValueChange={(value) => onLoginFilterChange(value as LoginFilter)}
+        >
           <SelectTrigger className="w-[150px]">
             <SelectValue placeholder="登录权限" />
           </SelectTrigger>
@@ -382,7 +402,10 @@ function KeyFilterBar({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <Select value={timeRange} onValueChange={(value) => onTimeRangeChange(value as UsageTimeRangeValue)}>
+        <Select
+          value={timeRange}
+          onValueChange={(value) => onTimeRangeChange(value as UsageTimeRangeValue)}
+        >
           <SelectTrigger className="w-[140px]">
             <SelectValue placeholder="统计区间" />
           </SelectTrigger>
@@ -418,9 +441,7 @@ function KeyUsageInsights({ keys, currencyCode, metricLabel }: KeyUsageInsightsP
     );
   }
 
-  const topKeys = [...keys]
-    .sort((a, b) => (b.todayUsage ?? 0) - (a.todayUsage ?? 0))
-    .slice(0, 5);
+  const topKeys = [...keys].sort((a, b) => (b.todayUsage ?? 0) - (a.todayUsage ?? 0)).slice(0, 5);
 
   const modelMap = new Map<string, { callCount: number; totalCost: number }>();
   keys.forEach((key) => {
@@ -452,7 +473,9 @@ function KeyUsageInsights({ keys, currencyCode, metricLabel }: KeyUsageInsightsP
                   {formatCurrency(key.todayUsage ?? 0, currencyCode)}
                 </span>
               </div>
-              <Progress value={calculatePercentage(key.todayUsage ?? 0, topKeys[0]?.todayUsage ?? 1)} />
+              <Progress
+                value={calculatePercentage(key.todayUsage ?? 0, topKeys[0]?.todayUsage ?? 1)}
+              />
             </div>
           ))}
         </div>
@@ -472,10 +495,13 @@ function KeyUsageInsights({ keys, currencyCode, metricLabel }: KeyUsageInsightsP
                 <div className="flex items-center justify-between text-sm">
                   <span className="font-medium text-foreground">{item.model}</span>
                   <span className="text-xs text-muted-foreground">
-                    {item.callCount.toLocaleString()} 次 · {formatCurrency(item.totalCost, currencyCode)}
+                    {item.callCount.toLocaleString()} 次 ·{" "}
+                    {formatCurrency(item.totalCost, currencyCode)}
                   </span>
                 </div>
-                <Progress value={calculatePercentage(item.totalCost, topModels[0]?.totalCost ?? 1)} />
+                <Progress
+                  value={calculatePercentage(item.totalCost, topModels[0]?.totalCost ?? 1)}
+                />
               </div>
             ))}
           </div>
@@ -493,7 +519,13 @@ interface KeyDetailSheetProps {
   metricLabel: string;
 }
 
-function KeyDetailSheet({ keyData, open, onOpenChange, currencyCode, metricLabel }: KeyDetailSheetProps) {
+function KeyDetailSheet({
+  keyData,
+  open,
+  onOpenChange,
+  currencyCode,
+  metricLabel,
+}: KeyDetailSheetProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full max-w-lg overflow-y-auto">
@@ -519,11 +551,16 @@ function KeyDetailSheet({ keyData, open, onOpenChange, currencyCode, metricLabel
             <section>
               <SectionTitle>限流与额度</SectionTitle>
               <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
-                <InfoItem label="RPM 限制" value={keyData.rpmLimit ? `${keyData.rpmLimit} rpm` : "未设置"} />
+                <InfoItem
+                  label="RPM 限制"
+                  value={keyData.rpmLimit ? `${keyData.rpmLimit} rpm` : "未设置"}
+                />
                 <InfoItem
                   label="每日额度"
                   value={
-                    keyData.dailyQuota ? `${formatCurrency(keyData.dailyQuota, currencyCode)}` : "未设置"
+                    keyData.dailyQuota
+                      ? `${formatCurrency(keyData.dailyQuota, currencyCode)}`
+                      : "未设置"
                   }
                 />
                 <InfoItem
@@ -559,7 +596,9 @@ function KeyDetailSheet({ keyData, open, onOpenChange, currencyCode, metricLabel
                 />
                 <InfoItem
                   label="最近使用"
-                  value={keyData.lastUsedAt ? <RelativeTime date={keyData.lastUsedAt} /> : "暂无记录"}
+                  value={
+                    keyData.lastUsedAt ? <RelativeTime date={keyData.lastUsedAt} /> : "暂无记录"
+                  }
                 />
                 <InfoItem label="最后供应商" value={keyData.lastProviderName ?? "--"} />
               </div>
@@ -595,7 +634,9 @@ function KeyDetailSheet({ keyData, open, onOpenChange, currencyCode, metricLabel
             </section>
           </div>
         ) : (
-          <div className="py-8 text-center text-sm text-muted-foreground">请选择一个密钥查看详情</div>
+          <div className="py-8 text-center text-sm text-muted-foreground">
+            请选择一个密钥查看详情
+          </div>
         )}
       </SheetContent>
     </Sheet>

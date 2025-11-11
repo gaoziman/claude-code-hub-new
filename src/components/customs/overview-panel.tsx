@@ -151,7 +151,11 @@ function KpiCard({
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">{title}</p>
             <p className="text-3xl font-semibold tracking-tight">
-              {loading ? <span className="block h-6 w-24 rounded-full bg-muted animate-pulse" /> : value}
+              {loading ? (
+                <span className="block h-6 w-24 rounded-full bg-muted animate-pulse" />
+              ) : (
+                value
+              )}
             </p>
             <p className="text-xs text-muted-foreground">{description}</p>
           </div>
@@ -245,7 +249,12 @@ export function OverviewPanel({ currencyCode = "USD" }: OverviewPanelProps) {
       </div>
 
       <div className="grid gap-4 xl:grid-cols-3">
-        <Card className={cn("rounded-2xl border border-border/60", metrics.role === "admin" ? "xl:col-span-2" : "xl:col-span-3")}>
+        <Card
+          className={cn(
+            "rounded-2xl border border-border/60",
+            metrics.role === "admin" ? "xl:col-span-2" : "xl:col-span-3"
+          )}
+        >
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <div className="flex items-center gap-2">
               <Activity className="h-4 w-4 text-primary" />
@@ -254,7 +263,11 @@ export function OverviewPanel({ currencyCode = "USD" }: OverviewPanelProps) {
                 {metrics.recentSessions.length} 个活跃
               </span>
             </div>
-            <Button variant="ghost" size="sm" className="text-xs" onClick={() => router.push("/dashboard/sessions")}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs"
+              onClick={() => router.push("/dashboard/sessions")}
             >
               查看全部
               <ArrowRight className="ml-1 h-3 w-3" />
@@ -273,7 +286,11 @@ export function OverviewPanel({ currencyCode = "USD" }: OverviewPanelProps) {
             ) : (
               <div className="flex flex-col gap-1">
                 {metrics.recentSessions.map((session) => (
-                  <SessionListItem key={session.sessionId} session={session} currencyCode={currencyCode} />
+                  <SessionListItem
+                    key={session.sessionId}
+                    session={session}
+                    currencyCode={currencyCode}
+                  />
                 ))}
               </div>
             )}
@@ -292,15 +309,25 @@ export function OverviewPanel({ currencyCode = "USD" }: OverviewPanelProps) {
             <CardContent className="space-y-4">
               <div className="flex flex-wrap gap-2">
                 <SystemHealthBadge
-                  label={metrics.systemHealth.notificationsEnabled ? "通知推送已启用" : "通知推送关闭"}
+                  label={
+                    metrics.systemHealth.notificationsEnabled ? "通知推送已启用" : "通知推送关闭"
+                  }
                   active={metrics.systemHealth.notificationsEnabled}
                 />
                 <SystemHealthBadge
-                  label={metrics.systemHealth.autoCleanupEnabled ? "日志自动清理开启" : "日志自动清理关闭"}
+                  label={
+                    metrics.systemHealth.autoCleanupEnabled
+                      ? "日志自动清理开启"
+                      : "日志自动清理关闭"
+                  }
                   active={metrics.systemHealth.autoCleanupEnabled}
                 />
                 <SystemHealthBadge
-                  label={metrics.systemHealth.allowGlobalUsageView ? "全站视图对用户开放" : "仅限个人视图"}
+                  label={
+                    metrics.systemHealth.allowGlobalUsageView
+                      ? "全站视图对用户开放"
+                      : "仅限个人视图"
+                  }
                   active={metrics.systemHealth.allowGlobalUsageView}
                 />
               </div>
@@ -327,12 +354,21 @@ export function OverviewPanel({ currencyCode = "USD" }: OverviewPanelProps) {
               <CardContent className="space-y-3">
                 {data?.topUsers?.length ? (
                   data.topUsers.map((user, index) => (
-                    <div key={user.userId} className="flex items-center justify-between rounded-xl bg-muted/40 px-3 py-2">
+                    <div
+                      key={user.userId}
+                      className="flex items-center justify-between rounded-xl bg-muted/40 px-3 py-2"
+                    >
                       <div>
-                        <p className="text-sm font-semibold">{index + 1}. {user.userName}</p>
-                        <p className="text-xs text-muted-foreground">{user.totalRequests.toLocaleString()} 次请求</p>
+                        <p className="text-sm font-semibold">
+                          {index + 1}. {user.userName}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {user.totalRequests.toLocaleString()} 次请求
+                        </p>
                       </div>
-                      <p className="text-sm font-semibold text-primary">{formatCurrency(user.totalCost, currencyCode)}</p>
+                      <p className="text-sm font-semibold text-primary">
+                        {formatCurrency(user.totalCost, currencyCode)}
+                      </p>
                     </div>
                   ))
                 ) : (
@@ -381,10 +417,15 @@ export function OverviewPanel({ currencyCode = "USD" }: OverviewPanelProps) {
               <CardContent className="space-y-3">
                 {data?.recentErrors?.length ? (
                   data.recentErrors.map((error, index) => (
-                    <div key={`${error.providerId}-${error.statusCode}-${index}`} className="flex items-center justify-between rounded-xl bg-muted/30 px-3 py-2 text-sm">
+                    <div
+                      key={`${error.providerId}-${error.statusCode}-${index}`}
+                      className="flex items-center justify-between rounded-xl bg-muted/30 px-3 py-2 text-sm"
+                    >
                       <div>
                         <p className="font-semibold">{error.providerName ?? "未知供应商"}</p>
-                        <p className="text-xs text-muted-foreground">{error.statusCode ?? "--"} 状态码</p>
+                        <p className="text-xs text-muted-foreground">
+                          {error.statusCode ?? "--"} 状态码
+                        </p>
                       </div>
                       <Badge variant="destructive">{error.count} 次</Badge>
                     </div>
@@ -407,14 +448,17 @@ export function OverviewPanel({ currencyCode = "USD" }: OverviewPanelProps) {
             <CardContent className="space-y-3">
               <div className="flex items-center justify-between text-sm">
                 <span>今日消耗</span>
-                <span className="font-semibold text-primary">{formatCurrency(personalSummary?.todayCost ?? 0, currencyCode)}</span>
+                <span className="font-semibold text-primary">
+                  {formatCurrency(personalSummary?.todayCost ?? 0, currencyCode)}
+                </span>
               </div>
               {personalSummary?.dailyLimit ? (
                 <>
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
                     <span>每日额度</span>
                     <span>
-                      {formatCurrency(personalSummary.todayCost, currencyCode)} / {formatCurrency(personalSummary.dailyLimit, currencyCode)}
+                      {formatCurrency(personalSummary.todayCost, currencyCode)} /{" "}
+                      {formatCurrency(personalSummary.dailyLimit, currencyCode)}
                     </span>
                   </div>
                   <Progress
@@ -429,8 +473,15 @@ export function OverviewPanel({ currencyCode = "USD" }: OverviewPanelProps) {
                 <p className="text-xs text-muted-foreground">未设置每日额度，默认无限制。</p>
               )}
               <div className="rounded-xl bg-muted/40 p-3 text-xs text-muted-foreground">
-                常用供应商：<span className="font-semibold text-foreground">{personalSummary?.favoriteProvider ?? "暂无数据"}</span>
-                <br />常用模型：<span className="font-semibold text-foreground">{personalSummary?.favoriteModel ?? "暂无数据"}</span>
+                常用供应商：
+                <span className="font-semibold text-foreground">
+                  {personalSummary?.favoriteProvider ?? "暂无数据"}
+                </span>
+                <br />
+                常用模型：
+                <span className="font-semibold text-foreground">
+                  {personalSummary?.favoriteModel ?? "暂无数据"}
+                </span>
               </div>
             </CardContent>
           </Card>

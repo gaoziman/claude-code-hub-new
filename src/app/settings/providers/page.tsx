@@ -1,4 +1,8 @@
-import { getProviders, getProvidersHealthStatus, getProviderGroupsSummary } from "@/actions/providers";
+import {
+  getProviders,
+  getProvidersHealthStatus,
+  getProviderGroupsSummary,
+} from "@/actions/providers";
 import { Section } from "@/components/section";
 import { ProviderManager } from "./_components/provider-manager";
 import { AddProviderDialog } from "./_components/add-provider-dialog";

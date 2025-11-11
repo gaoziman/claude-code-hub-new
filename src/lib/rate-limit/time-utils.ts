@@ -105,7 +105,6 @@ export function getTTLForPeriod(period: TimePeriod): number {
 
     case "total":
       return 0; // 永不过期
-
   }
 
   return 0;

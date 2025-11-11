@@ -74,13 +74,12 @@ export async function createKey(keyData: CreateKeyData): Promise<Key> {
     isEnabled: keyData.is_enabled,
     expiresAt: keyData.expires_at,
     canLoginWebUi: keyData.can_login_web_ui ?? true,
-    scope: keyData.scope ?? 'owner',
+    scope: keyData.scope ?? "owner",
     limit5hUsd: keyData.limit_5h_usd != null ? keyData.limit_5h_usd.toString() : null,
     limitWeeklyUsd: keyData.limit_weekly_usd != null ? keyData.limit_weekly_usd.toString() : null,
     limitMonthlyUsd:
       keyData.limit_monthly_usd != null ? keyData.limit_monthly_usd.toString() : null,
-    totalLimitUsd:
-      keyData.total_limit_usd != null ? keyData.total_limit_usd.toString() : null,
+    totalLimitUsd: keyData.total_limit_usd != null ? keyData.total_limit_usd.toString() : null,
     limitConcurrentSessions: keyData.limit_concurrent_sessions,
     rpmLimit: keyData.rpm_limit === undefined ? undefined : keyData.rpm_limit,
     dailyLimitUsd:
@@ -162,8 +161,8 @@ export async function updateKey(id: number, keyData: UpdateKeyData): Promise<Key
       scope: keys.scope,
       limit5hUsd: keys.limit5hUsd,
       limitWeeklyUsd: keys.limitWeeklyUsd,
-    limitMonthlyUsd: keys.limitMonthlyUsd,
-    totalLimitUsd: keys.totalLimitUsd,
+      limitMonthlyUsd: keys.limitMonthlyUsd,
+      totalLimitUsd: keys.totalLimitUsd,
       limitConcurrentSessions: keys.limitConcurrentSessions,
       rpmLimit: keys.rpmLimit,
       dailyLimitUsd: keys.dailyLimitUsd,
@@ -227,13 +226,15 @@ export async function findKeyUsageInRange(
   userId: number,
   range?: DateRangeFilter
 ): Promise<Array<{ keyId: number; totalCost: number }>> {
-  const dateFilter = range ?? (() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    return { start: today, end: tomorrow };
-  })();
+  const dateFilter =
+    range ??
+    (() => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      return { start: today, end: tomorrow };
+    })();
 
   const joinConditions = [eq(messageRequest.key, keys.key), isNull(messageRequest.deletedAt)];
   if (dateFilter.start) {
@@ -437,13 +438,15 @@ export async function findKeysWithStatistics(
 ): Promise<KeyStatistics[]> {
   const userKeys = await findKeyList(userId);
 
-  const dateFilter = range ?? (() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    return { start: today, end: tomorrow };
-  })();
+  const dateFilter =
+    range ??
+    (() => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      return { start: today, end: tomorrow };
+    })();
 
   const stats: KeyStatistics[] = [];
 
@@ -482,12 +485,7 @@ export async function findKeysWithStatistics(
         totalCost: sum(messageRequest.costUsd),
       })
       .from(messageRequest)
-      .where(
-        and(
-          ...dateConditions,
-          sql`${messageRequest.model} IS NOT NULL`
-        )
-      )
+      .where(and(...dateConditions, sql`${messageRequest.model} IS NOT NULL`))
       .groupBy(messageRequest.model)
       .orderBy(desc(sql`count(*)`));
 
