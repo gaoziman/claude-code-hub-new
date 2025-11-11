@@ -124,7 +124,6 @@
 
 <div align="center">
 
-<!-- TODO: 添加首页截图 -->
 ![GoogleChrome2025-11-1020.20.02](https://gaoziman.oss-cn-hangzhou.aliyuncs.com/uPic/Ct3TCP.png)
 
 ![axVE4l](https://gaoziman.oss-cn-hangzhou.aliyuncs.com/uPic/axVE4l.png)
@@ -135,17 +134,17 @@ _首页面板 - 系统概览与快速访问_
 
 _供应商管理 - 配置上游服务、权重分配、流量限制、代理设置_
 
-<!-- TODO: 添加统计排行榜截图 -->
+
 ![排行榜](https://gaoziman.oss-cn-hangzhou.aliyuncs.com/uPic/%E6%8E%92%E8%A1%8C%E6%A6%9C.png)
 
 _统计排行榜 - 用户和供应商使用情况一目了然_
 
-<!-- TODO: 添加日志详情截图 -->
+
 ![日志](https://gaoziman.oss-cn-hangzhou.aliyuncs.com/uPic/%E6%97%A5%E5%BF%97.png)
 
 _详细日志记录 - Token 使用、成本计算、决策链追踪_
 
-<!-- TODO: 添加 API 文档截图 -->
+
 ![image-20251110202951330](https://gaoziman.oss-cn-hangzhou.aliyuncs.com/uPic/image-20251110202951330.png)
 
 _API 文档 - OpenAPI 3.1.0 + Scalar UI 交互式文档_
