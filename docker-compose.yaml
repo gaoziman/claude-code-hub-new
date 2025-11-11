@@ -44,7 +44,11 @@ services:
       start_period: 5s
 
   app:
-    image: ghcr.io/ding113/claude-code-hub:latest
+    # 使用本地构建（适合二次开发项目）
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile
+    # image: ghcr.io/ding113/claude-code-hub:latest  # 原作者镜像，已注释
     container_name: claude-code-hub-app
     depends_on:
       postgres:

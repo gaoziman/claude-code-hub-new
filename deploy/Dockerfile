@@ -1,3 +1,5 @@
+# ⚠️ 临时注释掉 syntax 指令,避免 Docker Hub 连接超时
+# 如果配置了 Docker 镜像加速器,可以取消下面的注释
 # syntax=docker/dockerfile:1
 
 FROM --platform=$BUILDPLATFORM node:22-slim AS build-base
@@ -20,6 +22,11 @@ ARG APP_VERSION=dev
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NEXT_PUBLIC_APP_VERSION=$APP_VERSION
 
+# 构建时提供虚拟环境变量(避免预渲染失败)
+# 这些值在运行时会被真实值覆盖
+ENV DSN="postgresql://build:build@localhost:5432/build"
+ENV REDIS_URL="redis://localhost:6379"
+
 RUN pnpm run build
 
 FROM node:22-slim AS runner
@@ -28,14 +35,11 @@ ENV PORT=3000
 ENV HOST=0.0.0.0
 WORKDIR /app
 
-# 安装 PostgreSQL 18 客户端工具（用于数据库备份/恢复功能）
-# 需要使用官方 PostgreSQL APT 仓库以获取最新版本
-RUN apt-get update && \
-    apt-get install -y gnupg curl ca-certificates && \
-    curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /usr/share/keyrings/postgresql-archive-keyring.gpg && \
-    echo "deb [signed-by=/usr/share/keyrings/postgresql-archive-keyring.gpg] http://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" > /etc/apt/sources.list.d/pgdg.list && \
+# 安装 PostgreSQL 客户端工具(用于数据库备份/恢复功能)
+# 使用中科大镜像源加速 Debian 包下载(特别是 ARM 架构)
+RUN sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list.d/debian.sources && \
     apt-get update && \
-    apt-get install -y postgresql-client-18 && \
+    apt-get install -y postgresql-client && \
     rm -rf /var/lib/apt/lists/*
 
 COPY --from=build --chown=node:node /app/public ./public

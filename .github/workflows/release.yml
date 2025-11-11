@@ -3,7 +3,7 @@ name: Auto Release Pipeline
 on:
   push:
     branches:
-      - main
+      - master
 
 permissions:
   contents: write
@@ -225,7 +225,7 @@ jobs:
         run: |
           NEW_TAG="${{ steps.next_version.outputs.new_tag }}"
           git tag -a "$NEW_TAG" -m "Release $NEW_TAG"
-          git push origin HEAD:main "$NEW_TAG"
+          git push origin HEAD:master "$NEW_TAG"
 
       - name: Prepare image names
         id: image_names
