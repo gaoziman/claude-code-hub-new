@@ -20,7 +20,7 @@ function resolveRange(param?: string): UsageTimeRangeValue {
 export default async function UserKeysPage({
   searchParams,
 }: {
-  searchParams?: KeyPageSearchParams;
+  searchParams?: Promise<KeyPageSearchParams>;
 }) {
   const session = await getSession();
   if (!session) {
@@ -31,7 +31,8 @@ export default async function UserKeysPage({
     redirect("/dashboard/clients");
   }
 
-  const range = resolveRange(searchParams?.range);
+  const resolvedSearchParams = await searchParams;
+  const range = resolveRange(resolvedSearchParams?.range);
 
   const [users, systemSettings] = await Promise.all([
     getUsers(range),

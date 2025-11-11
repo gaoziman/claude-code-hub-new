@@ -10,7 +10,11 @@ type ClientSearchParams = { [key: string]: string | string[] | undefined };
 
 export const dynamic = "force-dynamic";
 
-export default async function ClientsPage({ searchParams }: { searchParams?: ClientSearchParams }) {
+export default async function ClientsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<ClientSearchParams>;
+}) {
   const session = await getSession();
   if (!session) {
     redirect("/login?from=/dashboard/clients");
@@ -21,10 +25,11 @@ export default async function ClientsPage({ searchParams }: { searchParams?: Cli
   }
 
   const defaultRange: UsageTimeRangeValue = "today";
-  const [users, systemSettings, providerGroupOptions] = await Promise.all([
+  const [users, systemSettings, providerGroupOptions, resolvedSearchParams] = await Promise.all([
     getUsers(defaultRange),
     getSystemSettings(),
     getProviderGroupOptions(),
+    searchParams,
   ]);
 
   return (
@@ -33,7 +38,7 @@ export default async function ClientsPage({ searchParams }: { searchParams?: Cli
       currencyCode={systemSettings.currencyDisplay}
       currentUser={session.user}
       initialTimeRange={defaultRange}
-      searchParams={searchParams}
+      searchParams={resolvedSearchParams}
       providerGroupOptions={providerGroupOptions}
     />
   );
