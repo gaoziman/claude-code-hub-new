@@ -5,7 +5,9 @@ import { logger } from "@/lib/logger";
 import { systemSettings } from "@/drizzle/schema";
 import { eq } from "drizzle-orm";
 import type { SystemSettings, UpdateSystemSettingsInput } from "@/types/system-config";
+import { DEFAULT_THEME_CONFIG } from "@/types/system-config";
 import { toSystemSettings } from "./_shared/transformers";
+import { mergeThemeConfig } from "@/lib/theme";
 
 const DEFAULT_SITE_TITLE = "Claude Code Hub";
 
@@ -78,6 +80,7 @@ function createFallbackSettings(): SystemSettings {
     siteTitle: DEFAULT_SITE_TITLE,
     allowGlobalUsageView: false,
     currencyDisplay: "USD",
+    themeConfig: DEFAULT_THEME_CONFIG,
     enableAutoCleanup: false,
     cleanupRetentionDays: 30,
     cleanupSchedule: "0 2 * * *",
@@ -93,22 +96,7 @@ function createFallbackSettings(): SystemSettings {
  */
 export async function getSystemSettings(): Promise<SystemSettings> {
   try {
-    const [settings] = await db
-      .select({
-        id: systemSettings.id,
-        siteTitle: systemSettings.siteTitle,
-        allowGlobalUsageView: systemSettings.allowGlobalUsageView,
-        currencyDisplay: systemSettings.currencyDisplay,
-        enableAutoCleanup: systemSettings.enableAutoCleanup,
-        cleanupRetentionDays: systemSettings.cleanupRetentionDays,
-        cleanupSchedule: systemSettings.cleanupSchedule,
-        cleanupBatchSize: systemSettings.cleanupBatchSize,
-        enableClientVersionCheck: systemSettings.enableClientVersionCheck,
-        createdAt: systemSettings.createdAt,
-        updatedAt: systemSettings.updatedAt,
-      })
-      .from(systemSettings)
-      .limit(1);
+    const [settings] = await db.select(systemSettingsSelection).from(systemSettings).limit(1);
 
     if (settings) {
       return toSystemSettings(settings);
@@ -120,43 +108,17 @@ export async function getSystemSettings(): Promise<SystemSettings> {
         siteTitle: DEFAULT_SITE_TITLE,
         allowGlobalUsageView: false,
         currencyDisplay: "USD",
+        themeConfig: DEFAULT_THEME_CONFIG,
       })
       .onConflictDoNothing()
-      .returning({
-        id: systemSettings.id,
-        siteTitle: systemSettings.siteTitle,
-        allowGlobalUsageView: systemSettings.allowGlobalUsageView,
-        currencyDisplay: systemSettings.currencyDisplay,
-        enableAutoCleanup: systemSettings.enableAutoCleanup,
-        cleanupRetentionDays: systemSettings.cleanupRetentionDays,
-        cleanupSchedule: systemSettings.cleanupSchedule,
-        cleanupBatchSize: systemSettings.cleanupBatchSize,
-        enableClientVersionCheck: systemSettings.enableClientVersionCheck,
-        createdAt: systemSettings.createdAt,
-        updatedAt: systemSettings.updatedAt,
-      });
+      .returning(systemSettingsSelection);
 
     if (created) {
       return toSystemSettings(created);
     }
 
     // 如果并发导致没有返回，重新查询一次
-    const [fallback] = await db
-      .select({
-        id: systemSettings.id,
-        siteTitle: systemSettings.siteTitle,
-        allowGlobalUsageView: systemSettings.allowGlobalUsageView,
-        currencyDisplay: systemSettings.currencyDisplay,
-        enableAutoCleanup: systemSettings.enableAutoCleanup,
-        cleanupRetentionDays: systemSettings.cleanupRetentionDays,
-        cleanupSchedule: systemSettings.cleanupSchedule,
-        cleanupBatchSize: systemSettings.cleanupBatchSize,
-        enableClientVersionCheck: systemSettings.enableClientVersionCheck,
-        createdAt: systemSettings.createdAt,
-        updatedAt: systemSettings.updatedAt,
-      })
-      .from(systemSettings)
-      .limit(1);
+    const [fallback] = await db.select(systemSettingsSelection).from(systemSettings).limit(1);
 
     if (!fallback) {
       throw new Error("Failed to initialize system settings");
@@ -218,23 +180,24 @@ export async function updateSystemSettings(
       updates.enableClientVersionCheck = payload.enableClientVersionCheck;
     }
 
+    const shouldUpdateTheme =
+      payload.themeBaseColor !== undefined ||
+      payload.themeAccentColor !== undefined ||
+      payload.themeNeutralColor !== undefined;
+
+    if (shouldUpdateTheme) {
+      updates.themeConfig = mergeThemeConfig(current.themeConfig, {
+        baseColor: payload.themeBaseColor,
+        accentColor: payload.themeAccentColor,
+        neutralColor: payload.themeNeutralColor,
+      });
+    }
+
     const [updated] = await db
       .update(systemSettings)
       .set(updates)
       .where(eq(systemSettings.id, current.id))
-      .returning({
-        id: systemSettings.id,
-        siteTitle: systemSettings.siteTitle,
-        allowGlobalUsageView: systemSettings.allowGlobalUsageView,
-        currencyDisplay: systemSettings.currencyDisplay,
-        enableAutoCleanup: systemSettings.enableAutoCleanup,
-        cleanupRetentionDays: systemSettings.cleanupRetentionDays,
-        cleanupSchedule: systemSettings.cleanupSchedule,
-        cleanupBatchSize: systemSettings.cleanupBatchSize,
-        enableClientVersionCheck: systemSettings.enableClientVersionCheck,
-        createdAt: systemSettings.createdAt,
-        updatedAt: systemSettings.updatedAt,
-      });
+      .returning(systemSettingsSelection);
 
     if (!updated) {
       throw new Error("更新系统设置失败");
@@ -248,3 +211,18 @@ export async function updateSystemSettings(
     throw error;
   }
 }
+
+const systemSettingsSelection = {
+  id: systemSettings.id,
+  siteTitle: systemSettings.siteTitle,
+  allowGlobalUsageView: systemSettings.allowGlobalUsageView,
+  currencyDisplay: systemSettings.currencyDisplay,
+  themeConfig: systemSettings.themeConfig,
+  enableAutoCleanup: systemSettings.enableAutoCleanup,
+  cleanupRetentionDays: systemSettings.cleanupRetentionDays,
+  cleanupSchedule: systemSettings.cleanupSchedule,
+  cleanupBatchSize: systemSettings.cleanupBatchSize,
+  enableClientVersionCheck: systemSettings.enableClientVersionCheck,
+  createdAt: systemSettings.createdAt,
+  updatedAt: systemSettings.updatedAt,
+};

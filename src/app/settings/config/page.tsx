@@ -22,6 +22,7 @@ export default async function SettingsConfigPage() {
             siteTitle: settings.siteTitle,
             allowGlobalUsageView: settings.allowGlobalUsageView,
             currencyDisplay: settings.currencyDisplay,
+            themeConfig: settings.themeConfig,
           }}
         />
       </Section>

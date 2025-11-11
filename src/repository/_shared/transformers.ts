@@ -4,6 +4,7 @@ import type { Provider } from "@/types/provider";
 import type { MessageRequest } from "@/types/message";
 import type { ModelPrice } from "@/types/model-price";
 import type { SystemSettings } from "@/types/system-config";
+import { normalizeThemeConfig } from "@/lib/theme";
 import { formatCostForStorage } from "@/lib/utils/currency";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -112,6 +113,7 @@ export function toSystemSettings(dbSettings: any): SystemSettings {
     siteTitle: dbSettings?.siteTitle ?? "Claude Code Hub",
     allowGlobalUsageView: dbSettings?.allowGlobalUsageView ?? true,
     currencyDisplay: dbSettings?.currencyDisplay ?? "USD",
+    themeConfig: normalizeThemeConfig(dbSettings?.themeConfig),
     enableAutoCleanup: dbSettings?.enableAutoCleanup ?? false,
     cleanupRetentionDays: dbSettings?.cleanupRetentionDays ?? 30,
     cleanupSchedule: dbSettings?.cleanupSchedule ?? "0 2 * * *",

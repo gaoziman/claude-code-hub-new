@@ -35,6 +35,9 @@ export async function GET() {
  *   siteTitle: string;
  *   allowGlobalUsageView: boolean;
  *   currencyDisplay?: string;
+ *   themeBaseColor?: string;
+ *   themeAccentColor?: string;
+ *   themeNeutralColor?: string;
  *   enableAutoCleanup?: boolean;
  *   cleanupRetentionDays?: number;
  *   cleanupSchedule?: string;
@@ -59,6 +62,9 @@ export async function POST(req: Request) {
       siteTitle: validated.siteTitle?.trim(),
       allowGlobalUsageView: validated.allowGlobalUsageView,
       currencyDisplay: validated.currencyDisplay,
+      themeBaseColor: validated.themeBaseColor,
+      themeAccentColor: validated.themeAccentColor,
+      themeNeutralColor: validated.themeNeutralColor,
       enableAutoCleanup: validated.enableAutoCleanup,
       cleanupRetentionDays: validated.cleanupRetentionDays,
       cleanupSchedule: validated.cleanupSchedule,

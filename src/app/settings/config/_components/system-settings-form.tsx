@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -15,11 +15,22 @@ import {
 import { saveSystemSettings } from "@/actions/system-config";
 import { toast } from "sonner";
 import { CURRENCY_CONFIG } from "@/lib/utils";
-import type { SystemSettings } from "@/types/system-config";
+import type { SystemSettings, SystemThemeConfig } from "@/types/system-config";
 import type { CurrencyCode } from "@/lib/utils";
+import { ThemeColorPicker } from "./theme-color-picker";
+import { THEME_UPDATE_EVENT } from "@/components/theme/theme-hydrator";
+import { DEFAULT_THEME_CONFIG } from "@/types/system-config";
+import { ThemePreviewCard } from "./theme-preview-card";
+import { Badge } from "@/components/ui/badge";
+import { resolveTheme } from "@/lib/theme";
+import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
+import { ChevronDown, ChevronUp } from "lucide-react";
 
 interface SystemSettingsFormProps {
-  initialSettings: Pick<SystemSettings, "siteTitle" | "allowGlobalUsageView" | "currencyDisplay">;
+  initialSettings: Pick<
+    SystemSettings,
+    "siteTitle" | "allowGlobalUsageView" | "currencyDisplay" | "themeConfig"
+  >;
 }
 
 export function SystemSettingsForm({ initialSettings }: SystemSettingsFormProps) {
@@ -30,7 +41,32 @@ export function SystemSettingsForm({ initialSettings }: SystemSettingsFormProps)
   const [currencyDisplay, setCurrencyDisplay] = useState<CurrencyCode>(
     initialSettings.currencyDisplay
   );
+  const [themeConfig, setThemeConfig] = useState<SystemThemeConfig>(initialSettings.themeConfig);
+  const [lastSavedTheme, setLastSavedTheme] = useState<SystemThemeConfig>(initialSettings.themeConfig);
+  const [isThemeExpanded, setIsThemeExpanded] = useState(false);
   const [isPending, startTransition] = useTransition();
+
+  const handleThemeColorChange = (key: keyof SystemThemeConfig, value: string) => {
+    setThemeConfig((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+  };
+
+  const themeChanged = useMemo(() => {
+    return (
+      themeConfig.baseColor !== lastSavedTheme.baseColor ||
+      themeConfig.accentColor !== lastSavedTheme.accentColor ||
+      themeConfig.neutralColor !== lastSavedTheme.neutralColor
+    );
+  }, [themeConfig, lastSavedTheme]);
+
+  const chartPalette = useMemo(() => {
+    const resolved = resolveTheme(themeConfig).light;
+    return ["--chart-1", "--chart-2", "--chart-3", "--chart-4", "--chart-5"].map(
+      (token) => resolved[token as keyof typeof resolved]
+    );
+  }, [themeConfig]);
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -45,6 +81,9 @@ export function SystemSettingsForm({ initialSettings }: SystemSettingsFormProps)
         siteTitle,
         allowGlobalUsageView,
         currencyDisplay,
+        themeBaseColor: themeConfig.baseColor,
+        themeAccentColor: themeConfig.accentColor,
+        themeNeutralColor: themeConfig.neutralColor,
       });
 
       if (!result.ok) {
@@ -56,6 +95,11 @@ export function SystemSettingsForm({ initialSettings }: SystemSettingsFormProps)
         setSiteTitle(result.data.siteTitle);
         setAllowGlobalUsageView(result.data.allowGlobalUsageView);
         setCurrencyDisplay(result.data.currencyDisplay);
+        setThemeConfig(result.data.themeConfig);
+        setLastSavedTheme(result.data.themeConfig);
+        window.dispatchEvent(
+          new CustomEvent(THEME_UPDATE_EVENT, { detail: result.data.themeConfig })
+        );
       }
 
       toast.success("系统设置已更新，页面将刷新以应用货币显示变更");
@@ -127,6 +171,90 @@ export function SystemSettingsForm({ initialSettings }: SystemSettingsFormProps)
           disabled={isPending}
         />
       </div>
+
+      <Collapsible
+        open={isThemeExpanded}
+        onOpenChange={(open) => setIsThemeExpanded(open)}
+        className="space-y-4 rounded-3xl border border-dashed border-primary/30 bg-primary/5 p-6"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <Label className="text-sm font-semibold tracking-wide">系统主题色</Label>
+            <p className="text-xs text-muted-foreground mt-1">
+              左侧为实时预览，右侧可通过色块、预设与高级调节实现精细化品牌色管理。
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            {themeChanged && (
+              <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-600">
+                未保存的主题改动
+              </Badge>
+            )}
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="gap-1 text-xs"
+              onClick={() => setIsThemeExpanded((prev) => !prev)}
+            >
+              {isThemeExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              {isThemeExpanded ? "折叠预览" : "展开预览"}
+            </Button>
+          </div>
+        </div>
+        <CollapsibleContent className="grid gap-6 lg:grid-cols-[360px,1fr]">
+          <ThemePreviewCard theme={themeConfig} />
+          <div className="space-y-5">
+            <div className="grid gap-4 lg:grid-cols-3">
+              <ThemeColorPicker
+                label="主色（Primary）"
+                description="用于主要按钮、折线图与关键强调元素。"
+                value={themeConfig.baseColor}
+                defaultValue={DEFAULT_THEME_CONFIG.baseColor}
+                onChange={(color) => handleThemeColorChange("baseColor", color)}
+                disabled={isPending}
+              />
+              <ThemeColorPicker
+                label="强调色（Accent）"
+                description="用于徽章、状态提示和辅助文本。"
+                value={themeConfig.accentColor}
+                defaultValue={DEFAULT_THEME_CONFIG.accentColor}
+                onChange={(color) => handleThemeColorChange("accentColor", color)}
+                disabled={isPending}
+              />
+              <ThemeColorPicker
+                label="中性色（Muted）"
+                description="用于卡片背景、图表填充与空状态。"
+                value={themeConfig.neutralColor}
+                defaultValue={DEFAULT_THEME_CONFIG.neutralColor}
+                onChange={(color) => handleThemeColorChange("neutralColor", color)}
+                disabled={isPending}
+              />
+            </div>
+
+            <div className="rounded-2xl border border-border/70 bg-background/80 p-4 shadow-sm">
+              <div className="flex items-center justify-between text-sm">
+                <p className="font-medium">自动生成的图表配色</p>
+                <span className="text-xs text-muted-foreground">Chart Palette</span>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-3">
+                {chartPalette.map((color, index) => (
+                  <div key={color + index} className="flex flex-col items-center gap-2">
+                    <span
+                      className="h-10 w-10 rounded-xl border border-border/60 shadow-inner"
+                      style={{ backgroundColor: color }}
+                    />
+                    <span className="text-xs text-muted-foreground">#{index + 1}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-3 text-xs text-muted-foreground">
+                图表颜色会随主色、强调色动态生成，确保不同系列拥有清晰对比度。
+              </p>
+            </div>
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
 
       <div className="flex justify-end">
         <Button type="submit" disabled={isPending}>

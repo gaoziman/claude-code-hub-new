@@ -323,6 +323,18 @@ export const UpdateSystemSettingsSchema = z.object({
       { message: "不支持的货币类型" }
     )
     .optional(),
+  themeBaseColor: z
+    .string()
+    .regex(/^#([0-9a-fA-F]{6})$/, "主题主色必须是 #RRGGBB 格式")
+    .optional(),
+  themeAccentColor: z
+    .string()
+    .regex(/^#([0-9a-fA-F]{6})$/, "强调色必须是 #RRGGBB 格式")
+    .optional(),
+  themeNeutralColor: z
+    .string()
+    .regex(/^#([0-9a-fA-F]{6})$/, "中性色必须是 #RRGGBB 格式")
+    .optional(),
   // 日志清理配置（可选）
   enableAutoCleanup: z.boolean().optional(),
   cleanupRetentionDays: z.coerce
