@@ -3,11 +3,12 @@
  * 在服务器启动时自动执行数据库迁移
  */
 
-import { logger } from "@/lib/logger";
-
 export async function register() {
   // 仅在服务器端执行
   if (process.env.NEXT_RUNTIME === "nodejs") {
+    // 动态导入 logger（避免客户端构建时解析 Node.js 模块）
+    const { logger } = await import("@/lib/logger");
+
     // 生产环境: 执行完整初始化(迁移 + 价格表 + 清理任务 + 通知任务)
     if (process.env.NODE_ENV === "production" && process.env.AUTO_MIGRATE !== "false") {
       const { checkDatabaseConnection, runMigrations } = await import("@/lib/migrate");

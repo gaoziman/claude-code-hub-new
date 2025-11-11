@@ -4,6 +4,8 @@
  */
 import "server-only";
 
+/* eslint-disable @typescript-eslint/no-require-imports */
+
 import pino from "pino";
 import { isDevelopment } from "./config/env.schema";
 
