@@ -660,6 +660,19 @@ export class ProxyForwarder {
       });
     }
 
+    // ⭐ 调试日志：记录 fetch 调用参数
+    logger.debug("ProxyForwarder: Calling fetch with parameters", {
+      providerId: provider.id,
+      proxyUrl: new URL(proxyUrl).origin,
+      method: init.method,
+      hasHeaders: !!init.headers,
+      hasBody: !!init.body,
+      hasSignal: init.signal !== undefined,
+      signalType: init.signal?.constructor?.name || "undefined",
+      hasDispatcher: !!(init as Record<string, unknown>).dispatcher,
+      initKeys: Object.keys(init),
+    });
+
     let response: Response;
     try {
       response = await fetch(proxyUrl, init);
