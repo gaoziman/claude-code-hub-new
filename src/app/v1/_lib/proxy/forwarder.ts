@@ -660,8 +660,6 @@ export class ProxyForwarder {
       });
     }
 
-    (init as Record<string, unknown>).verbose = true;
-
     let response: Response;
     try {
       response = await fetch(proxyUrl, init);
