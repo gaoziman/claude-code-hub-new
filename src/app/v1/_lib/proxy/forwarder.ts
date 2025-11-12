@@ -640,17 +640,20 @@ export class ProxyForwarder {
       dispatcher?: Dispatcher;
     }
 
-    const init: UndiciFetchOptions = {
+    // ⭐ 不传递 signal 参数（避免跨环境兼容性问题）
+    // 注意：移除 signal 意味着客户端取消请求时，服务器可能会继续处理一小段时间
+    // 但这避免了生产环境 Docker 中 undici 对 signal 对象的严格验证问题
+    const fetchInit: UndiciFetchOptions = {
       method: session.method,
       headers: processedHeaders,
-      signal: session.clientAbortSignal || undefined, // 传递客户端中断信号
       ...(requestBody ? { body: requestBody } : {}),
+      // signal: 已移除，避免 InvalidArgumentError
     };
 
     // ⭐ 应用代理配置（如果配置了）
     const proxyConfig = createProxyAgentForProvider(provider, proxyUrl);
     if (proxyConfig) {
-      init.dispatcher = proxyConfig.agent;
+      fetchInit.dispatcher = proxyConfig.agent;
       logger.info("ProxyForwarder: Using proxy", {
         providerId: provider.id,
         providerName: provider.name,
@@ -664,18 +667,17 @@ export class ProxyForwarder {
     logger.debug("ProxyForwarder: Calling fetch with parameters", {
       providerId: provider.id,
       proxyUrl: new URL(proxyUrl).origin,
-      method: init.method,
-      hasHeaders: !!init.headers,
-      hasBody: !!init.body,
-      hasSignal: init.signal !== undefined,
-      signalType: init.signal?.constructor?.name || "undefined",
-      hasDispatcher: !!(init as Record<string, unknown>).dispatcher,
-      initKeys: Object.keys(init),
+      method: fetchInit.method,
+      hasHeaders: !!fetchInit.headers,
+      hasBody: !!fetchInit.body,
+      hasDispatcher: !!(fetchInit as Record<string, unknown>).dispatcher,
+      signalRemoved: true, // 标记 signal 已被移除
+      initKeys: Object.keys(fetchInit),
     });
 
     let response: Response;
     try {
-      response = await fetch(proxyUrl, init);
+      response = await fetch(proxyUrl, fetchInit);
     } catch (fetchError) {
       // 捕获 fetch 原始错误（网络错误、DNS 解析失败、连接失败等）
       const err = fetchError as Error & {
@@ -732,8 +734,8 @@ export class ProxyForwarder {
             });
 
             // 创建新的配置对象，不包含 dispatcher
-            const fallbackInit = { ...init };
-            delete fallbackInit.dispatcher;
+            const fallbackInit = { ...fetchInit };
+            delete (fallbackInit as UndiciFetchOptions).dispatcher;
             try {
               response = await fetch(proxyUrl, fallbackInit);
               logger.info("ProxyForwarder: Direct connection succeeded after proxy failure", {
