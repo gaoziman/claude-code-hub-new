@@ -3,10 +3,7 @@
 import { ActionResult } from "@/actions/types";
 import { ConsistencyService } from "@/lib/consistency/service";
 import { createConsistencyHistory } from "@/repository/consistency";
-import type {
-  ConsistencyCheckResult,
-  CheckConsistencyRequest,
-} from "@/types/consistency";
+import type { ConsistencyCheckResult, CheckConsistencyRequest } from "@/types/consistency";
 import { logger } from "@/lib/logger";
 
 /**
@@ -33,9 +30,7 @@ export async function checkConsistency(
       details: result,
     });
 
-    logger.info(
-      `[Action] 检测完成，发现 ${result.inconsistentCount} 个不一致项`
-    );
+    logger.info(`[Action] 检测完成，发现 ${result.inconsistentCount} 个不一致项`);
 
     return {
       ok: true,
@@ -53,9 +48,7 @@ export async function checkConsistency(
 /**
  * 获取最近一次检测结果（用于页面初始化）
  */
-export async function getLatestCheckResult(): Promise<
-  ActionResult<ConsistencyCheckResult | null>
-> {
+export async function getLatestCheckResult(): Promise<ActionResult<ConsistencyCheckResult | null>> {
   try {
     const { findLatestConsistencyHistory } = await import("@/repository/consistency");
     const latest = await findLatestConsistencyHistory();

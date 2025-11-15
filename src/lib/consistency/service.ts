@@ -1,9 +1,6 @@
 import { getRedisClient } from "@/lib/redis/client";
 import { logger } from "@/lib/logger";
-import {
-  sumKeyCostInTimeRange,
-  sumKeyCostToday,
-} from "@/repository/statistics";
+import { sumKeyCostInTimeRange, sumKeyCostToday } from "@/repository/statistics";
 import { findKeyList } from "@/repository/key";
 import type {
   ConsistencyCheckItem,
@@ -52,9 +49,7 @@ export class ConsistencyService {
   /**
    * 检测所有 Key 的数据一致性
    */
-  static async checkAll(
-    request?: CheckConsistencyRequest
-  ): Promise<ConsistencyCheckResult> {
+  static async checkAll(request?: CheckConsistencyRequest): Promise<ConsistencyCheckResult> {
     const startTime = Date.now();
     logger.info("[Consistency] 开始检测数据一致性", request);
 
@@ -68,12 +63,12 @@ export class ConsistencyService {
       if (!request?.keyIds || request.keyIds.length === 0) {
         // 获取用户 ID 为 1 的所有 Key（示例）
         const userKeys = await findKeyList(1);
-        allKeys.push(...userKeys.map(k => ({ id: k.id, userId: k.userId, name: k.name })));
+        allKeys.push(...userKeys.map((k) => ({ id: k.id, userId: k.userId, name: k.name })));
       } else {
         // 如果指定了 keyIds，只检测这些 Key
         for (const keyId of request.keyIds) {
           const userKeys = await findKeyList(keyId);
-          allKeys.push(...userKeys.map(k => ({ id: k.id, userId: k.userId, name: k.name })));
+          allKeys.push(...userKeys.map((k) => ({ id: k.id, userId: k.userId, name: k.name })));
         }
       }
 
@@ -100,15 +95,11 @@ export class ConsistencyService {
       const thresholdRate = request?.thresholdRate ?? 5.0;
 
       const inconsistentItems = allItems.filter(
-        (item) =>
-          item.difference >= thresholdUsd || item.differenceRate >= thresholdRate
+        (item) => item.difference >= thresholdUsd || item.differenceRate >= thresholdRate
       );
 
       // 5. 计算统计信息
-      const totalDifferenceUsd = inconsistentItems.reduce(
-        (sum, item) => sum + item.difference,
-        0
-      );
+      const totalDifferenceUsd = inconsistentItems.reduce((sum, item) => sum + item.difference, 0);
       const averageDifferenceRate =
         inconsistentItems.length > 0
           ? inconsistentItems.reduce((sum, item) => sum + item.differenceRate, 0) /
@@ -153,10 +144,7 @@ export class ConsistencyService {
           items.push(item);
         }
       } catch (error) {
-        logger.error(
-          `[Consistency] 检测失败 key=${keyId} dimension=${dimension}:`,
-          error
-        );
+        logger.error(`[Consistency] 检测失败 key=${keyId} dimension=${dimension}:`, error);
       }
     }
 
@@ -202,10 +190,7 @@ export class ConsistencyService {
         status,
       };
     } catch (error) {
-      logger.error(
-        `[Consistency] 检测维度失败 key=${keyId} dimension=${dimension}:`,
-        error
-      );
+      logger.error(`[Consistency] 检测维度失败 key=${keyId} dimension=${dimension}:`, error);
       return null;
     }
   }
@@ -249,10 +234,7 @@ export class ConsistencyService {
       const value = await redis.get(key);
       return value !== null ? parseFloat(value) : null;
     } catch (error) {
-      logger.error(
-        `[Consistency] 读取 Redis 失败 key=${keyId} dimension=${dimension}:`,
-        error
-      );
+      logger.error(`[Consistency] 读取 Redis 失败 key=${keyId} dimension=${dimension}:`, error);
       return null;
     }
   }
@@ -281,10 +263,7 @@ export class ConsistencyService {
         return await sumKeyCostInTimeRange(keyId, startTime, endTime);
       }
     } catch (error) {
-      logger.error(
-        `[Consistency] 查询数据库失败 key=${keyId} dimension=${dimension}:`,
-        error
-      );
+      logger.error(`[Consistency] 查询数据库失败 key=${keyId} dimension=${dimension}:`, error);
       return 0;
     }
   }
@@ -306,10 +285,7 @@ export class ConsistencyService {
         `[Consistency] 修复完成 key=${keyId} dimension=${dimension} value=${correctValue}`
       );
     } catch (error) {
-      logger.error(
-        `[Consistency] 修复失败 key=${keyId} dimension=${dimension}:`,
-        error
-      );
+      logger.error(`[Consistency] 修复失败 key=${keyId} dimension=${dimension}:`, error);
       throw error;
     }
   }
@@ -371,10 +347,7 @@ export class ConsistencyService {
 
       logger.info(`[Consistency] 已更新 Redis ${key} = ${value}`);
     } catch (error) {
-      logger.error(
-        `[Consistency] 更新 Redis 失败 key=${keyId} dimension=${dimension}:`,
-        error
-      );
+      logger.error(`[Consistency] 更新 Redis 失败 key=${keyId} dimension=${dimension}:`, error);
       throw error;
     }
   }
@@ -426,9 +399,7 @@ export class ConsistencyService {
         logger.info("[Consistency] 没有找到需要删除的缓存键");
       }
 
-      logger.warn(
-        "[Consistency] 全局重建完成，缓存已清空，下次请求时会自动重建"
-      );
+      logger.warn("[Consistency] 全局重建完成，缓存已清空，下次请求时会自动重建");
     } catch (error) {
       logger.error("[Consistency] 全局重建失败:", error);
       throw error;

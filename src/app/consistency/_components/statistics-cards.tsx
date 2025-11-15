@@ -15,7 +15,8 @@ const CARD_META = [
     formatter: (value: number) => value.toString(),
     caption: "最新一次巡检 Key 数",
     accent: "from-sky-400 to-sky-600",
-    progress: (result: ConsistencyCheckResult) => Math.min(100, (result.totalKeysChecked / 500) * 100),
+    progress: (result: ConsistencyCheckResult) =>
+      Math.min(100, (result.totalKeysChecked / 500) * 100),
   },
   {
     key: "inconsistentCount",
@@ -33,7 +34,8 @@ const CARD_META = [
     formatter: (value: number) => `$${value.toFixed(4)}`,
     caption: "相对阈值的超出金额",
     accent: "from-emerald-400 to-emerald-600",
-    progress: (result: ConsistencyCheckResult) => Math.min(100, Math.abs(result.totalDifferenceUsd) * 8),
+    progress: (result: ConsistencyCheckResult) =>
+      Math.min(100, Math.abs(result.totalDifferenceUsd) * 8),
   },
   {
     key: "averageDifferenceRate",
@@ -61,7 +63,9 @@ export function StatisticsCards({ result }: StatisticsCardsProps) {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">{card.label}</p>
+                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                    {card.label}
+                  </p>
                   <p className="mt-2 text-3xl font-semibold">{card.formatter(Number(rawValue))}</p>
                 </div>
                 <div className="rounded-2xl bg-muted/30 p-3 text-primary">

@@ -129,14 +129,19 @@ export function TaskConfigTab() {
         <div className="rounded-2xl border border-border/60 bg-white p-5 shadow-sm">
           <div className="flex flex-col gap-3 text-sm lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground">Scheduler Monitor</p>
+              <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground">
+                Scheduler Monitor
+              </p>
               <h3 className="text-xl font-semibold">任务状态</h3>
               <p className="text-xs text-muted-foreground">
                 自动巡检与手动触发的执行摘要，便于掌控节奏和稳定性。
               </p>
             </div>
             <div className="flex items-center gap-3">
-              <Badge variant="outline" className={cn("rounded-full px-3 py-1", statusBadge.className)}>
+              <Badge
+                variant="outline"
+                className={cn("rounded-full px-3 py-1", statusBadge.className)}
+              >
                 {statusBadge.label}
               </Badge>
               <Button
@@ -179,15 +184,16 @@ export function TaskConfigTab() {
               taskStatus?.lastRunResult
                 ? `${taskStatus.lastRunResult.itemsFixed} 项`
                 : formData.autoFix
-                ? "待执行"
-                : "未开启",
+                  ? "待执行"
+                  : "未开启",
               formData.autoFix ? "触发异常后自动尝试修复" : "开启自动修复以降低人工干预"
             )}
           </div>
 
           {taskStatus?.lastRunResult && (
             <div className="mt-4 rounded-xl bg-muted/30 p-4 text-xs text-muted-foreground">
-              最近运行：{taskStatus.lastRun ? new Date(taskStatus.lastRun).toLocaleString() : "--"} · 检测
+              最近运行：{taskStatus.lastRun ? new Date(taskStatus.lastRun).toLocaleString() : "--"}{" "}
+              · 检测
               {` ${taskStatus.lastRunResult.keysChecked} 项 / 发现 ${taskStatus.lastRunResult.inconsistenciesFound} 项 / 修复 ${taskStatus.lastRunResult.itemsFixed} 项`}
             </div>
           )}
@@ -198,9 +204,7 @@ export function TaskConfigTab() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">定时任务</p>
-                <p className="text-lg font-semibold">
-                  {formData.enabled ? "已启用" : "未启用"}
-                </p>
+                <p className="text-lg font-semibold">{formData.enabled ? "已启用" : "未启用"}</p>
               </div>
               <Switch
                 checked={formData.enabled}
@@ -246,9 +250,7 @@ export function TaskConfigTab() {
           </div>
           <div>
             <h4 className="text-lg font-semibold">策略配置</h4>
-            <p className="text-sm text-muted-foreground">
-              调整巡检频率与阈值，平衡性能与敏感度
-            </p>
+            <p className="text-sm text-muted-foreground">调整巡检频率与阈值，平衡性能与敏感度</p>
           </div>
         </div>
 
@@ -272,9 +274,7 @@ export function TaskConfigTab() {
                 <SelectItem value="24">每 24 小时</SelectItem>
               </SelectContent>
             </Select>
-            <p className="text-xs text-muted-foreground">
-              建议设置为 6 小时，避免频繁检测造成压力
-            </p>
+            <p className="text-xs text-muted-foreground">建议设置为 6 小时，避免频繁检测造成压力</p>
           </div>
 
           <div className="space-y-2">
@@ -290,9 +290,7 @@ export function TaskConfigTab() {
               }
               className="rounded-2xl"
             />
-            <p className="text-xs text-muted-foreground">
-              差异金额低于此值的记录会自动忽略
-            </p>
+            <p className="text-xs text-muted-foreground">差异金额低于此值的记录会自动忽略</p>
           </div>
 
           <div className="space-y-2">
@@ -309,9 +307,7 @@ export function TaskConfigTab() {
               }
               className="rounded-2xl"
             />
-            <p className="text-xs text-muted-foreground">
-              适当提高阈值可减少低风险告警
-            </p>
+            <p className="text-xs text-muted-foreground">适当提高阈值可减少低风险告警</p>
           </div>
 
           <div className="flex flex-col justify-between rounded-2xl border border-dashed p-4">

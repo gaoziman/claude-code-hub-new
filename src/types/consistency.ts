@@ -12,7 +12,11 @@ export type ConsistencyDimension = "total" | "daily" | "weekly" | "monthly" | "5
 /**
  * 一致性状态
  */
-export type ConsistencyStatus = "inconsistent" | "redis_missing" | "database_missing" | "consistent";
+export type ConsistencyStatus =
+  | "inconsistent"
+  | "redis_missing"
+  | "database_missing"
+  | "consistent";
 
 /**
  * 单个 Key 的一致性检测项
@@ -84,11 +88,11 @@ export interface TaskStatus {
  * 操作类型
  */
 export type ConsistencyOperationType =
-  | "manual_check"       // 手动检测
-  | "scheduled_check"    // 定时检测
-  | "manual_fix"         // 手动修复
-  | "auto_fix"           // 自动修复
-  | "global_rebuild";    // 全局重建
+  | "manual_check" // 手动检测
+  | "scheduled_check" // 定时检测
+  | "manual_fix" // 手动修复
+  | "auto_fix" // 自动修复
+  | "global_rebuild"; // 全局重建
 
 /**
  * 操作者类型
@@ -119,7 +123,7 @@ export interface ConsistencyHistory {
 export interface ConsistencyTaskConfigEntity {
   id: number;
   enabled: boolean;
-  intervalHours: number;  // Drizzle schema 使用 camelCase
+  intervalHours: number; // Drizzle schema 使用 camelCase
   autoFix: boolean;
   thresholdUsd: string; // numeric 类型
   thresholdRate: string; // numeric 类型
@@ -133,7 +137,7 @@ export interface ConsistencyTaskConfigEntity {
 export interface ConsistencyHistoryEntity {
   id: number;
   timestamp: Date;
-  operationType: string;  // Drizzle schema 使用 camelCase
+  operationType: string; // Drizzle schema 使用 camelCase
   operator: string;
   keysChecked: number;
   inconsistenciesFound: number;

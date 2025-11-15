@@ -181,9 +181,7 @@ export function InconsistencyTable({ items, onRefresh }: InconsistencyTableProps
                   <TableCell className="text-right">
                     {item.redisValue !== null ? `$${item.redisValue.toFixed(4)}` : "-"}
                   </TableCell>
-                  <TableCell className="text-right">
-                    ${item.databaseValue.toFixed(4)}
-                  </TableCell>
+                  <TableCell className="text-right">${item.databaseValue.toFixed(4)}</TableCell>
                   <TableCell className="text-right font-medium">
                     ${item.difference.toFixed(4)}
                   </TableCell>

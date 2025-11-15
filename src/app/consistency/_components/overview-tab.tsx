@@ -76,12 +76,16 @@ export function OverviewTab() {
       {
         label: "待修复项",
         value: checkResult ? checkResult.inconsistentCount.toString() : "--",
-        desc: checkResult
-          ? `巡检 Key ${checkResult.totalKeysChecked}`
-          : "暂无巡检数据",
-        progress: checkResult && checkResult.totalKeysChecked
-          ? Math.min(100, (checkResult.inconsistentCount / Math.max(checkResult.totalKeysChecked, 1)) * 100 * 4)
-          : 15,
+        desc: checkResult ? `巡检 Key ${checkResult.totalKeysChecked}` : "暂无巡检数据",
+        progress:
+          checkResult && checkResult.totalKeysChecked
+            ? Math.min(
+                100,
+                (checkResult.inconsistentCount / Math.max(checkResult.totalKeysChecked, 1)) *
+                  100 *
+                  4
+              )
+            : 15,
         accent: "from-orange-400 to-orange-600",
       },
       {
@@ -100,9 +104,7 @@ export function OverviewTab() {
       },
       {
         label: "自动巡检",
-        value: autoCheckEnabled
-          ? `每 ${taskConfig?.intervalHours ?? "-"} 小时`
-          : "未启用",
+        value: autoCheckEnabled ? `每 ${taskConfig?.intervalHours ?? "-"} 小时` : "未启用",
         desc: taskConfig?.autoFix ? "超阈值自动修复" : "仅记录差异",
         progress: autoCheckEnabled ? 100 : 20,
         accent: "from-emerald-400 to-emerald-600",
@@ -112,9 +114,7 @@ export function OverviewTab() {
 
   const topRisks = useMemo(() => {
     if (!checkResult) return [] as ConsistencyCheckResult["items"];
-    return [...checkResult.items]
-      .sort((a, b) => b.differenceRate - a.differenceRate)
-      .slice(0, 3);
+    return [...checkResult.items].sort((a, b) => b.differenceRate - a.differenceRate).slice(0, 3);
   }, [checkResult]);
 
   useEffect(() => {
@@ -237,9 +237,9 @@ export function OverviewTab() {
       };
     }
     return {
-        label: "状态良好",
-        className: "border-emerald-300 bg-emerald-500/10 text-emerald-700",
-      };
+      label: "状态良好",
+      className: "border-emerald-300 bg-emerald-500/10 text-emerald-700",
+    };
   }, [checkResult, hasInconsistencies]);
 
   const schedulerMetrics = useMemo(
@@ -250,15 +250,11 @@ export function OverviewTab() {
       },
       {
         label: "上次运行",
-        value: taskStatus?.lastRun
-          ? new Date(taskStatus.lastRun).toLocaleString()
-          : "从未运行",
+        value: taskStatus?.lastRun ? new Date(taskStatus.lastRun).toLocaleString() : "从未运行",
       },
       {
         label: "下次运行",
-        value: taskStatus?.nextRun
-          ? new Date(taskStatus.nextRun).toLocaleString()
-          : "未排程",
+        value: taskStatus?.nextRun ? new Date(taskStatus.nextRun).toLocaleString() : "未排程",
       },
       {
         label: "上次发现异常",
@@ -296,13 +292,19 @@ export function OverviewTab() {
       {(checkResult || taskConfig) && (
         <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50/90 px-4 py-3 text-xs text-amber-900">
           <span className="inline-flex items-center gap-2 font-medium">
-            <AlertTriangle className="h-4 w-4" />一致性提醒
+            <AlertTriangle className="h-4 w-4" />
+            一致性提醒
           </span>
           <span>最新检测：{alertSummary.lastCheck}</span>
           <span>待处理：{alertSummary.pending}</span>
           <span>{alertSummary.auto}</span>
           <div className="ml-auto flex gap-2">
-            <Button variant="outline" size="sm" className="rounded-full border-amber-300" onClick={handleCheck}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-full border-amber-300"
+              onClick={handleCheck}
+            >
               再次检测
             </Button>
             <Button
@@ -322,9 +324,21 @@ export function OverviewTab() {
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
           <div className="space-y-4">
             <div className="flex items-center gap-3">
-              <span className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Health Index</span>
-              <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-semibold", healthLevel.badge)}>{healthLevel.label}</span>
-              <Badge variant="outline" className={cn("rounded-full px-2.5 py-0.5", statusBadge.className)}>
+              <span className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                Health Index
+              </span>
+              <span
+                className={cn(
+                  "rounded-full px-2.5 py-0.5 text-xs font-semibold",
+                  healthLevel.badge
+                )}
+              >
+                {healthLevel.label}
+              </span>
+              <Badge
+                variant="outline"
+                className={cn("rounded-full px-2.5 py-0.5", statusBadge.className)}
+              >
                 <Shield className="mr-1 h-3.5 w-3.5" />
                 {statusBadge.label}
               </Badge>
@@ -337,11 +351,21 @@ export function OverviewTab() {
               基于最近一次巡检的差异率、差额和修复情况得出的综合指数，越高代表整体一致性越好。
             </p>
             <div className="flex flex-wrap gap-2">
-              <Button size="sm" onClick={handleCheck} disabled={isChecking} className="rounded-full px-4">
+              <Button
+                size="sm"
+                onClick={handleCheck}
+                disabled={isChecking}
+                className="rounded-full px-4"
+              >
                 <ScanEye className="h-4 w-4" />
                 {isChecking ? "检测中..." : "再次检测"}
               </Button>
-              <Button size="sm" variant="secondary" onClick={() => setShowRebuildDialog(true)} className="rounded-full px-4">
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => setShowRebuildDialog(true)}
+                className="rounded-full px-4"
+              >
                 全局重建
               </Button>
               <div className="flex items-center gap-2 rounded-full border border-dashed border-primary/30 px-4 py-1 text-sm">
@@ -360,7 +384,10 @@ export function OverviewTab() {
                 <p className="mt-1 text-xl font-semibold">{stat.value}</p>
                 <p className="text-xs text-muted-foreground">{stat.desc}</p>
                 <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-muted">
-                  <div className={cn("h-full rounded-full bg-gradient-to-r", stat.accent)} style={{ width: `${Math.max(5, Math.min(100, stat.progress))}%` }} />
+                  <div
+                    className={cn("h-full rounded-full bg-gradient-to-r", stat.accent)}
+                    style={{ width: `${Math.max(5, Math.min(100, stat.progress))}%` }}
+                  />
                 </div>
               </div>
             ))}
@@ -375,20 +402,32 @@ export function OverviewTab() {
               <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Risk Watch</p>
               <h3 className="mt-2 text-xl font-semibold">高风险 Key</h3>
             </div>
-            <Button variant="ghost" size="sm" className="rounded-full text-muted-foreground" onClick={handleCheck}>
-              <TrendingUp className="mr-1 h-4 w-4" />刷新数据
+            <Button
+              variant="ghost"
+              size="sm"
+              className="rounded-full text-muted-foreground"
+              onClick={handleCheck}
+            >
+              <TrendingUp className="mr-1 h-4 w-4" />
+              刷新数据
             </Button>
           </div>
           <div className="mt-5 space-y-4">
             {topRisks.length > 0 ? (
               topRisks.map((risk) => (
-                <div key={`${risk.keyId}-${risk.dimension}`} className="rounded-2xl border border-border/60 bg-muted/10 p-4">
+                <div
+                  key={`${risk.keyId}-${risk.dimension}`}
+                  className="rounded-2xl border border-border/60 bg-muted/10 p-4"
+                >
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-semibold">{risk.keyName}</p>
                       <p className="text-xs text-muted-foreground">维度 · {risk.dimension}</p>
                     </div>
-                    <Badge variant="outline" className="rounded-full border-amber-300 bg-amber-50 text-amber-700">
+                    <Badge
+                      variant="outline"
+                      className="rounded-full border-amber-300 bg-amber-50 text-amber-700"
+                    >
                       差异率 {risk.differenceRate.toFixed(1)}%
                     </Badge>
                   </div>
@@ -401,17 +440,23 @@ export function OverviewTab() {
                     </div>
                     <div>
                       <p>数据库</p>
-                      <p className="font-mono text-sm text-foreground">${risk.databaseValue.toFixed(4)}</p>
+                      <p className="font-mono text-sm text-foreground">
+                        ${risk.databaseValue.toFixed(4)}
+                      </p>
                     </div>
                     <div>
                       <p>差异</p>
-                      <p className="font-mono text-sm text-rose-600">${risk.difference.toFixed(4)}</p>
+                      <p className="font-mono text-sm text-rose-600">
+                        ${risk.difference.toFixed(4)}
+                      </p>
                     </div>
                   </div>
                 </div>
               ))
             ) : (
-              <div className="rounded-2xl border border-dashed border-border/60 p-8 text-center text-sm text-muted-foreground">暂无异常 Key</div>
+              <div className="rounded-2xl border border-dashed border-border/60 p-8 text-center text-sm text-muted-foreground">
+                暂无异常 Key
+              </div>
             )}
           </div>
         </div>
@@ -422,26 +467,41 @@ export function OverviewTab() {
               <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Strategy</p>
               <h3 className="mt-2 text-xl font-semibold">自动策略概览</h3>
             </div>
-            <Button variant="outline" size="sm" className="rounded-full" onClick={() => handleToggleAutoCheck(!autoCheckEnabled)}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-full"
+              onClick={() => handleToggleAutoCheck(!autoCheckEnabled)}
+            >
               {autoCheckEnabled ? "停用" : "启用"}
             </Button>
           </div>
           <div className="mt-6 space-y-4 text-sm text-muted-foreground">
             <div className="flex items-center justify-between">
               <span>巡检频率</span>
-              <span className="font-semibold text-foreground">每 {taskConfig?.intervalHours ?? "--"} 小时</span>
+              <span className="font-semibold text-foreground">
+                每 {taskConfig?.intervalHours ?? "--"} 小时
+              </span>
             </div>
             <div className="flex items-center justify-between">
               <span>阈值策略</span>
-              <span className="font-semibold text-foreground">{taskConfig ? `$${taskConfig.thresholdUsd.toFixed(2)} · ${taskConfig.thresholdRate.toFixed(1)}%` : "未配置"}</span>
+              <span className="font-semibold text-foreground">
+                {taskConfig
+                  ? `$${taskConfig.thresholdUsd.toFixed(2)} · ${taskConfig.thresholdRate.toFixed(1)}%`
+                  : "未配置"}
+              </span>
             </div>
             <div className="flex items-center justify-between">
               <span>自动修复</span>
-              <span className="font-semibold text-foreground">{taskConfig?.autoFix ? "差异触发后自动修复" : "需人工确认"}</span>
+              <span className="font-semibold text-foreground">
+                {taskConfig?.autoFix ? "差异触发后自动修复" : "需人工确认"}
+              </span>
             </div>
             <div className="rounded-2xl border border-dashed border-primary/40 bg-primary/5 p-4 text-xs text-primary">
               <CalendarDays className="mb-2 h-4 w-4" />
-              {taskConfig?.updatedAt ? `策略更新：${new Date(taskConfig.updatedAt).toLocaleString()}` : "尚未设置策略"}
+              {taskConfig?.updatedAt
+                ? `策略更新：${new Date(taskConfig.updatedAt).toLocaleString()}`
+                : "尚未设置策略"}
             </div>
           </div>
         </div>
@@ -464,7 +524,10 @@ export function OverviewTab() {
               <p className="font-semibold">任务状态与阈值策略</p>
             </div>
             <div className="flex items-center gap-2">
-              <Badge variant="outline" className={cn("rounded-full px-2.5 py-0.5", taskStatusMeta.className)}>
+              <Badge
+                variant="outline"
+                className={cn("rounded-full px-2.5 py-0.5", taskStatusMeta.className)}
+              >
                 {taskStatusMeta.label}
               </Badge>
               <Button
@@ -481,8 +544,13 @@ export function OverviewTab() {
           </div>
           <div className="mt-3 grid gap-2 text-sm text-muted-foreground sm:grid-cols-3">
             {schedulerMetrics.map((metric) => (
-              <div key={metric.label} className="rounded-xl border border-border/50 bg-muted/10 px-3 py-2">
-                <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">{metric.label}</p>
+              <div
+                key={metric.label}
+                className="rounded-xl border border-border/50 bg-muted/10 px-3 py-2"
+              >
+                <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                  {metric.label}
+                </p>
                 <p className="font-semibold text-foreground">{metric.value}</p>
               </div>
             ))}
@@ -498,8 +566,14 @@ export function OverviewTab() {
               <h3 className="mt-2 text-xl font-semibold">不一致详情</h3>
             </div>
             {checkResult && (
-              <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={handleCheck}>
-                <ArrowRight className="mr-1 h-4 w-4" />刷新数据
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground"
+                onClick={handleCheck}
+              >
+                <ArrowRight className="mr-1 h-4 w-4" />
+                刷新数据
               </Button>
             )}
           </div>
@@ -511,7 +585,9 @@ export function OverviewTab() {
                 <EmptyState timestamp={checkResult.timestamp} />
               )
             ) : (
-              <div className="rounded-2xl border border-dashed p-10 text-center text-muted-foreground">暂无检测数据</div>
+              <div className="rounded-2xl border border-dashed p-10 text-center text-muted-foreground">
+                暂无检测数据
+              </div>
             )}
           </div>
         </div>

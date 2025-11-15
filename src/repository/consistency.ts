@@ -22,10 +22,7 @@ import type {
  * 如果不存在，则创建默认配置
  */
 export async function getTaskConfig(): Promise<ConsistencyTaskConfig> {
-  const [config] = await db
-    .select()
-    .from(consistencyTaskConfig)
-    .limit(1);
+  const [config] = await db.select().from(consistencyTaskConfig).limit(1);
 
   if (!config) {
     // 不存在则创建默认配置
@@ -187,9 +184,7 @@ export async function findConsistencyHistory(
 /**
  * 根据 ID 获取操作历史详情
  */
-export async function findConsistencyHistoryById(
-  id: number
-): Promise<ConsistencyHistory | null> {
+export async function findConsistencyHistoryById(id: number): Promise<ConsistencyHistory | null> {
   const [record] = await db
     .select()
     .from(consistencyHistory)
@@ -219,9 +214,7 @@ export async function findLatestConsistencyHistory(): Promise<ConsistencyHistory
 /**
  * 删除过期的操作历史（保留最近 N 天）
  */
-export async function cleanupOldConsistencyHistory(
-  retentionDays: number = 30
-): Promise<number> {
+export async function cleanupOldConsistencyHistory(retentionDays: number = 30): Promise<number> {
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
 

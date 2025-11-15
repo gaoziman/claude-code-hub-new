@@ -42,13 +42,15 @@ export function HistoryGlance() {
           <h3 className="text-lg font-semibold">操作溯源快照</h3>
         </div>
         <Button variant="ghost" size="sm" onClick={loadHistory} className="rounded-full">
-          <RefreshCcw className={cn("mr-1 h-4 w-4", isLoading && "animate-spin")} />刷新
+          <RefreshCcw className={cn("mr-1 h-4 w-4", isLoading && "animate-spin")} />
+          刷新
         </Button>
       </div>
 
       {isLoading ? (
         <div className="mt-4 flex items-center gap-2 rounded-2xl border border-dashed p-4 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" />加载中...
+          <Loader2 className="h-4 w-4 animate-spin" />
+          加载中...
         </div>
       ) : history.length > 0 ? (
         <div className="mt-3 divide-y divide-muted/30 rounded-[20px] border border-muted/40 bg-muted/5">
@@ -57,12 +59,18 @@ export function HistoryGlance() {
               <div className="flex flex-1 flex-col gap-1">
                 <div className="flex items-center gap-2">
                   <span className="font-semibold text-foreground">{item.operator}</span>
-                  <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold", getBadge(item.operationType))}>
+                  <span
+                    className={cn(
+                      "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold",
+                      getBadge(item.operationType)
+                    )}
+                  >
                     {getOperationLabel(item.operationType)}
                   </span>
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  检测 {item.keysChecked} · 不一致 {item.inconsistenciesFound} · 修复 {item.itemsFixed || 0}
+                  检测 {item.keysChecked} · 不一致 {item.inconsistenciesFound} · 修复{" "}
+                  {item.itemsFixed || 0}
                 </div>
               </div>
               <div className="font-mono text-xs text-muted-foreground">

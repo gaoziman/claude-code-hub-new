@@ -113,9 +113,7 @@ export async function runScheduledTask(): Promise<void> {
 
     // 如果启用了自动修复且发现不一致
     if (config.autoFix && result.inconsistentCount > 0) {
-      logger.info(
-        `[Scheduler] 发现 ${result.inconsistentCount} 个不一致项，开始自动修复`
-      );
+      logger.info(`[Scheduler] 发现 ${result.inconsistentCount} 个不一致项，开始自动修复`);
 
       const fixedCount = await ConsistencyService.fixAll(result.items);
 

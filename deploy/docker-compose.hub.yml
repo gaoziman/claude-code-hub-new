@@ -21,7 +21,8 @@ services:
     networks:
       - proxy_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${CCH_DB_USER:-postgres} -d ${CCH_DB_NAME:-claude_code_hub}"]
+      test:
+        ["CMD-SHELL", "pg_isready -U ${CCH_DB_USER:-postgres} -d ${CCH_DB_NAME:-claude_code_hub}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -75,4 +76,4 @@ services:
 
 networks:
   proxy_network:
-    external: true  # 使用外部已存在的网络
+    external: true # 使用外部已存在的网络

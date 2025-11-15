@@ -23,9 +23,13 @@ export class ProxyRateLimitGuard {
     }
 
     // 2. 检查 Key 每日额度
-    logger.info(`[RateLimit] Checking daily cost for key=${key.id}, dailyLimitUsd=${key.dailyLimitUsd}, type=${typeof key.dailyLimitUsd}`);
+    logger.info(
+      `[RateLimit] Checking daily cost for key=${key.id}, dailyLimitUsd=${key.dailyLimitUsd}, type=${typeof key.dailyLimitUsd}`
+    );
     const dailyCheck = await RateLimitService.checkKeyDailyCost(key.id, key.dailyLimitUsd);
-    logger.info(`[RateLimit] Daily check result: allowed=${dailyCheck.allowed}, reason=${dailyCheck.reason}, current=${dailyCheck.current}`);
+    logger.info(
+      `[RateLimit] Daily check result: allowed=${dailyCheck.allowed}, reason=${dailyCheck.reason}, current=${dailyCheck.current}`
+    );
     if (!dailyCheck.allowed) {
       logger.warn(`[RateLimit] Key daily limit exceeded: key=${key.id}, ${dailyCheck.reason}`);
       return this.buildRateLimitResponse(key.id, "key", dailyCheck.reason!);

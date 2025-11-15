@@ -26,8 +26,16 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { getConsistencyHistory, getConsistencyHistoryDetail, getStatistics } from "../_actions/history";
-import type { ConsistencyHistory, ConsistencyHistoryQuery, ConsistencyHistoryResponse } from "@/types/consistency";
+import {
+  getConsistencyHistory,
+  getConsistencyHistoryDetail,
+  getStatistics,
+} from "../_actions/history";
+import type {
+  ConsistencyHistory,
+  ConsistencyHistoryQuery,
+  ConsistencyHistoryResponse,
+} from "@/types/consistency";
 import { DataPagination } from "@/components/data-pagination";
 
 export function HistoryTab() {
@@ -152,7 +160,9 @@ export function HistoryTab() {
             },
           ].map((item) => (
             <div key={item.label} className="rounded-2xl border bg-white p-4 shadow-sm">
-              <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">{item.label}</p>
+              <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                {item.label}
+              </p>
               <p className="mt-2 text-3xl font-semibold">{item.value}</p>
               <p className="text-xs text-muted-foreground">{item.desc}</p>
             </div>
@@ -165,7 +175,12 @@ export function HistoryTab() {
         <Select
           value={query.operationType || "all"}
           onValueChange={(value) =>
-            setQuery({ ...query, operationType: value === "all" ? undefined : (value as ConsistencyHistory["operationType"]), page: 1 })
+            setQuery({
+              ...query,
+              operationType:
+                value === "all" ? undefined : (value as ConsistencyHistory["operationType"]),
+              page: 1,
+            })
           }
         >
           <SelectTrigger className="w-[200px] rounded-2xl border border-border/50 bg-muted/20 text-left">
@@ -211,9 +226,7 @@ export function HistoryTab() {
             {historyData && historyData.items.length > 0 ? (
               historyData.items.map((item) => (
                 <TableRow key={item.id} className="border-b border-muted/30 hover:bg-muted/10">
-                  <TableCell>
-                    {getOperationTypeBadge(item.operationType)}
-                  </TableCell>
+                  <TableCell>{getOperationTypeBadge(item.operationType)}</TableCell>
                   <TableCell>{item.operator}</TableCell>
                   <TableCell className="text-right">{item.keysChecked}</TableCell>
                   <TableCell className="text-right">
@@ -227,9 +240,7 @@ export function HistoryTab() {
                   </TableCell>
                   <TableCell className="text-right">
                     {item.itemsFixed > 0 ? (
-                      <span className="font-medium text-green-600">
-                        {item.itemsFixed}
-                      </span>
+                      <span className="font-medium text-green-600">{item.itemsFixed}</span>
                     ) : (
                       <span className="text-muted-foreground">-</span>
                     )}
@@ -290,9 +301,7 @@ export function HistoryTab() {
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>操作详情</DialogTitle>
-            <DialogDescription>
-              查看此次操作的详细信息
-            </DialogDescription>
+            <DialogDescription>查看此次操作的详细信息</DialogDescription>
           </DialogHeader>
 
           {selectedItem && (
@@ -301,9 +310,7 @@ export function HistoryTab() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
                   <div className="text-sm font-medium text-muted-foreground">操作类型</div>
-                  <div className="mt-1">
-                    {getOperationTypeBadge(selectedItem.operationType)}
-                  </div>
+                  <div className="mt-1">{getOperationTypeBadge(selectedItem.operationType)}</div>
                 </div>
                 <div>
                   <div className="text-sm font-medium text-muted-foreground">操作者</div>
@@ -311,9 +318,7 @@ export function HistoryTab() {
                 </div>
                 <div>
                   <div className="text-sm font-medium text-muted-foreground">操作时间</div>
-                  <div className="mt-1">
-                    {new Date(selectedItem.timestamp).toLocaleString()}
-                  </div>
+                  <div className="mt-1">{new Date(selectedItem.timestamp).toLocaleString()}</div>
                 </div>
                 <div>
                   <div className="text-sm font-medium text-muted-foreground">检测数量</div>

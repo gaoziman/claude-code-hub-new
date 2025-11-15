@@ -60,9 +60,7 @@ export async function getConsistencyHistoryDetail(
 /**
  * 获取操作统计信息
  */
-export async function getStatistics(
-  days: number = 7
-): Promise<
+export async function getStatistics(days: number = 7): Promise<
   ActionResult<{
     totalChecks: number;
     totalInconsistencies: number;
