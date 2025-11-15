@@ -56,18 +56,18 @@ export function TagInput({ value = [], onChange, placeholder, maxTags = 10 }: Ta
   };
 
   return (
-    <div className="rounded-2xl border border-border/70 bg-background px-3 py-2">
+    <div className="rounded-2xl border border-border/70 bg-muted/30 px-3 py-2.5">
       <div className="flex flex-wrap items-center gap-2">
         {value.map((tag) => (
           <span
             key={tag}
-            className="inline-flex items-center gap-1 rounded-full bg-muted/70 px-2 py-1 text-xs font-medium text-foreground"
+            className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-sm font-medium text-primary shadow-sm"
           >
             {tag}
             <button
               type="button"
               aria-label="移除标签"
-              className="rounded-full p-0.5 text-muted-foreground transition-colors hover:text-destructive"
+              className="rounded-full p-0.5 text-primary/70 transition-colors hover:text-destructive"
               onClick={() => removeTag(tag)}
             >
               <X className="h-3 w-3" />
