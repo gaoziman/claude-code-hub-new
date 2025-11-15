@@ -169,6 +169,13 @@
       "when": 1762847045733,
       "tag": "0023_graceful_prowler",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1763014985382,
+      "tag": "0024_glossy_stardust",
+      "breakpoints": true
     }
   ]
 }

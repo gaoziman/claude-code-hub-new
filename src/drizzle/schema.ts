@@ -316,6 +316,35 @@ export const notificationSettings = pgTable('notification_settings', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });
 
+// Consistency task config table (数据一致性定时任务配置)
+export const consistencyTaskConfig = pgTable('consistency_task_config', {
+  id: serial('id').primaryKey(),
+  enabled: boolean('enabled').notNull().default(false),
+  intervalHours: integer('interval_hours').notNull().default(6),
+  autoFix: boolean('auto_fix').notNull().default(false),
+  thresholdUsd: numeric('threshold_usd', { precision: 10, scale: 4 }).notNull().default('0.01'),
+  thresholdRate: numeric('threshold_rate', { precision: 5, scale: 2 }).notNull().default('5.00'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+});
+
+// Consistency history table (数据一致性操作历史)
+export const consistencyHistory = pgTable('consistency_history', {
+  id: serial('id').primaryKey(),
+  timestamp: timestamp('timestamp', { withTimezone: true }).defaultNow().notNull(),
+  operationType: varchar('operation_type', { length: 50 }).notNull(),
+  operator: varchar('operator', { length: 50 }).notNull(),
+  keysChecked: integer('keys_checked').notNull().default(0),
+  inconsistenciesFound: integer('inconsistencies_found').notNull().default(0),
+  itemsFixed: integer('items_fixed').notNull().default(0),
+  totalDifference: numeric('total_difference', { precision: 12, scale: 6 }).notNull().default('0'),
+  details: jsonb('details'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  timestampIdx: index('idx_consistency_history_timestamp').on(table.timestamp.desc()),
+  operationTypeIdx: index('idx_consistency_history_operation_type').on(table.operationType),
+}));
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   keys: many(keys),
