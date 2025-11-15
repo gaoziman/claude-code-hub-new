@@ -1,0 +1,78 @@
+# Claude Code Hub - Docker Compose 配置（使用 Docker Hub 镜像）
+# 部署方式：使用预构建的 Docker Hub 镜像，无需服务器构建
+
+services:
+  # 🆕 Claude Code Hub - PostgreSQL 数据库
+  claude-code-hub-postgres:
+    image: postgres:18
+    container_name: claude-code-hub-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${CCH_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${CCH_DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${CCH_DB_NAME:-claude_code_hub}
+      PGDATA: /data/pgdata
+      TZ: Asia/Shanghai
+      PGTZ: Asia/Shanghai
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - /opt/software/data/claude-code-hub/postgres:/data
+    networks:
+      - proxy_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${CCH_DB_USER:-postgres} -d ${CCH_DB_NAME:-claude_code_hub}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  # 🆕 Claude Code Hub - Redis 缓存
+  claude-code-hub-redis:
+    image: redis:7-alpine
+    container_name: claude-code-hub-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass claudecoder
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - /opt/software/data/claude-code-hub/redis:/data
+    networks:
+      - proxy_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "claudecoder", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  # 🆕 Claude Code Hub - 主应用（使用 Docker Hub 镜像）
+  claude-code-hub-app:
+    # ⚠️ 修改这里：将 leocoder 替换为您的 Docker Hub 用户名
+    image: leocoder/claude-code-hub:1.0.2
+    container_name: claude-code-hub-app
+    restart: unless-stopped
+    depends_on:
+      claude-code-hub-postgres:
+        condition: service_healthy
+      claude-code-hub-redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 23000
+      HOST: 0.0.0.0
+      DSN: postgresql://${CCH_DB_USER:-postgres}:${CCH_DB_PASSWORD:-postgres}@claude-code-hub-postgres:5432/${CCH_DB_NAME:-claude_code_hub}
+      REDIS_URL: redis://:claudecoder@claude-code-hub-redis:6379
+      AUTO_MIGRATE: ${CCH_AUTO_MIGRATE:-true}
+      ENABLE_RATE_LIMIT: ${CCH_ENABLE_RATE_LIMIT:-true}
+      SESSION_TTL: ${CCH_SESSION_TTL:-300}
+      TZ: Asia/Shanghai
+      ADMIN_TOKEN: ${CCH_ADMIN_TOKEN}
+      ENABLE_SECURE_COOKIES: ${CCH_ENABLE_SECURE_COOKIES:-true}
+      APP_URL: https://claude.leocoder.cn
+    networks:
+      - proxy_network
+
+networks:
+  proxy_network:
+    external: true  # 使用外部已存在的网络

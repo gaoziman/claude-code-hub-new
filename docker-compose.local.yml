@@ -1,0 +1,75 @@
+# Claude Code Hub - 本地开发 Docker Compose 配置
+# 使用本地构建的镜像，全新的数据库和 Redis
+
+services:
+  # PostgreSQL 数据库
+  postgres:
+    image: postgres:18
+    container_name: claude-code-hub-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: coder
+      POSTGRES_DB: claude_code_hub
+      PGDATA: /var/lib/postgresql/data/pgdata
+      TZ: Asia/Shanghai
+      PGTZ: Asia/Shanghai
+    ports:
+      - "35432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d claude_code_hub"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  # Redis 缓存
+  redis:
+    image: redis:7-alpine
+    container_name: claude-code-hub-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  # Claude Code Hub 应用
+  app:
+    image: claude-code-hub:1.0.2
+    container_name: claude-code-hub-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 23000
+      HOSTNAME: 0.0.0.0
+      DSN: postgresql://postgres:coder@postgres:5432/claude_code_hub
+      REDIS_URL: redis://redis:6379
+      AUTO_MIGRATE: "true"
+      ENABLE_RATE_LIMIT: "true"
+      SESSION_TTL: "300"
+      TZ: Asia/Shanghai
+      ADMIN_TOKEN: Lpp3wNhB3SlgMlxE
+      ENABLE_SECURE_COOKIES: "false"
+      LOG_LEVEL: info
+    ports:
+      - "23000:23000"
+
+volumes:
+  postgres_data:
+    name: claude-code-hub-postgres-data
+  redis_data:
+    name: claude-code-hub-redis-data
