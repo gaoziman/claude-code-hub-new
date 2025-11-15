@@ -31,7 +31,7 @@ export function AddUserDialog({
           <ListPlus className="h-4 w-4" /> 新增用户
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="max-w-2xl md:max-w-3xl xl:max-w-4xl max-h-[90vh] overflow-y-auto">
         <FormErrorBoundary>
           <UserForm
             onSuccess={() => setOpen(false)}

@@ -13,6 +13,7 @@ import {
   Settings,
   KeyRound,
   Activity,
+  ShieldCheck,
 } from "lucide-react";
 
 type NavIconKey =
@@ -22,6 +23,7 @@ type NavIconKey =
   | "keys"
   | "clients"
   | "health"
+  | "consistency"
   | "docs"
   | "settings";
 
@@ -32,6 +34,7 @@ const ICON_MAP: Record<NavIconKey, ComponentType<{ className?: string }>> = {
   keys: KeyRound,
   clients: Users2,
   health: Activity,
+  consistency: ShieldCheck,
   docs: FileText,
   settings: Settings,
 };

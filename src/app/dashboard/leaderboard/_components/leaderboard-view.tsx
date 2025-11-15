@@ -599,19 +599,22 @@ function SegmentedControl({
   options: { value: string; label: string }[];
   size?: "sm" | "md";
 }) {
+  const basePadding = size === "sm" ? "px-3 py-1" : "px-4 py-1.5";
+
   return (
-    <div className="flex rounded-full border border-border/60 bg-muted/40 p-1 text-sm shadow-inner">
+    <div className="flex rounded-full border border-border/60 bg-muted/60 p-1 text-sm shadow-inner">
       {options.map((option) => (
         <button
           key={option.value}
           type="button"
           onClick={() => onChange(option.value)}
           className={cn(
-            "rounded-full px-4 py-1 font-medium transition-all",
+            "rounded-full font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
+            basePadding,
             size === "sm" ? "text-xs" : "text-sm",
             value === option.value
-              ? "bg-background shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
+              ? "bg-primary text-primary-foreground shadow-[0_6px_25px_rgba(37,99,235,0.35)]"
+              : "text-muted-foreground hover:bg-background/60 hover:text-foreground"
           )}
         >
           {option.label}

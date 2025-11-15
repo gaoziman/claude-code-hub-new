@@ -16,6 +16,7 @@ const NAV_ITEMS: (DashboardNavItem & { adminOnly?: boolean; userOnly?: boolean }
   { href: "/dashboard/leaderboard", label: "排行榜", icon: "leaderboard" },
   { href: "/dashboard/clients", label: "用户管理", icon: "clients", adminOnly: true },
   { href: "/dashboard/providers/health", label: "供应商健康", icon: "health", adminOnly: true },
+  { href: "/consistency", label: "数据一致性", icon: "consistency", adminOnly: true },
   { href: "/usage-doc", label: "文档", icon: "docs" },
   { href: "/settings", label: "系统设置", icon: "settings", adminOnly: true },
 ];

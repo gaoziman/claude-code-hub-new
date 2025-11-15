@@ -48,7 +48,7 @@ export function UserActions({
             {showLabels && <span>编辑</span>}
           </button>
         </DialogTrigger>
-        <DialogContent>
+        <DialogContent className="max-w-2xl md:max-w-3xl xl:max-w-4xl max-h-[90vh] overflow-y-auto">
           <FormErrorBoundary>
             <UserForm
               user={user}

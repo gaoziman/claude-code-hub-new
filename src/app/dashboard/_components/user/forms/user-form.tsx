@@ -10,9 +10,10 @@ import { toast } from "sonner";
 import { TagInput } from "@/components/ui/tag-input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Input } from "@/components/ui/input";
 import { ProviderGroupSelect } from "./provider-group-select";
 import { Button } from "@/components/ui/button";
+import { ExpirySelector } from "@/components/ui/expiry-selector";
+import { formatDateTimeLocal } from "@/lib/utils/datetime";
 
 interface UserFormProps {
   user?: {
@@ -49,7 +50,7 @@ export function UserForm({
       providerGroup: user?.providerGroup || "",
       tags: user?.tags || [],
       isEnabled: user?.isEnabled ?? true,
-      expiresAt: user?.expiresAt ? new Date(user.expiresAt).toISOString().slice(0, 16) : "",
+      expiresAt: user?.expiresAt ? formatDateTimeLocal(user.expiresAt) : "",
     },
     onSubmit: async (data) => {
       startTransition(async () => {
@@ -166,17 +167,10 @@ export function UserForm({
         </p>
       </div>
 
-      <div className="grid gap-2">
-        <Label>过期时间</Label>
-        <Input
-          type="datetime-local"
-          value={(form.values.expiresAt as string) || ""}
-          onChange={(event) => form.setValue("expiresAt", event.target.value)}
-        />
-        <p className="text-xs text-muted-foreground">
-          留空表示永不过期，超过设置时间后该用户及其密钥将被自动停用。
-        </p>
-      </div>
+      <ExpirySelector
+        value={(form.values.expiresAt as string) || ""}
+        onChange={(next) => form.setValue("expiresAt", next ?? "")}
+      />
 
       <div className="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-border/70 bg-muted/10 px-4 py-3">
         <div>

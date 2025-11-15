@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { addKey } from "@/actions/keys";
 import { DialogFormLayout } from "@/components/form/form-layout";
-import { TextField, DateField, NumberField } from "@/components/form/form-field";
+import { TextField, NumberField } from "@/components/form/form-field";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { useZodForm } from "@/lib/hooks/use-zod-form";
 import { KeyFormSchema } from "@/lib/validation/schemas";
+import { ExpirySelector } from "@/components/ui/expiry-selector";
 
 interface AddKeyFormProps {
   userId?: number;
@@ -109,11 +110,9 @@ export function AddKeyForm({ userId, onSuccess, allowScopeSelection = false }: A
         {...form.getFieldProps("name")}
       />
 
-      <DateField
-        label="过期时间"
-        placeholder="选择过期时间"
-        description="留空表示永不过期"
-        {...form.getFieldProps("expiresAt")}
+      <ExpirySelector
+        value={form.values.expiresAt as string}
+        onChange={(next) => form.setValue("expiresAt", next ?? "")}
       />
 
       <div className="flex items-start justify-between gap-4 rounded-lg border border-dashed border-border px-4 py-3">
