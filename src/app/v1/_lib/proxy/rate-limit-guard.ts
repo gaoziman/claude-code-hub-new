@@ -1,6 +1,7 @@
 import type { ProxySession } from "./session";
 import { RateLimitService } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
+import { ProxyResponses } from "./responses";
 
 export class ProxyRateLimitGuard {
   /**
@@ -22,7 +23,9 @@ export class ProxyRateLimitGuard {
     }
 
     // 2. 检查 Key 每日额度
+    logger.info(`[RateLimit] Checking daily cost for key=${key.id}, dailyLimitUsd=${key.dailyLimitUsd}, type=${typeof key.dailyLimitUsd}`);
     const dailyCheck = await RateLimitService.checkKeyDailyCost(key.id, key.dailyLimitUsd);
+    logger.info(`[RateLimit] Daily check result: allowed=${dailyCheck.allowed}, reason=${dailyCheck.reason}, current=${dailyCheck.current}`);
     if (!dailyCheck.allowed) {
       logger.warn(`[RateLimit] Key daily limit exceeded: key=${key.id}, ${dailyCheck.reason}`);
       return this.buildRateLimitResponse(key.id, "key", dailyCheck.reason!);
@@ -57,7 +60,7 @@ export class ProxyRateLimitGuard {
   }
 
   /**
-   * 构建 429 响应
+   * 构建 429 限流响应
    */
   private static buildRateLimitResponse(
     id: number,
@@ -66,23 +69,7 @@ export class ProxyRateLimitGuard {
   ): Response {
     const message = type === "user" ? `用户限流：${reason}` : `Key 限流：${reason}`;
 
-    const headers = new Headers({
-      "Content-Type": "application/json",
-      "X-RateLimit-Type": type,
-      "Retry-After": "3600", // 1 小时后重试
-    });
-
-    return new Response(
-      JSON.stringify({
-        error: {
-          type: "rate_limit_error",
-          message,
-        },
-      }),
-      {
-        status: 429,
-        headers,
-      }
-    );
+    // 使用统一的错误响应构建器，符合 Anthropic API 规范
+    return ProxyResponses.buildError(429, message, "rate_limit_error");
   }
 }
