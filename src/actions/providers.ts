@@ -696,7 +696,10 @@ export async function getProviderGroupOptions(): Promise<string[]> {
     const groupTag = provider.groupTag?.trim();
     if (groupTag && provider.isEnabled) {
       // 按逗号分隔，支持多个分组标签
-      const tags = groupTag.split(",").map((tag) => tag.trim()).filter((tag) => tag.length > 0);
+      const tags = groupTag
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter((tag) => tag.length > 0);
       for (const tag of tags) {
         groupSet.add(tag);
       }

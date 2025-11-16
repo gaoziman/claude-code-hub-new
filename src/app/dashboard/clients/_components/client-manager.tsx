@@ -112,14 +112,20 @@ export function ClientManager({
 
     // 处理供应商的分组选项（可能包含逗号分隔的多个分组）
     providerGroupOptions.forEach((group) => {
-      const tags = group.split(",").map((tag) => tag.trim()).filter((tag) => tag.length > 0);
+      const tags = group
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter((tag) => tag.length > 0);
       tags.forEach((tag) => groupSet.add(tag));
     });
 
     // 处理用户的分组（可能包含逗号分隔的多个分组）
     users.forEach((user) => {
       if (user.providerGroup) {
-        const tags = user.providerGroup.split(",").map((tag) => tag.trim()).filter((tag) => tag.length > 0);
+        const tags = user.providerGroup
+          .split(",")
+          .map((tag) => tag.trim())
+          .filter((tag) => tag.length > 0);
         tags.forEach((tag) => groupSet.add(tag));
       }
     });
