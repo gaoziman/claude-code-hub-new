@@ -109,20 +109,21 @@ export function ClientManager({
 
   const combinedProviderGroups = useMemo(() => {
     const groupSet = new Set<string>();
+
+    // 处理供应商的分组选项（可能包含逗号分隔的多个分组）
     providerGroupOptions.forEach((group) => {
-      const normalized = group.trim();
-      if (normalized) {
-        groupSet.add(normalized);
-      }
+      const tags = group.split(",").map((tag) => tag.trim()).filter((tag) => tag.length > 0);
+      tags.forEach((tag) => groupSet.add(tag));
     });
+
+    // 处理用户的分组（可能包含逗号分隔的多个分组）
     users.forEach((user) => {
       if (user.providerGroup) {
-        const normalized = user.providerGroup.trim();
-        if (normalized) {
-          groupSet.add(normalized);
-        }
+        const tags = user.providerGroup.split(",").map((tag) => tag.trim()).filter((tag) => tag.length > 0);
+        tags.forEach((tag) => groupSet.add(tag));
       }
     });
+
     return Array.from(groupSet).sort((a, b) => a.localeCompare(b, "zh-CN"));
   }, [providerGroupOptions, users]);
 

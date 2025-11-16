@@ -206,7 +206,6 @@ export function KeyListHeader({
       <div className="mb-3 flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2 text-base font-semibold tracking-tight">
-            <span>{activeUser ? activeUser.name : "-"}</span>
             {activeUser && showUserActions && (
               <UserActions
                 user={activeUser}

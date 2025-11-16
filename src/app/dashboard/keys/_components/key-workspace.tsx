@@ -18,12 +18,12 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { formatCurrency, type CurrencyCode } from "@/lib/utils/currency";
 import { cn } from "@/lib/utils";
 import { RelativeTime } from "@/components/ui/relative-time";
@@ -527,35 +527,71 @@ function KeyDetailSheet({
   metricLabel,
 }: KeyDetailSheetProps) {
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full max-w-lg overflow-y-auto">
-        <SheetHeader>
-          <SheetTitle>{keyData?.name ?? "密钥详情"}</SheetTitle>
-          <SheetDescription>查看限流配置、调用状态与安全信息</SheetDescription>
-        </SheetHeader>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="text-xl font-semibold">{keyData?.name ?? "密钥详情"}</DialogTitle>
+          <DialogDescription>查看限流配置、调用状态与安全信息</DialogDescription>
+        </DialogHeader>
         {keyData ? (
-          <div className="space-y-6 py-4">
-            <section className="space-y-2">
-              <div className="text-xs text-muted-foreground">密钥字符串</div>
-              <div className="rounded-md border border-dashed border-border/60 bg-muted/40 p-3 font-mono text-xs">
-                {keyData.maskedKey}
+          <div className="space-y-6 py-2">
+            {/* 密钥信息卡片 */}
+            <div className="rounded-xl border border-border/60 bg-gradient-to-br from-muted/40 to-muted/20 p-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1 space-y-2">
+                  <div className="text-xs font-medium text-muted-foreground">密钥字符串</div>
+                  <div className="rounded-lg bg-background/80 p-3 font-mono text-sm backdrop-blur-sm">
+                    {keyData.maskedKey}
+                  </div>
+                </div>
+                <div className="flex flex-col gap-2 text-right">
+                  <Badge
+                    variant={keyData.status === "enabled" ? "default" : "outline"}
+                    className="w-fit"
+                  >
+                    {keyData.status === "enabled" ? "✓ 启用" : "✕ 禁用"}
+                  </Badge>
+                  <span className="text-xs text-muted-foreground">
+                    创建于 {keyData.createdAtFormatted}
+                  </span>
+                </div>
               </div>
-              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                <Badge variant={keyData.status === "enabled" ? "secondary" : "outline"}>
-                  {keyData.status === "enabled" ? "启用" : "禁用"}
-                </Badge>
-                <span>创建于 {keyData.createdAtFormatted}</span>
-              </div>
-            </section>
+            </div>
 
-            <section>
-              <SectionTitle>限流与额度</SectionTitle>
-              <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
-                <InfoItem
+            {/* 使用情况统计 */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <StatCard
+                label={`${metricLabel}调用`}
+                value={`${(keyData.todayCallCount ?? 0).toLocaleString()} 次`}
+                icon="📊"
+              />
+              <StatCard
+                label={`${metricLabel}消耗`}
+                value={formatCurrency(keyData.todayUsage ?? 0, currencyCode)}
+                icon="💰"
+              />
+              <StatCard
+                label="最近使用"
+                value={
+                  keyData.lastUsedAt ? <RelativeTime date={keyData.lastUsedAt} /> : "暂无记录"
+                }
+                icon="⏰"
+              />
+              <StatCard label="最后供应商" value={keyData.lastProviderName ?? "--"} icon="🔌" />
+            </div>
+
+            {/* 限流与额度 */}
+            <div className="rounded-xl border border-border/60 bg-card p-5">
+              <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold">
+                <span className="text-lg">⚡</span>
+                限流与额度
+              </h3>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <InfoCard
                   label="RPM 限制"
                   value={keyData.rpmLimit ? `${keyData.rpmLimit} rpm` : "未设置"}
                 />
-                <InfoItem
+                <InfoCard
                   label="每日额度"
                   value={
                     keyData.dailyQuota
@@ -563,95 +599,108 @@ function KeyDetailSheet({
                       : "未设置"
                   }
                 />
-                <InfoItem
+                <InfoCard
                   label="5 小时上限"
                   value={limitValueText(keyData.limit5hUsd, currencyCode)}
                 />
-                <InfoItem
+                <InfoCard
                   label="周消费上限"
                   value={limitValueText(keyData.limitWeeklyUsd, currencyCode)}
                 />
-                <InfoItem
+                <InfoCard
                   label="月消费上限"
                   value={limitValueText(keyData.limitMonthlyUsd, currencyCode)}
                 />
-                <InfoItem
+                <InfoCard
                   label="总费用上限"
                   value={limitValueText(keyData.totalLimitUsd, currencyCode)}
                 />
-                <InfoItem label="并发会话" value={keyData.limitConcurrentSessions || "未设置"} />
+                <InfoCard
+                  label="并发会话"
+                  value={keyData.limitConcurrentSessions || "未设置"}
+                />
               </div>
-            </section>
+            </div>
 
-            <section>
-              <SectionTitle>使用情况</SectionTitle>
-              <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
-                <InfoItem
-                  label={`${metricLabel}调用`}
-                  value={`${(keyData.todayCallCount ?? 0).toLocaleString()} 次`}
-                />
-                <InfoItem
-                  label={`${metricLabel}消耗`}
-                  value={formatCurrency(keyData.todayUsage ?? 0, currencyCode)}
-                />
-                <InfoItem
-                  label="最近使用"
-                  value={
-                    keyData.lastUsedAt ? <RelativeTime date={keyData.lastUsedAt} /> : "暂无记录"
-                  }
-                />
-                <InfoItem label="最后供应商" value={keyData.lastProviderName ?? "--"} />
-              </div>
-              {keyData.modelStats && keyData.modelStats.length > 0 && (
-                <div className="mt-3 rounded-lg border border-border/60 p-3">
-                  <div className="text-xs font-semibold text-muted-foreground">模型 Top 3</div>
-                  <div className="mt-2 space-y-1">
-                    {keyData.modelStats.slice(0, 3).map((stat) => (
-                      <div key={stat.model} className="flex items-center justify-between text-xs">
-                        <span className="font-mono">{stat.model}</span>
-                        <span>{stat.callCount.toLocaleString()} 次</span>
+            {/* 模型统计 */}
+            {keyData.modelStats && keyData.modelStats.length > 0 && (
+              <div className="rounded-xl border border-border/60 bg-card p-5">
+                <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold">
+                  <span className="text-lg">📈</span>
+                  模型 Top 3
+                </h3>
+                <div className="space-y-3">
+                  {keyData.modelStats.slice(0, 3).map((stat, index) => (
+                    <div
+                      key={stat.model}
+                      className="flex items-center justify-between rounded-lg border border-border/40 bg-muted/30 p-3"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
+                          {index + 1}
+                        </div>
+                        <span className="font-mono text-sm font-medium">{stat.model}</span>
                       </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </section>
-
-            <section>
-              <SectionTitle>安全</SectionTitle>
-              <div className="space-y-2 text-sm text-muted-foreground">
-                <div className="flex items-center gap-2">
-                  <Badge variant={keyData.canLoginWebUi ? "secondary" : "outline"}>
-                    {keyData.canLoginWebUi ? "允许登录 Web UI" : "仅限 API 调用"}
-                  </Badge>
-                  <span>
-                    {keyData.expiresAt === "永不过期"
-                      ? "永不过期"
-                      : `过期时间 ${keyData.expiresAt}`}
-                  </span>
+                      <span className="text-sm font-semibold">
+                        {stat.callCount.toLocaleString()} 次
+                      </span>
+                    </div>
+                  ))}
                 </div>
               </div>
-            </section>
+            )}
+
+            {/* 安全设置 */}
+            <div className="rounded-xl border border-border/60 bg-card p-5">
+              <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold">
+                <span className="text-lg">🔒</span>
+                安全设置
+              </h3>
+              <div className="flex flex-wrap items-center gap-3">
+                <Badge
+                  variant={keyData.canLoginWebUi ? "default" : "secondary"}
+                  className="px-3 py-1"
+                >
+                  {keyData.canLoginWebUi ? "✓ 允许登录 Web UI" : "✕ 仅限 API 调用"}
+                </Badge>
+                <Badge variant="outline" className="px-3 py-1">
+                  {keyData.expiresAt === "永不过期"
+                    ? "♾️ 永不过期"
+                    : `⏳ 过期时间 ${keyData.expiresAt}`}
+                </Badge>
+              </div>
+            </div>
           </div>
         ) : (
-          <div className="py-8 text-center text-sm text-muted-foreground">
-            请选择一个密钥查看详情
+          <div className="flex min-h-[300px] items-center justify-center">
+            <div className="text-center text-muted-foreground">
+              <div className="mb-2 text-4xl">🔑</div>
+              <p className="text-sm">请选择一个密钥查看详情</p>
+            </div>
           </div>
         )}
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }
 
-function SectionTitle({ children }: { children: ReactNode }) {
-  return <div className="mb-2 text-xs font-semibold text-muted-foreground">{children}</div>;
+function StatCard({ label, value, icon }: { label: string; value: ReactNode; icon: string }) {
+  return (
+    <div className="rounded-xl border border-border/60 bg-card p-4">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs text-muted-foreground">{label}</span>
+        <span className="text-lg">{icon}</span>
+      </div>
+      <div className="text-lg font-semibold text-foreground">{value}</div>
+    </div>
+  );
 }
 
-function InfoItem({ label, value }: { label: string; value: React.ReactNode }) {
+function InfoCard({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <div>
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="text-sm text-foreground">{value ?? "--"}</div>
+    <div className="rounded-lg border border-border/40 bg-muted/20 p-3">
+      <div className="text-xs text-muted-foreground mb-1">{label}</div>
+      <div className="text-sm font-medium text-foreground">{value ?? "--"}</div>
     </div>
   );
 }
