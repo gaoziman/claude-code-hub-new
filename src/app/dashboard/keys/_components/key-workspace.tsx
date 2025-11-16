@@ -572,9 +572,7 @@ function KeyDetailSheet({
               />
               <StatCard
                 label="最近使用"
-                value={
-                  keyData.lastUsedAt ? <RelativeTime date={keyData.lastUsedAt} /> : "暂无记录"
-                }
+                value={keyData.lastUsedAt ? <RelativeTime date={keyData.lastUsedAt} /> : "暂无记录"}
                 icon="⏰"
               />
               <StatCard label="最后供应商" value={keyData.lastProviderName ?? "--"} icon="🔌" />
@@ -615,10 +613,7 @@ function KeyDetailSheet({
                   label="总费用上限"
                   value={limitValueText(keyData.totalLimitUsd, currencyCode)}
                 />
-                <InfoCard
-                  label="并发会话"
-                  value={keyData.limitConcurrentSessions || "未设置"}
-                />
+                <InfoCard label="并发会话" value={keyData.limitConcurrentSessions || "未设置"} />
               </div>
             </div>
 
