@@ -196,11 +196,11 @@ export async function addUser(data: {
       isEnabled: validatedData.isEnabled,
     });
 
-    // 为新用户创建默认密钥
+    // 为新用户创建默认密钥（使用用户名称作为 Key 名称）
     const generatedKey = "sk-" + randomBytes(16).toString("hex");
     await createKey({
       user_id: newUser.id,
-      name: "default",
+      name: validatedData.name,
       key: generatedKey,
       is_enabled: validatedData.isEnabled ?? true,
       expires_at: undefined,
