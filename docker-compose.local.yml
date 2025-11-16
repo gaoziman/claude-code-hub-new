@@ -44,7 +44,7 @@ services:
 
   # Claude Code Hub 应用
   app:
-    image: claude-code-hub:1.0.2
+    image: leojavatop/claude-code-hub:1.0.6
     container_name: claude-code-hub-app
     restart: unless-stopped
     depends_on:
