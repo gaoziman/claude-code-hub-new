@@ -157,6 +157,10 @@ export async function handleChatCompletions(c: Context): Promise<Response> {
           { status: 400, headers: { "Content-Type": "application/json" } }
         );
       }
+
+      // ⭐ 修复：设置 model 到 session（与 OpenAI 格式分支保持一致）
+      // 这样供应商选择器才能根据模型名称正确匹配 Codex 供应商
+      session.request.model = request.model as string;
     }
 
     // 复用现有代理流程
