@@ -176,6 +176,20 @@
       "when": 1763014985382,
       "tag": "0024_glossy_stardust",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1763601419331,
+      "tag": "0025_green_wonder_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1763610000000,
+      "tag": "0026_remove_aggregate_limits",
+      "breakpoints": true
     }
   ]
 }

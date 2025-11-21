@@ -24,6 +24,13 @@ export const users = pgTable('users', {
   isEnabled: boolean('is_enabled').notNull().default(true),
   expiresAt: timestamp('expires_at', { withTimezone: true }),
   tags: jsonb('tags').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+
+  // ========== 用户级别限额配置（管理员设置） ==========
+  limit5hUsd: numeric('limit_5h_usd', { precision: 10, scale: 2 }),
+  limitWeeklyUsd: numeric('limit_weekly_usd', { precision: 10, scale: 2 }),
+  limitMonthlyUsd: numeric('limit_monthly_usd', { precision: 10, scale: 2 }),
+  totalLimitUsd: numeric('total_limit_usd', { precision: 12, scale: 2 }),
+
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
   deletedAt: timestamp('deleted_at', { withTimezone: true }),
@@ -50,7 +57,11 @@ export const keys = pgTable('keys', {
   // Key 视角：owner 为主 Key，可查看所有数据；child 仅能查看自身
   scope: varchar('scope', { length: 16 }).notNull().default('owner').$type<'owner' | 'child'>(),
 
-  // 金额限流配置
+  // ========== 主子关系配置 ==========
+  // owner_key_id: 仅子 Key 填写，指向其主 Key；主 Key 为 NULL
+  ownerKeyId: integer('owner_key_id'),
+
+  // ========== 子 Key 独立限额配置 ==========
   limit5hUsd: numeric('limit_5h_usd', { precision: 10, scale: 2 }),
   limitWeeklyUsd: numeric('limit_weekly_usd', { precision: 10, scale: 2 }),
   limitMonthlyUsd: numeric('limit_monthly_usd', { precision: 10, scale: 2 }),
@@ -65,6 +76,7 @@ export const keys = pgTable('keys', {
 }, (table) => ({
   // 基础索引（详细的复合索引通过迁移脚本管理）
   keysUserIdIdx: index('idx_keys_user_id').on(table.userId),
+  keysOwnerKeyIdIdx: index('idx_keys_owner_key_id').on(table.ownerKeyId),
   keysCreatedAtIdx: index('idx_keys_created_at').on(table.createdAt),
   keysDeletedAtIdx: index('idx_keys_deleted_at').on(table.deletedAt),
 }));
