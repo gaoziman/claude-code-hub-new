@@ -42,6 +42,7 @@ export interface DataTableProps<T extends TableData> {
   rowClassName?: (record: T, index: number) => string;
   maxHeight?: string;
   stickyHeader?: boolean;
+  minWidth?: string;
 }
 
 /**
@@ -56,7 +57,8 @@ export function DataTable<T extends TableData>({
   onRowClick,
   rowClassName,
   maxHeight,
-  stickyHeader = false
+  stickyHeader = false,
+  minWidth,
 }: DataTableProps<T>) {
   const renderCell = (column: TableColumn<T>, record: T, index: number) => {
     if (column.render) {
@@ -110,14 +112,14 @@ export function DataTable<T extends TableData>({
   }
 
   return (
-    <div 
+    <div
       className={cn(
-        "relative",
+        "relative w-full overflow-x-auto",
         maxHeight && "overflow-y-auto"
       )}
       style={maxHeight ? { maxHeight } : undefined}
     >
-      <Table>
+      <Table style={minWidth ? { minWidth } : undefined}>
         <TableHeader className={cn(stickyHeader && "sticky top-0 z-10 bg-background")}>
           <TableRow>
             {columns.map((column) => (

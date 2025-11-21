@@ -48,22 +48,20 @@ export function DialogFormLayout({
   error,
 }: FormLayoutProps) {
   return (
-    <form onSubmit={onSubmit} className="flex max-h-[75vh] flex-col gap-4" noValidate>
+    <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
       <DialogHeader className="shrink-0">
         <DialogTitle>{config.title}</DialogTitle>
         {config.description && <DialogDescription>{config.description}</DialogDescription>}
       </DialogHeader>
 
-      <div className="flex-1 overflow-y-auto pr-1">
-        <div className="grid gap-4 py-2">
-          {children}
+      <div className="grid gap-4 py-2">
+        {children}
 
-          {error && (
-            <div className="text-xs text-destructive" role="alert">
-              {error}
-            </div>
-          )}
-        </div>
+        {error && (
+          <div className="text-xs text-destructive" role="alert">
+            {error}
+          </div>
+        )}
       </div>
 
       <DialogFooter className="shrink-0">
