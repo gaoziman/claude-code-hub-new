@@ -1,6 +1,8 @@
 "use client";
-import { useTransition } from "react";
+import { useMemo, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { format } from "date-fns";
+import { zhCN } from "date-fns/locale";
 import { editKey } from "@/actions/keys";
 import { DialogFormLayout } from "@/components/form/form-layout";
 import { TextField, NumberField } from "@/components/form/form-field";
@@ -18,6 +20,7 @@ import { KeyFormSchema } from "@/lib/validation/schemas";
 import { ExpirySelector } from "@/components/ui/expiry-selector";
 import { formatDateTimeLocal } from "@/lib/utils/datetime";
 import { toast } from "sonner";
+import { getResetInfo } from "@/lib/rate-limit/time-utils";
 
 interface EditKeyFormProps {
   keyData?: {
@@ -45,6 +48,25 @@ export function EditKeyForm({ keyData, onSuccess }: EditKeyFormProps) {
     if (!expiresAt || expiresAt === "永不过期") return "";
     return formatDateTimeLocal(expiresAt);
   };
+
+  // 计算周限额和月限额的重置时间说明
+  const weeklyResetInfo = useMemo(() => {
+    const resetInfo = getResetInfo("weekly");
+    if (resetInfo.resetAt) {
+      const resetTime = format(resetInfo.resetAt, "M月d日(E) HH:mm", { locale: zhCN });
+      return `每周最大消费金额，从周一 00:00 开始计算，将于 ${resetTime} 重置`;
+    }
+    return "每周最大消费金额";
+  }, []);
+
+  const monthlyResetInfo = useMemo(() => {
+    const resetInfo = getResetInfo("monthly");
+    if (resetInfo.resetAt) {
+      const resetTime = format(resetInfo.resetAt, "M月d日 HH:mm", { locale: zhCN });
+      return `每月最大消费金额，从每月1号 00:00 开始计算，将于 ${resetTime} 重置`;
+    }
+    return "每月最大消费金额";
+  }, []);
 
   const form = useZodForm({
     schema: KeyFormSchema,
@@ -169,7 +191,7 @@ export function EditKeyForm({ keyData, onSuccess }: EditKeyFormProps) {
       <NumberField
         label="周消费上限 (USD)"
         placeholder="留空表示无限制"
-        description="每周最大消费金额"
+        description={weeklyResetInfo}
         min={0}
         step={0.01}
         {...form.getFieldProps("limitWeeklyUsd")}
@@ -178,7 +200,7 @@ export function EditKeyForm({ keyData, onSuccess }: EditKeyFormProps) {
       <NumberField
         label="月消费上限 (USD)"
         placeholder="留空表示无限制"
-        description="每月最大消费金额"
+        description={monthlyResetInfo}
         min={0}
         step={0.01}
         {...form.getFieldProps("limitMonthlyUsd")}

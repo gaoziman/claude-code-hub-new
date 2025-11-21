@@ -1,6 +1,8 @@
 "use client";
 import { useMemo, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { format } from "date-fns";
+import { zhCN } from "date-fns/locale";
 import { addUser, editUser } from "@/actions/users";
 import { DialogFormLayout } from "@/components/form/form-layout";
 import { TextField } from "@/components/form/form-field";
@@ -14,6 +16,7 @@ import { ProviderGroupSelect } from "./provider-group-select";
 import { Button } from "@/components/ui/button";
 import { ExpirySelector } from "@/components/ui/expiry-selector";
 import { formatDateTimeLocal } from "@/lib/utils/datetime";
+import { getResetInfo } from "@/lib/rate-limit/time-utils";
 
 interface UserFormProps {
   user?: {
@@ -24,6 +27,11 @@ interface UserFormProps {
     tags?: string[];
     expiresAt?: string | null;
     isEnabled?: boolean;
+    // 用户级别限额
+    limit5hUsd?: number | null;
+    limitWeeklyUsd?: number | null;
+    limitMonthlyUsd?: number | null;
+    totalLimitUsd?: number | null;
   };
   onSuccess?: () => void;
   providerGroupOptions?: string[];
@@ -51,6 +59,11 @@ export function UserForm({
       tags: user?.tags || [],
       isEnabled: user?.isEnabled ?? true,
       expiresAt: user?.expiresAt ? formatDateTimeLocal(user.expiresAt) : "",
+      // 用户级别限额
+      limit5hUsd: user?.limit5hUsd ?? null,
+      limitWeeklyUsd: user?.limitWeeklyUsd ?? null,
+      limitMonthlyUsd: user?.limitMonthlyUsd ?? null,
+      totalLimitUsd: user?.totalLimitUsd ?? null,
     },
     onSubmit: async (data) => {
       startTransition(async () => {
@@ -64,6 +77,11 @@ export function UserForm({
               tags: data.tags,
               expiresAt: data.expiresAt ?? null,
               isEnabled: data.isEnabled,
+              // 用户级别限额
+              limit5hUsd: data.limit5hUsd,
+              limitWeeklyUsd: data.limitWeeklyUsd,
+              limitMonthlyUsd: data.limitMonthlyUsd,
+              totalLimitUsd: data.totalLimitUsd,
             });
           } else {
             res = await addUser({
@@ -73,6 +91,11 @@ export function UserForm({
               tags: data.tags,
               expiresAt: data.expiresAt ?? null,
               isEnabled: data.isEnabled,
+              // 用户级别限额
+              limit5hUsd: data.limit5hUsd,
+              limitWeeklyUsd: data.limitWeeklyUsd,
+              limitMonthlyUsd: data.limitMonthlyUsd,
+              totalLimitUsd: data.totalLimitUsd,
             });
           }
 
@@ -103,6 +126,23 @@ export function UserForm({
     }
     form.setValue("tags", [...currentTags, normalized]);
   };
+
+  // 计算周限额和月限额的重置时间说明
+  const weeklyResetInfo = useMemo(() => {
+    const resetInfo = getResetInfo("weekly");
+    if (resetInfo.resetAt) {
+      return `从每周一 00:00 开始计算，将于 ${format(resetInfo.resetAt, "M月d日(E) HH:mm", { locale: zhCN })} 重置`;
+    }
+    return null;
+  }, []);
+
+  const monthlyResetInfo = useMemo(() => {
+    const resetInfo = getResetInfo("monthly");
+    if (resetInfo.resetAt) {
+      return `从每月1号 00:00 开始计算，将于 ${format(resetInfo.resetAt, "M月d日 HH:mm", { locale: zhCN })} 重置`;
+    }
+    return null;
+  }, []);
 
   return (
     <DialogFormLayout
@@ -171,6 +211,79 @@ export function UserForm({
         value={(form.values.expiresAt as string) || ""}
         onChange={(next) => form.setValue("expiresAt", next ?? "")}
       />
+
+      <div className="space-y-3 rounded-xl border border-border/70 bg-muted/10 px-4 py-3">
+        <div>
+          <Label className="text-sm font-medium">用户级别消费限额</Label>
+          <p className="text-xs text-muted-foreground mt-1">
+            控制该用户所有密钥的总消费。留空表示无限制。
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <TextField
+            label="5小时消费上限 (USD)"
+            type="number"
+            step="0.01"
+            min="0"
+            max="10000"
+            placeholder="留空=无限制"
+            {...form.getFieldProps("limit5hUsd")}
+            value={form.values.limit5hUsd ?? ""}
+            onChange={(val) => {
+              form.setValue("limit5hUsd", val === "" ? null : parseFloat(val));
+            }}
+          />
+          <div className="space-y-1">
+            <TextField
+              label="周消费上限 (USD)"
+              type="number"
+              step="0.01"
+              min="0"
+              max="50000"
+              placeholder="留空=无限制"
+              {...form.getFieldProps("limitWeeklyUsd")}
+              value={form.values.limitWeeklyUsd ?? ""}
+              onChange={(val) => {
+                form.setValue("limitWeeklyUsd", val === "" ? null : parseFloat(val));
+              }}
+            />
+            {weeklyResetInfo && (
+              <p className="text-[10px] text-muted-foreground">{weeklyResetInfo}</p>
+            )}
+          </div>
+          <div className="space-y-1">
+            <TextField
+              label="月消费上限 (USD)"
+              type="number"
+              step="0.01"
+              min="0"
+              max="200000"
+              placeholder="留空=无限制"
+              {...form.getFieldProps("limitMonthlyUsd")}
+              value={form.values.limitMonthlyUsd ?? ""}
+              onChange={(val) => {
+                form.setValue("limitMonthlyUsd", val === "" ? null : parseFloat(val));
+              }}
+            />
+            {monthlyResetInfo && (
+              <p className="text-[10px] text-muted-foreground">{monthlyResetInfo}</p>
+            )}
+          </div>
+          <TextField
+            label="总消费上限 (USD)"
+            type="number"
+            step="0.01"
+            min="0"
+            max="1000000"
+            placeholder="留空=无限制"
+            {...form.getFieldProps("totalLimitUsd")}
+            value={form.values.totalLimitUsd ?? ""}
+            onChange={(val) => {
+              form.setValue("totalLimitUsd", val === "" ? null : parseFloat(val));
+            }}
+          />
+        </div>
+      </div>
 
       <div className="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-border/70 bg-muted/10 px-4 py-3">
         <div>

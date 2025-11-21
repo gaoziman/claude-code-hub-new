@@ -1,32 +1,46 @@
 "use client";
-import { useTransition } from "react";
+import { useMemo, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { format } from "date-fns";
+import { zhCN } from "date-fns/locale";
 import { toast } from "sonner";
 import { addKey } from "@/actions/keys";
 import { DialogFormLayout } from "@/components/form/form-layout";
 import { TextField, NumberField } from "@/components/form/form-field";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useZodForm } from "@/lib/hooks/use-zod-form";
 import { KeyFormSchema } from "@/lib/validation/schemas";
 import { ExpirySelector } from "@/components/ui/expiry-selector";
+import { getResetInfo } from "@/lib/rate-limit/time-utils";
 
 interface AddKeyFormProps {
   userId?: number;
-  allowScopeSelection?: boolean;
   onSuccess?: (result: { generatedKey: string; name: string }) => void;
 }
 
-export function AddKeyForm({ userId, onSuccess, allowScopeSelection = false }: AddKeyFormProps) {
+export function AddKeyForm({ userId, onSuccess }: AddKeyFormProps) {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
+
+  // 计算周限额和月限额的重置时间说明
+  const weeklyResetInfo = useMemo(() => {
+    const resetInfo = getResetInfo("weekly");
+    if (resetInfo.resetAt) {
+      const resetTime = format(resetInfo.resetAt, "M月d日(E) HH:mm", { locale: zhCN });
+      return `每周最大消费金额，从周一 00:00 开始计算，将于 ${resetTime} 重置`;
+    }
+    return "每周最大消费金额";
+  }, []);
+
+  const monthlyResetInfo = useMemo(() => {
+    const resetInfo = getResetInfo("monthly");
+    if (resetInfo.resetAt) {
+      const resetTime = format(resetInfo.resetAt, "M月d日 HH:mm", { locale: zhCN });
+      return `每月最大消费金额，从每月1号 00:00 开始计算，将于 ${resetTime} 重置`;
+    }
+    return "每月最大消费金额";
+  }, []);
 
   const form = useZodForm({
     schema: KeyFormSchema,
@@ -34,7 +48,8 @@ export function AddKeyForm({ userId, onSuccess, allowScopeSelection = false }: A
       name: "",
       expiresAt: "",
       canLoginWebUi: true,
-      scope: allowScopeSelection ? "owner" : "child",
+      scope: "child", // 手动新增的 Key 强制为子 Key
+      // 子 Key 独立限额
       limit5hUsd: null,
       limitWeeklyUsd: null,
       limitMonthlyUsd: null,
@@ -54,6 +69,8 @@ export function AddKeyForm({ userId, onSuccess, allowScopeSelection = false }: A
           name: data.name,
           expiresAt: data.expiresAt || undefined,
           canLoginWebUi: data.canLoginWebUi,
+          scope: "child", // 手动新增的 Key 强制为子 Key
+          // 子 Key 独立限额
           limit5hUsd: data.limit5hUsd,
           limitWeeklyUsd: data.limitWeeklyUsd,
           limitMonthlyUsd: data.limitMonthlyUsd,
@@ -61,7 +78,6 @@ export function AddKeyForm({ userId, onSuccess, allowScopeSelection = false }: A
           limitConcurrentSessions: data.limitConcurrentSessions,
           rpmLimit: data.rpmLimit,
           dailyQuota: data.dailyQuota,
-          scope: allowScopeSelection ? data.scope : "child",
         });
 
         if (!result.ok) {
@@ -131,26 +147,6 @@ export function AddKeyForm({ userId, onSuccess, allowScopeSelection = false }: A
         />
       </div>
 
-      {allowScopeSelection && (
-        <div className="flex flex-col gap-2 rounded-lg border border-dashed border-border px-4 py-3">
-          <Label className="text-sm font-medium">Key 视角</Label>
-          <p className="text-xs text-muted-foreground">
-            主 Key 可查看该用户所有数据；子 Key 仅能查看自身数据与限额
-          </p>
-          <Select
-            value={form.values.scope}
-            onValueChange={(value: "owner" | "child") => form.setValue("scope", value)}
-          >
-            <SelectTrigger className="rounded-xl">
-              <SelectValue placeholder="选择 Key 视角" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="owner">主 Key（汇总视角）</SelectItem>
-              <SelectItem value="child">子 Key（独立视角）</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      )}
 
       <NumberField
         label="5小时消费上限 (USD)"
@@ -164,7 +160,7 @@ export function AddKeyForm({ userId, onSuccess, allowScopeSelection = false }: A
       <NumberField
         label="周消费上限 (USD)"
         placeholder="留空表示无限制"
-        description="每周最大消费金额"
+        description={weeklyResetInfo}
         min={0}
         step={0.01}
         {...form.getFieldProps("limitWeeklyUsd")}
@@ -173,7 +169,7 @@ export function AddKeyForm({ userId, onSuccess, allowScopeSelection = false }: A
       <NumberField
         label="月消费上限 (USD)"
         placeholder="留空表示无限制"
-        description="每月最大消费金额"
+        description={monthlyResetInfo}
         min={0}
         step={0.01}
         {...form.getFieldProps("limitMonthlyUsd")}
