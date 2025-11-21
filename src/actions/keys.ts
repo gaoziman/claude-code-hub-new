@@ -27,6 +27,7 @@ export async function addKey(data: {
   expiresAt?: string;
   canLoginWebUi?: boolean;
   scope?: "owner" | "child";
+  // 子 Key 独立限额
   limit5hUsd?: number | null;
   limitWeeklyUsd?: number | null;
   limitMonthlyUsd?: number | null;
@@ -52,6 +53,7 @@ export async function addKey(data: {
       expiresAt: data.expiresAt,
       canLoginWebUi: data.canLoginWebUi,
       scope: data.scope,
+      // 子 Key 独立限额
       limit5hUsd: data.limit5hUsd,
       limitWeeklyUsd: data.limitWeeklyUsd,
       limitMonthlyUsd: data.limitMonthlyUsd,
@@ -81,13 +83,14 @@ export async function addKey(data: {
       expires_at: validatedData.expiresAt ? new Date(validatedData.expiresAt) : undefined,
       can_login_web_ui: validatedData.canLoginWebUi,
       scope: targetScope,
+      // 子 Key 独立限额
       limit_5h_usd: validatedData.limit5hUsd,
       limit_weekly_usd: validatedData.limitWeeklyUsd,
       limit_monthly_usd: validatedData.limitMonthlyUsd,
       total_limit_usd: validatedData.totalLimitUsd,
       limit_concurrent_sessions: validatedData.limitConcurrentSessions,
-      rpm_limit: validatedData.rpmLimit ?? undefined,
-      daily_limit_usd: validatedData.dailyQuota ?? undefined,
+      rpm_limit: validatedData.rpmLimit,
+      daily_limit_usd: validatedData.dailyQuota,
     });
 
     revalidatePath("/dashboard");
@@ -109,6 +112,7 @@ export async function editKey(
     expiresAt?: string;
     canLoginWebUi?: boolean;
     scope?: "owner" | "child";
+    // 子 Key 独立限额
     limit5hUsd?: number | null;
     limitWeeklyUsd?: number | null;
     limitMonthlyUsd?: number | null;
@@ -143,13 +147,14 @@ export async function editKey(
       expires_at: validatedData.expiresAt ? new Date(validatedData.expiresAt) : undefined,
       can_login_web_ui: validatedData.canLoginWebUi,
       scope: isAdmin ? validatedData.scope : undefined,
+      // 子 Key 独立限额
       limit_5h_usd: validatedData.limit5hUsd,
       limit_weekly_usd: validatedData.limitWeeklyUsd,
       limit_monthly_usd: validatedData.limitMonthlyUsd,
       total_limit_usd: validatedData.totalLimitUsd,
       limit_concurrent_sessions: validatedData.limitConcurrentSessions,
-      rpm_limit: validatedData.rpmLimit ?? undefined,
-      daily_limit_usd: validatedData.dailyQuota ?? undefined,
+      rpm_limit: validatedData.rpmLimit,
+      daily_limit_usd: validatedData.dailyQuota,
     });
 
     revalidatePath("/dashboard");

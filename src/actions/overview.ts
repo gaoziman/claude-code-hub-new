@@ -22,6 +22,8 @@ import {
 } from "@/lib/redis";
 import { findDailyLeaderboard } from "@/repository/leaderboard";
 import { getNotificationSettings } from "@/repository/notifications";
+import { sumKeyCostInTimeRange, sumUserCostInTimeRange } from "@/repository/statistics";
+import { getTimeRangeForPeriod, getResetInfo, getDailyResetTime, type TimePeriod } from "@/lib/rate-limit/time-utils";
 import type { ActionResult } from "./types";
 import type { ActiveSessionInfo } from "@/types/session";
 
@@ -62,13 +64,31 @@ export interface OverviewData {
   recentErrors?: ProviderErrorSnapshot[];
   /** 普通用户视图：个人摘要 */
   personalSummary?: {
-    dailyLimit?: number | null;
     todayRequests: number;
     todayCost: number;
     favoriteProvider?: string | null;
     favoriteModel?: string | null;
     recentRequests: RecentRequestEntry[];
+    /** 用户级别限额（所有Key总消费） */
+    userSpendingLimits?: PersonalSpendingLimit[];
+    /** Key级别限额（当前Key独立消费） */
+    keySpendingLimits?: PersonalSpendingLimit[];
+    /** 当前Key名称 */
+    currentKeyName?: string;
   };
+}
+
+export type PersonalLimitType = "daily" | "5h" | "weekly" | "monthly" | "total";
+
+export interface PersonalSpendingLimit {
+  key: PersonalLimitType;
+  label: string;
+  limit: number;
+  used: number;
+  /** 重置时间（仅 weekly 和 monthly 有值） */
+  resetAt?: Date;
+  /** 重置类型：natural=自然周期，rolling=滚动窗口 */
+  resetType?: "natural" | "rolling";
 }
 
 /**
@@ -176,18 +196,36 @@ export async function getOverviewData(): Promise<ActionResult<OverviewData>> {
       overview.topProviders = providers;
       overview.recentErrors = errors;
     } else {
-      const [preferences, recentRequests] = await Promise.all([
+      const [preferences, recentRequests, userSpendingLimits, keySpendingLimits] = await Promise.all([
         getUserPreferenceSnapshot(currentUserId, scopedKeyValue),
         getRecentRequestsByUser(currentUserId, 5, scopedKeyValue),
+        // 用户级别限额（所有Key总消费）
+        buildPersonalSpendingLimits({
+          source: session.user,
+          todayCost: metricsData.todayCost,
+          scopedKeyValue: undefined,
+          userId: currentUserId,
+          enforceKeyView: false,
+        }),
+        // Key级别限额（当前Key独立消费）
+        buildPersonalSpendingLimits({
+          source: session.key,
+          todayCost: metricsData.todayCost,
+          scopedKeyValue,
+          userId: currentUserId,
+          enforceKeyView: true,
+        }),
       ]);
 
       overview.personalSummary = {
-        dailyLimit: enforceKeyView ? session.key.dailyLimitUsd : null,
         todayRequests: metricsData.todayRequests,
         todayCost: metricsData.todayCost,
         favoriteProvider: preferences.favoriteProvider,
         favoriteModel: preferences.favoriteModel,
         recentRequests,
+        userSpendingLimits,
+        keySpendingLimits,
+        currentKeyName: session.key.name,
       };
     }
 
@@ -202,4 +240,92 @@ export async function getOverviewData(): Promise<ActionResult<OverviewData>> {
       error: "获取概览数据失败",
     };
   }
+}
+
+interface LimitSource {
+  limit5hUsd: number | null;
+  limitWeeklyUsd: number | null;
+  limitMonthlyUsd: number | null;
+  totalLimitUsd: number | null;
+  dailyLimitUsd?: number | null;
+}
+
+interface BuildLimitOptions {
+  source: LimitSource;
+  todayCost: number;
+  scopedKeyValue?: string;
+  userId: number;
+  enforceKeyView: boolean;
+}
+
+async function buildPersonalSpendingLimits({
+  source,
+  todayCost,
+  scopedKeyValue,
+  userId,
+  enforceKeyView,
+}: BuildLimitOptions): Promise<PersonalSpendingLimit[]> {
+  if (enforceKeyView && !scopedKeyValue) {
+    return [];
+  }
+
+  const usageCollector = enforceKeyView && scopedKeyValue
+    ? (period: TimePeriod) => {
+        const range = getTimeRangeForPeriod(period);
+        return sumKeyCostInTimeRange(parseInt(scopedKeyValue, 10), range.startTime, range.endTime);
+      }
+    : (period: TimePeriod) => {
+        const range = getTimeRangeForPeriod(period);
+        return sumUserCostInTimeRange(userId, range.startTime, range.endTime);
+      };
+
+  const limitConfigs: Array<{ key: PersonalLimitType; label: string; value?: number | null; period?: TimePeriod }>
+    = [
+      { key: "5h", label: "5 小时额度", value: source.limit5hUsd, period: "5h" },
+      { key: "weekly", label: "周额度", value: source.limitWeeklyUsd, period: "weekly" },
+      { key: "monthly", label: "月额度", value: source.limitMonthlyUsd, period: "monthly" },
+      { key: "total", label: "累计额度", value: source.totalLimitUsd, period: "total" },
+    ];
+
+  const limitPromises = limitConfigs
+    .filter((config) => config.value != null && config.value > 0)
+    .map(async (config) => {
+      if (!config.period) return null;
+      const used = await usageCollector(config.period);
+
+      // 计算重置时间和类型
+      let resetAt: Date | undefined;
+      let resetType: "natural" | "rolling" | undefined;
+
+      if (config.period === "weekly" || config.period === "monthly") {
+        const resetInfo = getResetInfo(config.period);
+        resetAt = resetInfo.resetAt;
+        resetType = resetInfo.type;
+      }
+
+      return {
+        key: config.key,
+        label: config.label,
+        limit: config.value as number,
+        used,
+        resetAt,
+        resetType,
+      } as PersonalSpendingLimit;
+    });
+
+  if (source.dailyLimitUsd && source.dailyLimitUsd > 0) {
+    limitPromises.unshift(
+      Promise.resolve({
+        key: "daily" as const,
+        label: "每日额度",
+        limit: source.dailyLimitUsd,
+        used: todayCost,
+        resetAt: getDailyResetTime(),
+        resetType: "natural" as const,
+      })
+    );
+  }
+
+  const resolved = await Promise.all(limitPromises);
+  return resolved.filter((item): item is PersonalSpendingLimit => Boolean(item));
 }

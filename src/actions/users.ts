@@ -13,6 +13,7 @@ import { createKey } from "@/repository/key";
 import { getSession } from "@/lib/auth";
 import type { ActionResult } from "./types";
 import { UsageTimeRangeValue, resolveUsageTimeRange } from "@/lib/time-range";
+import { getTimeRangeForPeriod } from "@/lib/rate-limit/time-utils";
 
 type GetUsersParam = UsageTimeRangeValue | { timeRange?: UsageTimeRangeValue } | undefined;
 
@@ -49,15 +50,60 @@ export async function getUsers(params?: GetUsersParam): Promise<UserDisplay[]> {
     const userDisplays: UserDisplay[] = await Promise.all(
       users.map(async (user) => {
         try {
-          const [keys, usageRecords, keyStatistics] = await Promise.all([
+          const weeklyRange = getTimeRangeForPeriod("weekly");
+          const monthlyRange = getTimeRangeForPeriod("monthly");
+          const totalRange = getTimeRangeForPeriod("total");
+
+          const [
+            keys,
+            usageRecords,
+            keyStatistics,
+            weeklyUsageRecords,
+            monthlyUsageRecords,
+            totalUsageRecords,
+          ] = await Promise.all([
             findKeyList(user.id),
             findKeyUsageInRange(user.id, rangeFilter),
             findKeysWithStatistics(user.id, rangeFilter),
+            findKeyUsageInRange(user.id, {
+              start: weeklyRange.startTime,
+              end: weeklyRange.endTime,
+            }),
+            findKeyUsageInRange(user.id, {
+              start: monthlyRange.startTime,
+              end: monthlyRange.endTime,
+            }),
+            findKeyUsageInRange(user.id, {
+              start: totalRange.startTime,
+              end: totalRange.endTime,
+            }),
           ]);
 
           const usageMap = new Map(usageRecords.map((item) => [item.keyId, item.totalCost ?? 0]));
+          const weeklyUsageMap = new Map(
+            weeklyUsageRecords.map((item) => [item.keyId, item.totalCost ?? 0])
+          );
+          const monthlyUsageMap = new Map(
+            monthlyUsageRecords.map((item) => [item.keyId, item.totalCost ?? 0])
+          );
+          const totalUsageMap = new Map(
+            totalUsageRecords.map((item) => [item.keyId, item.totalCost ?? 0])
+          );
           const statisticsMap = new Map(keyStatistics.map((stat) => [stat.keyId, stat]));
           const canManageThisUser = isAdmin || (hasOwnerView && session.user.id === user.id);
+
+          // 计算用户聚合消费（所有 Key 的消费总和）
+          const userAggregateWeeklyUsage = keys.reduce((sum, key) => {
+            return sum + (weeklyUsageMap.get(key.id) ?? 0);
+          }, 0);
+
+          const userAggregateMonthlyUsage = keys.reduce((sum, key) => {
+            return sum + (monthlyUsageMap.get(key.id) ?? 0);
+          }, 0);
+
+          const userAggregateTotalUsage = keys.reduce((sum, key) => {
+            return sum + (totalUsageMap.get(key.id) ?? 0);
+          }, 0);
 
           const expiresAtIso = user.expiresAt ? user.expiresAt.toISOString() : null;
           const isExpired = Boolean(user.expiresAt && user.expiresAt.getTime() <= now);
@@ -78,6 +124,15 @@ export async function getUsers(params?: GetUsersParam): Promise<UserDisplay[]> {
             expiresAt: expiresAtIso,
             isExpired,
             status,
+            // 用户级别限额
+            limit5hUsd: user.limit5hUsd,
+            limitWeeklyUsd: user.limitWeeklyUsd,
+            limitMonthlyUsd: user.limitMonthlyUsd,
+            totalLimitUsd: user.totalLimitUsd,
+            // 用户聚合消费数据
+            userAggregateWeeklyUsage,
+            userAggregateMonthlyUsage,
+            userAggregateTotalUsage,
             keys: keys.map((key) => {
               const stats = statisticsMap.get(key.id);
               const canUserManageKey = canManageThisUser;
@@ -110,6 +165,9 @@ export async function getUsers(params?: GetUsersParam): Promise<UserDisplay[]> {
                   second: "2-digit",
                 }),
                 todayUsage: usageMap.get(key.id) ?? 0,
+                weeklyUsageUsd: weeklyUsageMap.get(key.id) ?? 0,
+                monthlyUsageUsd: monthlyUsageMap.get(key.id) ?? 0,
+                totalUsageUsd: totalUsageMap.get(key.id) ?? 0,
                 todayCallCount: stats?.todayCallCount ?? 0,
                 lastUsedAt: stats?.lastUsedAt ?? null,
                 lastProviderName: stats?.lastProviderName ?? null,
@@ -118,6 +176,7 @@ export async function getUsers(params?: GetUsersParam): Promise<UserDisplay[]> {
                 dailyQuota: key.dailyLimitUsd,
                 canLoginWebUi: key.canLoginWebUi,
                 scope: key.scope,
+                ownerKeyId: key.ownerKeyId,
                 limit5hUsd: key.limit5hUsd,
                 limitWeeklyUsd: key.limitWeeklyUsd,
                 limitMonthlyUsd: key.limitMonthlyUsd,
@@ -162,6 +221,11 @@ export async function addUser(data: {
   tags?: string[];
   expiresAt?: string | null;
   isEnabled?: boolean;
+  // 用户级别限额字段
+  limit5hUsd?: number | null;
+  limitWeeklyUsd?: number | null;
+  limitMonthlyUsd?: number | null;
+  totalLimitUsd?: number | null;
 }): Promise<ActionResult> {
   try {
     // 权限检查：只有管理员可以添加用户
@@ -177,6 +241,10 @@ export async function addUser(data: {
       tags: data.tags ?? [],
       expiresAt: data.expiresAt ?? null,
       isEnabled: data.isEnabled ?? true,
+      limit5hUsd: data.limit5hUsd,
+      limitWeeklyUsd: data.limitWeeklyUsd,
+      limitMonthlyUsd: data.limitMonthlyUsd,
+      totalLimitUsd: data.totalLimitUsd,
     });
 
     const normalizedTags = Array.from(
@@ -194,6 +262,10 @@ export async function addUser(data: {
       tags: normalizedTags,
       expiresAt: expiresAtDate,
       isEnabled: validatedData.isEnabled,
+      limit5hUsd: validatedData.limit5hUsd,
+      limitWeeklyUsd: validatedData.limitWeeklyUsd,
+      limitMonthlyUsd: validatedData.limitMonthlyUsd,
+      totalLimitUsd: validatedData.totalLimitUsd,
     });
 
     // 为新用户创建默认密钥（使用用户名称作为 Key 名称）
@@ -229,6 +301,11 @@ export async function editUser(
     tags?: string[];
     expiresAt?: string | null;
     isEnabled?: boolean;
+    // 用户级别限额字段
+    limit5hUsd?: number | null;
+    limitWeeklyUsd?: number | null;
+    limitMonthlyUsd?: number | null;
+    totalLimitUsd?: number | null;
   }
 ): Promise<ActionResult> {
   try {
@@ -256,6 +333,10 @@ export async function editUser(
       tags: normalizedTags,
       expiresAt: expiresAtValue,
       isEnabled: validatedData.isEnabled,
+      limit5hUsd: validatedData.limit5hUsd,
+      limitWeeklyUsd: validatedData.limitWeeklyUsd,
+      limitMonthlyUsd: validatedData.limitMonthlyUsd,
+      totalLimitUsd: validatedData.totalLimitUsd,
     });
 
     revalidatePath("/dashboard");
