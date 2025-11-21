@@ -642,6 +642,7 @@ async function updateRequestCostFromUsage(
 
 /**
  * 追踪消费到 Redis（用于限流）
+ * 实现三层成本追踪：① 当前 Key → ② 主 Key 聚合 → ③ 用户级别
  */
 async function trackCostToRedis(session: ProxySession, usage: UsageMetrics | null): Promise<void> {
   if (!usage || !session.sessionId) return;
@@ -665,13 +666,31 @@ async function trackCostToRedis(session: ProxySession, usage: UsageMetrics | nul
 
   const costFloat = parseFloat(cost.toString());
 
-  // 追踪到 Redis（使用 session.sessionId）
-  await RateLimitService.trackCost(
-    key.id,
-    provider.id,
-    session.sessionId, // 直接使用 session.sessionId
-    costFloat
-  );
+  // ========== ① 追踪当前 Key 的成本 ==========
+  await RateLimitService.trackCost(key.id, provider.id, session.sessionId, costFloat, "key");
+  logger.debug(`[ResponseHandler] Tracked cost for key=${key.id}, cost=${costFloat}`);
+
+  // ========== ② 追踪主 Key 聚合成本 ==========
+  // 确定 ownerKeyId：如果当前 key 是主 key（scope=owner），则 ownerKeyId = key.id
+  // 否则 ownerKeyId = key.ownerKeyId
+  const ownerKeyId = key.scope === "owner" ? key.id : key.ownerKeyId;
+
+  if (ownerKeyId) {
+    await RateLimitService.trackCost(
+      ownerKeyId,
+      provider.id,
+      session.sessionId,
+      costFloat,
+      "owner_key_aggregate"
+    );
+    logger.debug(
+      `[ResponseHandler] Tracked aggregate cost for ownerKeyId=${ownerKeyId}, cost=${costFloat}`
+    );
+  }
+
+  // ========== ③ 追踪用户级别成本 ==========
+  await RateLimitService.trackCost(user.id, provider.id, session.sessionId, costFloat, "user");
+  logger.debug(`[ResponseHandler] Tracked cost for user=${user.id}, cost=${costFloat}`);
 
   // 刷新 session 时间戳（滑动窗口）
   void SessionTracker.refreshSession(session.sessionId, key.id, provider.id).catch((error) => {

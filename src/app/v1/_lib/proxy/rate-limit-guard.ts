@@ -5,7 +5,7 @@ import { ProxyResponses } from "./responses";
 
 export class ProxyRateLimitGuard {
   /**
-   * 检查限流（用户层 + Key 层）
+   * 检查限流（两层级联：用户层 → Key 独立层）
    */
   static async ensure(session: ProxySession): Promise<Response | null> {
     const user = session.authState?.user;
@@ -13,7 +13,31 @@ export class ProxyRateLimitGuard {
 
     if (!user || !key) return null;
 
-    // ========== Key 层限流检查 ==========
+    // ========== 第一层：用户级别限流检查 ==========
+    logger.info(`[RateLimit] Layer 1: Checking user-level limits for user=${user.id}`);
+
+    // 查询用户配置（包含限额字段）
+    const { findUserById } = await import("@/repository/user");
+    const userConfig = await findUserById(user.id);
+
+    if (userConfig) {
+      const userCostCheck = await RateLimitService.checkCostLimits(user.id, "user", {
+        limit_5h_usd: userConfig.limit5hUsd,
+        limit_weekly_usd: userConfig.limitWeeklyUsd,
+        limit_monthly_usd: userConfig.limitMonthlyUsd,
+        total_limit_usd: userConfig.totalLimitUsd,
+      });
+
+      if (!userCostCheck.allowed) {
+        logger.warn(
+          `[RateLimit] User cost limit exceeded: user=${user.id}, ${userCostCheck.reason}`
+        );
+        return this.buildRateLimitResponse(user.id, "user", userCostCheck.reason!);
+      }
+    }
+
+    // ========== 第二层：当前 Key 独立限流检查 ==========
+    logger.info(`[RateLimit] Layer 2: Checking individual key limits for key=${key.id}`);
 
     // 1. 检查 Key RPM 限制
     const rpmCheck = await RateLimitService.checkKeyRPM(key.id, key.rpmLimit);
@@ -60,7 +84,8 @@ export class ProxyRateLimitGuard {
       return this.buildRateLimitResponse(key.id, "key", sessionCheck.reason!);
     }
 
-    return null; // ✅ 通过所有检查
+    logger.info(`[RateLimit] ✅ All two layers passed for key=${key.id}`);
+    return null; // ✅ 通过所有两层检查
   }
 
   /**
