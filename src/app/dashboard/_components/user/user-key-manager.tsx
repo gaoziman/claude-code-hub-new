@@ -54,13 +54,13 @@ export function UserKeyManager({
             activeUser={activeUser}
             currentUser={currentUser}
             canManageActiveUser
-            allowScopeSelection={false}
             currencyCode={currencyCode}
             providerGroupOptions={providerGroupOptions}
             availableTags={availableTags}
           />
           <KeyList
             keys={activeUser?.keys || []}
+            user={activeUser!}
             currentUser={currentUser}
             keyOwnerUserId={activeUser?.id || 0}
             allowManageKeys
@@ -92,13 +92,13 @@ export function UserKeyManager({
             activeUser={activeUser}
             currentUser={currentUser}
             canManageActiveUser={true}
-            allowScopeSelection={currentUser?.role === "admin"}
             currencyCode={currencyCode}
             providerGroupOptions={providerGroupOptions}
             availableTags={availableTags}
           />
           <KeyList
             keys={activeUser?.keys || []}
+            user={activeUser!}
             currentUser={currentUser}
             keyOwnerUserId={activeUser?.id || 0}
             allowManageKeys

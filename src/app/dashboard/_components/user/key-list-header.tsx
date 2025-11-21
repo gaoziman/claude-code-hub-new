@@ -20,6 +20,7 @@ import { formatCurrency, type CurrencyCode } from "@/lib/utils/currency";
 import { useQuery } from "@tanstack/react-query";
 import { getProxyStatus } from "@/actions/proxy-status";
 import type { ProxyStatusResponse } from "@/types/proxy-status";
+import { copyToClipboard } from "@/lib/utils/clipboard";
 
 const PROXY_STATUS_REFRESH_INTERVAL = 2000;
 
@@ -79,7 +80,6 @@ interface KeyListHeaderProps {
   activeUser: UserDisplay | null;
   currentUser?: User;
   canManageActiveUser?: boolean;
-  allowScopeSelection?: boolean;
   currencyCode?: CurrencyCode;
   showUserActions?: boolean;
   metricLabel?: string;
@@ -91,7 +91,6 @@ export function KeyListHeader({
   activeUser,
   currentUser,
   canManageActiveUser = false,
-  allowScopeSelection = false,
   currencyCode = "USD",
   showUserActions = true,
   metricLabel = "今日",
@@ -184,7 +183,7 @@ export function KeyListHeader({
   const handleCopy = async () => {
     if (!keyResult) return;
     try {
-      await navigator.clipboard.writeText(keyResult.generatedKey);
+      await copyToClipboard(keyResult.generatedKey);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
@@ -203,56 +202,67 @@ export function KeyListHeader({
 
   return (
     <>
-      <div className="mb-3 flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-2 text-base font-semibold tracking-tight">
-            {activeUser && showUserActions && (
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="space-y-2">
+          <p className="text-sm font-semibold text-foreground">密钥运行概览（{metricLabel}）</p>
+          <div className="grid gap-3 text-xs text-muted-foreground sm:grid-cols-2 xl:grid-cols-3">
+            <div className="rounded-md border border-border/50 bg-background px-3 py-2 shadow-sm">
+              <p className="text-[11px]">{metricLabel}用量</p>
+              <p className="text-base font-semibold text-foreground">
+                {activeUser ? formatCurrency(totalRangeUsage, currencyCode) : "-"}
+              </p>
+            </div>
+            {activeUser && (
+              <div className="rounded-md border border-border/50 bg-background px-3 py-2 shadow-sm">
+                <p className="text-[11px]">启用 Key</p>
+                <p className="text-base font-semibold text-foreground">
+                  {activeUser.keys.filter((key) => key.status === "enabled").length}/
+                  {activeUser.keys.length}
+                </p>
+              </div>
+            )}
+            {proxyStatusContent && (
+              <div className="space-y-1 rounded-md border border-border/50 bg-background px-3 py-2 shadow-sm text-xs text-muted-foreground">
+                <p className="text-[11px]">代理状态</p>
+                {proxyStatusContent}
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+          {activeUser && showUserActions && (
+            <div className="rounded-full bg-white/60 px-3 py-1 shadow-sm">
               <UserActions
                 user={activeUser}
                 currentUser={currentUser}
                 providerGroupOptions={providerGroupOptions}
                 availableTags={availableTags}
+                showLabels
               />
-            )}
-          </div>
-          <div className="mt-1">
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-              <div>
-                {metricLabel}用量 {activeUser ? formatCurrency(totalRangeUsage, currencyCode) : "-"}
-              </div>
-              {activeUser && (
-                <div>
-                  启用 Key {activeUser.keys.filter((key) => key.status === "enabled").length}/
-                  {activeUser.keys.length}
-                </div>
-              )}
-              {proxyStatusContent}
             </div>
-          </div>
+          )}
+          {canAddKey && (
+            <Dialog open={openAdd} onOpenChange={setOpenAdd}>
+              <DialogTrigger asChild>
+                <Button
+                  size="sm"
+                  className="rounded-full px-4 text-sm shadow-md"
+                  disabled={!activeUser}
+                >
+                  <ListPlus className="h-3.5 w-3.5" /> 新增 Key
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl md:max-w-3xl xl:max-w-4xl max-h-[90vh] overflow-y-auto">
+                <FormErrorBoundary>
+                  <AddKeyForm
+                    userId={activeUser?.id}
+                    onSuccess={handleKeyCreated}
+                  />
+                </FormErrorBoundary>
+              </DialogContent>
+            </Dialog>
+          )}
         </div>
-        {canAddKey && (
-          <Dialog open={openAdd} onOpenChange={setOpenAdd}>
-            <DialogTrigger asChild>
-              <Button
-                variant="secondary"
-                size="sm"
-                className="hover:bg-primary hover:text-primary-foreground cursor-pointer transition-colors"
-                disabled={!activeUser}
-              >
-                <ListPlus className="h-3.5 w-3.5" /> 新增 Key
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl md:max-w-3xl xl:max-w-4xl max-h-[90vh] overflow-y-auto">
-              <FormErrorBoundary>
-                <AddKeyForm
-                  userId={activeUser?.id}
-                  allowScopeSelection={allowScopeSelection}
-                  onSuccess={handleKeyCreated}
-                />
-              </FormErrorBoundary>
-            </DialogContent>
-          </Dialog>
-        )}
       </div>
 
       {/* Key创建成功弹窗 */}

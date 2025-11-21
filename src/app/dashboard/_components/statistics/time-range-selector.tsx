@@ -28,16 +28,9 @@ export function TimeRangeSelector({
         className
       )}
     >
-      <div className="inline-flex flex-wrap items-center gap-2 rounded-3xl border border-border/60 bg-card/80 p-1.5 shadow-[0_10px_25px_rgba(15,23,42,0.08)] backdrop-blur-lg">
+      <div className="inline-flex flex-wrap items-center gap-1 rounded-full border border-border/60 bg-card/80 p-1 shadow-inner">
         {TIME_RANGE_OPTIONS.map((option) => {
           const active = value === option.key;
-          const activeStyle = active
-            ? {
-                backgroundImage: "linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%)",
-                color: "var(--primary-foreground)",
-                boxShadow: "0 15px 35px rgba(0,0,0,0.12)",
-              }
-            : undefined;
 
           return (
             <button
@@ -48,22 +41,25 @@ export function TimeRangeSelector({
               onClick={() => !disabled && onChange(option.key)}
               title={option.description}
               className={cn(
-                "group flex min-w-[86px] flex-col rounded-2xl px-3.5 py-2 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:cursor-not-allowed disabled:opacity-60",
+                "flex min-w-[88px] flex-col items-center justify-center rounded-full px-4 py-2 text-center transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:cursor-not-allowed disabled:opacity-60",
                 active
-                  ? "border border-transparent"
-                  : "border border-transparent bg-transparent text-foreground hover:border-border/60 hover:bg-white/70"
+                  ? "bg-primary text-primary-foreground shadow-[0_12px_28px_rgba(15,23,42,0.18)]"
+                  : "text-muted-foreground hover:text-foreground"
               )}
-              style={activeStyle}
             >
               <span
-                className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground/80 transition-colors"
-                style={active ? { color: "var(--primary-foreground)", opacity: 0.85 } : undefined}
+                className={cn(
+                  "text-[11px] font-medium tracking-wide",
+                  active ? "text-primary-foreground/80" : "text-muted-foreground/80"
+                )}
               >
                 {option.description}
               </span>
               <span
-                className="text-base font-semibold text-foreground transition-colors"
-                style={active ? { color: "var(--primary-foreground)" } : undefined}
+                className={cn(
+                  "text-base font-semibold leading-tight",
+                  active ? "text-primary-foreground" : "text-foreground"
+                )}
               >
                 {option.label}
               </span>

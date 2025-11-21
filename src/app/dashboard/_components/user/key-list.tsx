@@ -1,14 +1,15 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { DataTable, TableColumnTypes } from "@/components/ui/data-table";
 import { Button } from "@/components/ui/button";
-import { Copy, Check, BarChart3, Info } from "lucide-react";
+import { Copy, Check, BarChart3, Info, Clock4, Wallet } from "lucide-react";
 import { KeyActions } from "./key-actions";
-import type { UserKeyDisplay } from "@/types/user";
+import type { UserKeyDisplay, UserDisplay } from "@/types/user";
 import type { User } from "@/types/user";
 import { RelativeTime } from "@/components/ui/relative-time";
 import { formatCurrency, type CurrencyCode } from "@/lib/utils/currency";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -16,9 +17,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { copyToClipboard } from "@/lib/utils/clipboard";
+import { addDays, addMonths, addWeeks, startOfMonth, startOfWeek } from "date-fns";
+import { fromZonedTime, toZonedTime } from "date-fns-tz";
 
 interface KeyListProps {
   keys: UserKeyDisplay[];
+  user: UserDisplay; // 当前显示的用户（包含用户级别限额和聚合消费数据）
   currentUser?: User;
   keyOwnerUserId: number; // 这些Key所属的用户ID
   allowManageKeys?: boolean;
@@ -30,6 +35,7 @@ interface KeyListProps {
 
 export function KeyList({
   keys,
+  user,
   currentUser,
   keyOwnerUserId,
   allowManageKeys = false,
@@ -46,7 +52,7 @@ export function KeyList({
     if (!key.fullKey || !key.canCopy) return;
 
     try {
-      await navigator.clipboard.writeText(key.fullKey);
+      await copyToClipboard(key.fullKey);
       setCopiedKeyId(key.id);
       setTimeout(() => setCopiedKeyId(null), 2000);
     } catch (err) {
@@ -56,6 +62,206 @@ export function KeyList({
 
   const rangeCallLabel = `${metricLabel}调用`;
   const rangeUsageLabel = `${metricLabel}消耗`;
+  const TIMEZONE = "Asia/Shanghai";
+
+  const formatDurationText = (ms: number) => {
+    if (ms <= 0) return "即将重置";
+    const minutes = Math.floor(ms / 60000);
+    const days = Math.floor(minutes / (60 * 24));
+    const hours = Math.floor((minutes % (60 * 24)) / 60);
+    const mins = minutes % 60;
+    if (days > 0) {
+      return `${days}天${hours}小时`;
+    }
+    if (hours > 0) {
+      return `${hours}小时${mins}分`;
+    }
+    return `${mins}分钟`;
+  };
+
+  const getPeriodTimeMeta = (period: "weekly" | "monthly") => {
+    const now = new Date();
+    const zonedNow = toZonedTime(now, TIMEZONE);
+    const startZoned =
+      period === "weekly" ? startOfWeek(zonedNow, { weekStartsOn: 1 }) : startOfMonth(zonedNow);
+    const endZoned = period === "weekly" ? addWeeks(startZoned, 1) : addMonths(startZoned, 1);
+    const start = fromZonedTime(startZoned, TIMEZONE);
+    const end = fromZonedTime(endZoned, TIMEZONE);
+    const total = end.getTime() - start.getTime();
+    const elapsed = now.getTime() - start.getTime();
+    const percent = total > 0 ? Math.min(100, Math.max(0, (elapsed / total) * 100)) : 0;
+    const remaining = end.getTime() - now.getTime();
+    return { percent, remainingText: formatDurationText(remaining) };
+  };
+
+  const getDailyTimeMeta = () => {
+    const now = new Date();
+    const zonedNow = toZonedTime(now, TIMEZONE);
+    const startOfDay = fromZonedTime(
+      new Date(zonedNow.getFullYear(), zonedNow.getMonth(), zonedNow.getDate(), 0, 0, 0, 0),
+      TIMEZONE
+    );
+    const nextDay = addDays(startOfDay, 1);
+    const total = nextDay.getTime() - startOfDay.getTime();
+    const elapsed = now.getTime() - startOfDay.getTime();
+    const percent = total > 0 ? Math.min(100, Math.max(0, (elapsed / total) * 100)) : 0;
+    const remaining = nextDay.getTime() - now.getTime();
+    return { percent, remainingText: formatDurationText(remaining) };
+  };
+
+  const renderLimitBlock = (
+    label: string,
+    usage: number,
+    limit: number,
+    period: "daily" | "weekly" | "monthly" | "total"
+  ): ReactNode => {
+    const percent = limit > 0 ? Math.min(100, (usage / limit) * 100) : 0;
+    const timeMeta =
+      period === "weekly"
+        ? getPeriodTimeMeta("weekly")
+        : period === "monthly"
+          ? getPeriodTimeMeta("monthly")
+          : period === "daily"
+            ? getDailyTimeMeta()
+            : null;
+    const palette = {
+      tag:
+        period === "monthly"
+          ? "bg-violet-100 text-violet-700"
+          : period === "weekly"
+            ? "bg-teal-100 text-teal-700"
+            : period === "daily"
+              ? "bg-orange-100 text-orange-700"
+              : "bg-sky-100 text-sky-700",
+      bar:
+        period === "monthly"
+          ? "bg-violet-500"
+          : period === "weekly"
+            ? "bg-teal-500"
+            : period === "daily"
+              ? "bg-orange-500"
+              : "bg-sky-500",
+    };
+    return (
+      <div className="space-y-1 text-xs" key={label}>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5">
+            <span
+              className={cn(
+                "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium",
+                palette.tag
+              )}
+            >
+              {period === "total" ? <Wallet className="h-3 w-3" /> : <Clock4 className="h-3 w-3" />}{" "}
+              {label}
+            </span>
+            {timeMeta ? (
+              <span className="text-[11px] text-muted-foreground">
+                剩余 {timeMeta.remainingText}
+              </span>
+            ) : (
+              <span className="text-[11px] text-muted-foreground">总额度</span>
+            )}
+          </div>
+          <div className="text-sm font-semibold text-foreground">
+            {formatCurrency(usage ?? 0, currencyCode)} / {formatCurrency(limit ?? 0, currencyCode)}
+          </div>
+        </div>
+        <div className="h-1 rounded-full bg-muted">
+          <div
+            className="h-full rounded-full"
+            style={{ width: `${percent}%`, background: palette.bar }}
+          />
+        </div>
+      </div>
+    );
+  };
+
+  const renderLimitProgress = (record: UserKeyDisplay) => {
+    // ========== 第一层：检查用户级别限额（最高优先级） ==========
+    // 用户级别限额优先级：周 > 月 > 总
+    const hasUserWeeklyLimit = user.limitWeeklyUsd != null && user.limitWeeklyUsd > 0;
+    const hasUserMonthlyLimit = user.limitMonthlyUsd != null && user.limitMonthlyUsd > 0;
+    const hasUserTotalLimit = user.totalLimitUsd != null && user.totalLimitUsd > 0;
+
+    // 优先级：用户周限额
+    if (hasUserWeeklyLimit) {
+      return renderLimitBlock(
+        "用户周限额",
+        user.userAggregateWeeklyUsage ?? 0,
+        user.limitWeeklyUsd!,
+        "weekly"
+      );
+    }
+
+    // 优先级：用户月限额
+    if (hasUserMonthlyLimit) {
+      return renderLimitBlock(
+        "用户月限额",
+        user.userAggregateMonthlyUsage ?? 0,
+        user.limitMonthlyUsd!,
+        "monthly"
+      );
+    }
+
+    // 优先级：用户总限额
+    if (hasUserTotalLimit) {
+      return renderLimitBlock(
+        "用户总限额",
+        user.userAggregateTotalUsage ?? 0,
+        user.totalLimitUsd!,
+        "total"
+      );
+    }
+
+    // ========== 第二层：回退到 Key 级别限额 ==========
+    // Key 级别限额优先级：日 > 周 > 月 > 总
+    const dailyLimit = record.dailyQuota && record.dailyQuota > 0 ? record.dailyQuota : null;
+    const keyWeeklyLimit =
+      record.limitWeeklyUsd && record.limitWeeklyUsd > 0 ? record.limitWeeklyUsd : null;
+    const keyMonthlyLimit =
+      record.limitMonthlyUsd && record.limitMonthlyUsd > 0 ? record.limitMonthlyUsd : null;
+    const keyTotalLimit =
+      record.totalLimitUsd && record.totalLimitUsd > 0 ? record.totalLimitUsd : null;
+
+    // 优先级：Key 日额度
+    if (dailyLimit) {
+      return renderLimitBlock("Key 日额度", record.todayUsage ?? 0, dailyLimit, "daily");
+    }
+
+    // 优先级：Key 周额度
+    if (keyWeeklyLimit) {
+      return renderLimitBlock(
+        "Key 周额度",
+        record.weeklyUsageUsd ?? record.todayUsage ?? 0,
+        keyWeeklyLimit,
+        "weekly"
+      );
+    }
+
+    // 优先级：Key 月额度
+    if (keyMonthlyLimit) {
+      return renderLimitBlock(
+        "Key 月额度",
+        record.monthlyUsageUsd ?? record.todayUsage ?? 0,
+        keyMonthlyLimit,
+        "monthly"
+      );
+    }
+
+    // 优先级：Key 总费用
+    if (keyTotalLimit) {
+      return renderLimitBlock(
+        "Key 总费用",
+        record.totalUsageUsd ?? record.todayUsage ?? 0,
+        keyTotalLimit,
+        "total"
+      );
+    }
+
+    // 都没有设置限额
+    return <div className="text-xs text-muted-foreground">未设置限额</div>;
+  };
 
   const dialogContent = useMemo(() => {
     if (!modelStatsKey) return null;
@@ -111,13 +317,18 @@ export function KeyList({
 
   const columns = [
     TableColumnTypes.text<UserKeyDisplay>("name", "名称", {
-      width: "26%",
-      className: "align-middle",
+      width: "17%",
+      className: "align-middle px-1.5",
       render: (value, record) => {
         return (
           <div className="space-y-2">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <div className="truncate text-sm font-semibold text-foreground">{value}</div>
+              {record.scope === "owner" && (
+                <Badge variant="outline" className="text-[11px] bg-orange-50 text-orange-700 border-orange-200">
+                  主Key
+                </Badge>
+              )}
               {record.status === "disabled" && (
                 <Badge variant="outline" className="text-[11px] text-orange-600">
                   {record.disabledReason === "user_disabled"
@@ -133,8 +344,8 @@ export function KeyList({
       },
     }),
     TableColumnTypes.text<UserKeyDisplay>("maskedKey", "Key", {
-      width: "26%",
-      className: "align-middle",
+      width: "17%",
+      className: "align-middle px-1.5",
       render: (_, record: UserKeyDisplay) => (
         <div className="group inline-flex items-center gap-1">
           <div className="font-mono truncate">{record.maskedKey || "-"}</div>
@@ -157,23 +368,23 @@ export function KeyList({
       ),
     }),
     TableColumnTypes.text<UserKeyDisplay>("todayCallCount", rangeCallLabel, {
-      width: "12%",
-      className: "align-middle",
+      width: "10%",
+      className: "align-middle px-1.5",
       render: (value) => (
         <div className="text-sm">{typeof value === "number" ? value.toLocaleString() : 0} 次</div>
       ),
     }),
     TableColumnTypes.number<UserKeyDisplay>("todayUsage", rangeUsageLabel, {
-      width: "14%",
-      className: "align-middle pr-4",
+      width: "10%",
+      className: "align-middle px-1.5",
       render: (value) => {
         const amount = typeof value === "number" ? value : 0;
         return <div className="text-sm">{formatCurrency(amount, currencyCode)}</div>;
       },
     }),
     TableColumnTypes.text<UserKeyDisplay>("lastUsedAt", "最后使用", {
-      width: "18%",
-      className: "align-middle pl-4",
+      width: "14%",
+      className: "align-middle px-1.5",
       render: (_, record: UserKeyDisplay) => (
         <div className="space-y-0.5">
           {record.lastUsedAt ? (
@@ -193,42 +404,54 @@ export function KeyList({
         </div>
       ),
     }),
-    TableColumnTypes.actions<UserKeyDisplay>("操作", (value, record) => (
-      <div className="flex items-center gap-1">
-        {showDetailAction && onSelectKey && (
+    TableColumnTypes.text<UserKeyDisplay>("limitProgress", "限额进度", {
+      width: "22%",
+      className: "align-middle px-1.5",
+      render: (_, record) => renderLimitProgress(record),
+    }),
+    TableColumnTypes.actions<UserKeyDisplay>(
+      "操作",
+      (value, record) => (
+        <div className="flex items-center justify-end gap-1 whitespace-nowrap">
+          {showDetailAction && onSelectKey && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs shrink-0"
+              title="查看详情"
+              onClick={() => onSelectKey(record)}
+            >
+              <Info className="mr-1 h-3.5 w-3.5" />
+              详情
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 text-xs"
-            title="查看详情"
-            onClick={() => onSelectKey(record)}
+            className="h-7 text-xs shrink-0"
+            title="查看模型统计"
+            onClick={() => setModelStatsKey(record)}
           >
-            <Info className="mr-1 h-3.5 w-3.5" />
-            详情
+            <BarChart3 className="h-3.5 w-3.5 mr-1" />
+            模型
           </Button>
-        )}
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-7 text-xs"
-          title="查看模型统计"
-          onClick={() => setModelStatsKey(record)}
-        >
-          <BarChart3 className="h-3.5 w-3.5 mr-1" />
-          模型
-        </Button>
-        <KeyActions
-          keyData={record}
-          currentUser={currentUser}
-          keyOwnerUserId={keyOwnerUserId}
-          canDelete={canDeleteKeys}
-          showLabels
-          allowManage={
-            currentUser?.role === "admin" || (allowManageKeys && currentUser?.id === keyOwnerUserId)
-          }
-        />
-      </div>
-    )),
+          <div className="shrink-0">
+            <KeyActions
+              keyData={record}
+              currentUser={currentUser}
+              keyOwnerUserId={keyOwnerUserId}
+              canDelete={canDeleteKeys}
+              showLabels
+              allowManage={
+                currentUser?.role === "admin" ||
+                (allowManageKeys && currentUser?.id === keyOwnerUserId)
+              }
+            />
+          </div>
+        </div>
+      ),
+      { width: "10%", className: "align-middle px-1.5 text-right" }
+    ),
   ];
 
   return (
@@ -243,6 +466,7 @@ export function KeyList({
         }}
         maxHeight="600px"
         stickyHeader
+        minWidth="1100px"
       />
       <Dialog
         open={Boolean(modelStatsKey)}
