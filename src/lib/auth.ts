@@ -28,6 +28,10 @@ export async function validateKey(keyString: string): Promise<AuthSession | null
       tags: [],
       isEnabled: true,
       expiresAt: null,
+      limit5hUsd: null,
+      limitWeeklyUsd: null,
+      limitMonthlyUsd: null,
+      totalLimitUsd: null,
       createdAt: now,
       updatedAt: now,
     };
@@ -40,6 +44,7 @@ export async function validateKey(keyString: string): Promise<AuthSession | null
       isEnabled: true,
       canLoginWebUi: true, // Admin Token 始终可以登录 Web UI
       scope: "owner",
+      ownerKeyId: null,
       limit5hUsd: null,
       limitWeeklyUsd: null,
       limitMonthlyUsd: null,

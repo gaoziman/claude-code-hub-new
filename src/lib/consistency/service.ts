@@ -166,11 +166,27 @@ export class ConsistencyService {
       // 2. 从数据库计算真实值
       const databaseValue = await this.getDatabaseValue(keyId, dimension);
 
-      // 3. 计算差异
+      // 3. 如果 Redis 缓存缺失且数据库有值，主动预热缓存（仅限非5h维度）
+      if (redisValue === null && databaseValue > 0 && dimension !== "5h") {
+        try {
+          await this.updateRedisValue(keyId, dimension, databaseValue);
+          logger.info(
+            `[Consistency] 缓存预热 key=${keyId} dimension=${dimension} value=${databaseValue}`
+          );
+        } catch (error) {
+          logger.warn(
+            `[Consistency] 缓存预热失败 key=${keyId} dimension=${dimension}:`,
+            error
+          );
+          // 预热失败不影响检测流程，继续执行
+        }
+      }
+
+      // 4. 计算差异
       const difference = Math.abs(databaseValue - (redisValue ?? 0));
       const differenceRate = databaseValue > 0 ? (difference / databaseValue) * 100 : 0;
 
-      // 4. 判断状态
+      // 5. 判断状态
       let status: ConsistencyCheckItem["status"] = "consistent";
       if (redisValue === null) {
         status = "redis_missing";
@@ -216,10 +232,22 @@ export class ConsistencyService {
         const fiveHoursAgo = now - 5 * 60 * 60 * 1000;
         const members = await redis.zrangebyscore(key, fiveHoursAgo, now);
         if (members.length === 0) return null;
-        // 计算总和（这里简化处理，实际需要从 member 中解析成本）
-        // 由于 ZSET 存储的是复杂数据，这里先返回 member 数量作为占位
-        // TODO: 需要解析 ZSET 的实际数据结构
-        return members.length > 0 ? 0 : null;
+
+        // 解析 ZSET member 格式："timestamp:cost" (例如 "1737358553000:0.0123")
+        let total = 0;
+        for (const member of members) {
+          const parts = member.split(':');
+          if (parts.length >= 2) {
+            const costStr = parts[1];
+            const cost = parseFloat(costStr);
+            if (!isNaN(cost)) {
+              total += cost;
+            }
+          }
+        }
+
+        logger.debug(`[Consistency] 5h ZSET parsed: key=${keyId}, members=${members.length}, total=${total}`);
+        return total;
       } else if (dimension === "total") {
         key = `key:${keyId}:total_cost`;
       } else if (dimension === "daily") {
@@ -332,11 +360,16 @@ export class ConsistencyService {
         const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0, 24, 0, 0);
         ttl = Math.floor((lastDay.getTime() - now.getTime()) / 1000);
       } else {
-        // 5h：使用 ZSET，处理较复杂
+        // 5h：使用 ZSET，直接清空缓存，让系统在下次 API 请求时自然重建
         key = `key:${keyId}:cost_5h_rolling`;
-        // TODO: 需要实现 ZSET 的更新逻辑
-        logger.warn(`[Consistency] 暂不支持修复 5h 滚动窗口维度`);
-        return;
+
+        // 删除 ZSET 缓存
+        await redis.del(key);
+
+        logger.info(
+          `[Consistency] 已清空 5h ZSET ${key}，下次 API 请求时会自动重建`
+        );
+        return; // 5h 维度处理完毕，直接返回
       }
 
       if (ttl) {

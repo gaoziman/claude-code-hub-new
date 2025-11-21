@@ -10,7 +10,7 @@ import { sumKeyCostToday } from "@/repository/statistics";
 import { getTimeRangeForPeriod, getTTLForPeriod, getSecondsUntilMidnight } from "./time-utils";
 
 interface CostLimit {
-  amount: number | null;
+  amount: number | null | undefined;
   period: "5h" | "weekly" | "monthly" | "total";
   name: string;
 }
@@ -19,19 +19,19 @@ export class RateLimitService {
   private static redis = getRedisClient();
 
   /**
-   * 检查金额限制（Key 或 Provider）
+   * 检查金额限制（User、Owner Key Aggregate、Key 或 Provider）
    * 优先使用 Redis，失败时降级到数据库查询（防止 Redis 清空后超支）
    */
   static async checkCostLimits(
     id: number,
-    type: "key" | "provider",
+    type: "user" | "owner_key_aggregate" | "key" | "provider",
     limits: {
-      limit_5h_usd: number | null;
-      limit_weekly_usd: number | null;
-      limit_monthly_usd: number | null;
+      limit_5h_usd?: number | null;
+      limit_weekly_usd?: number | null;
+      limit_monthly_usd?: number | null;
       total_limit_usd?: number | null;
     }
-  ): Promise<{ allowed: boolean; reason?: string }> {
+  ): Promise<{ allowed: boolean; reason?: string; current?: number }> {
     const costLimits: CostLimit[] = [
       { amount: limits.limit_5h_usd, period: "5h", name: "5小时" },
       { amount: limits.limit_weekly_usd, period: "weekly", name: "周" },
@@ -129,12 +129,15 @@ export class RateLimitService {
    */
   private static async checkCostLimitsFromDatabase(
     id: number,
-    type: "key" | "provider",
+    type: "user" | "owner_key_aggregate" | "key" | "provider",
     costLimits: CostLimit[]
   ): Promise<{ allowed: boolean; reason?: string }> {
-    const { sumKeyCostInTimeRange, sumProviderCostInTimeRange } = await import(
-      "@/repository/statistics"
-    );
+    const {
+      sumKeyCostInTimeRange,
+      sumProviderCostInTimeRange,
+      sumUserCostInTimeRange,
+      sumOwnerKeyAggregateCostInTimeRange,
+    } = await import("@/repository/statistics");
 
     for (const limit of costLimits) {
       if (!limit.amount || limit.amount <= 0) continue;
@@ -146,10 +149,19 @@ export class RateLimitService {
           : getTimeRangeForPeriod(limit.period);
 
       // 查询数据库
-      const current =
-        type === "key"
-          ? await sumKeyCostInTimeRange(id, startTime, endTime)
-          : await sumProviderCostInTimeRange(id, startTime, endTime);
+      let current: number;
+      if (type === "key") {
+        current = await sumKeyCostInTimeRange(id, startTime, endTime);
+      } else if (type === "provider") {
+        current = await sumProviderCostInTimeRange(id, startTime, endTime);
+      } else if (type === "user") {
+        current = await sumUserCostInTimeRange(id, startTime, endTime);
+      } else if (type === "owner_key_aggregate") {
+        current = await sumOwnerKeyAggregateCostInTimeRange(id, startTime, endTime);
+      } else {
+        // 不应该走到这里，TypeScript 类型检查会保证
+        throw new Error(`Unsupported type: ${type}`);
+      }
 
       // Cache Warming: 写回 Redis
       if (this.redis && this.redis.status === "ready") {
@@ -303,12 +315,19 @@ export class RateLimitService {
   /**
    * 累加消费（请求结束后调用）
    * 5h 使用滚动窗口（ZSET），周/月使用固定窗口（STRING）
+   *
+   * @param id - 实体 ID（keyId/providerId/userId/ownerKeyId，取决于 type）
+   * @param providerId - 供应商 ID（仅用于日志记录，不参与 Redis key 生成）
+   * @param sessionId - Session ID（仅用于日志记录）
+   * @param cost - 成本金额
+   * @param type - 追踪类型：user/owner_key_aggregate/key/provider
    */
   static async trackCost(
-    keyId: number,
+    id: number,
     providerId: number,
     sessionId: string,
-    cost: number
+    cost: number,
+    type: "user" | "owner_key_aggregate" | "key" | "provider" = "key"
   ): Promise<void> {
     if (!this.redis || cost <= 0) return;
 
@@ -319,23 +338,13 @@ export class RateLimitService {
       // 计算动态 TTL（周/月）
       const ttlWeekly = getTTLForPeriod("weekly");
       const ttlMonthly = getTTLForPeriod("monthly");
+      const secondsUntilMidnight = getSecondsUntilMidnight();
 
       // 1. 5h 滚动窗口：使用 Lua 脚本（ZSET）
-      // Key 的 5h 滚动窗口
-      await this.redis.eval(
-        TRACK_COST_5H_ROLLING_WINDOW,
-        1, // KEYS count
-        `key:${keyId}:cost_5h_rolling`, // KEYS[1]
-        cost.toString(), // ARGV[1]: cost
-        now.toString(), // ARGV[2]: now
-        window5h.toString() // ARGV[3]: window
-      );
-
-      // Provider 的 5h 滚动窗口
       await this.redis.eval(
         TRACK_COST_5H_ROLLING_WINDOW,
         1,
-        `provider:${providerId}:cost_5h_rolling`,
+        `${type}:${id}:cost_5h_rolling`, // 动态前缀
         cost.toString(),
         now.toString(),
         window5h.toString()
@@ -343,32 +352,27 @@ export class RateLimitService {
 
       // 2. 周/月固定窗口：使用 STRING + 动态 TTL
       const pipeline = this.redis.pipeline();
-      const secondsUntilMidnight = getSecondsUntilMidnight();
 
-      // Key 的周/月消费
-      pipeline.incrbyfloat(`key:${keyId}:cost_weekly`, cost);
-      pipeline.expire(`key:${keyId}:cost_weekly`, ttlWeekly);
+      pipeline.incrbyfloat(`${type}:${id}:cost_weekly`, cost);
+      pipeline.expire(`${type}:${id}:cost_weekly`, ttlWeekly);
 
-      pipeline.incrbyfloat(`key:${keyId}:cost_monthly`, cost);
-      pipeline.expire(`key:${keyId}:cost_monthly`, ttlMonthly);
+      pipeline.incrbyfloat(`${type}:${id}:cost_monthly`, cost);
+      pipeline.expire(`${type}:${id}:cost_monthly`, ttlMonthly);
 
-      // Key 总消费（无过期）
-      pipeline.incrbyfloat(`key:${keyId}:total_cost`, cost);
+      // 总消费（无过期）
+      pipeline.incrbyfloat(`${type}:${id}:total_cost`, cost);
 
-      // Key 的每日消费
-      pipeline.incrbyfloat(`key:${keyId}:daily_cost`, cost);
-      pipeline.expire(`key:${keyId}:daily_cost`, secondsUntilMidnight);
-
-      // Provider 的周/月消费
-      pipeline.incrbyfloat(`provider:${providerId}:cost_weekly`, cost);
-      pipeline.expire(`provider:${providerId}:cost_weekly`, ttlWeekly);
-
-      pipeline.incrbyfloat(`provider:${providerId}:cost_monthly`, cost);
-      pipeline.expire(`provider:${providerId}:cost_monthly`, ttlMonthly);
+      // 每日消费（仅 key 类型需要，用于每日限额检查）
+      if (type === "key") {
+        pipeline.incrbyfloat(`key:${id}:daily_cost`, cost);
+        pipeline.expire(`key:${id}:daily_cost`, secondsUntilMidnight);
+      }
 
       await pipeline.exec();
 
-      logger.debug(`[RateLimit] Tracked cost: key=${keyId}, provider=${providerId}, cost=${cost}`);
+      logger.debug(
+        `[RateLimit] Tracked cost: type=${type}, id=${id}, provider=${providerId}, cost=${cost}`
+      );
     } catch (error) {
       logger.error("[RateLimit] Track cost failed:", error);
       // 不抛出错误，静默失败
