@@ -673,6 +673,73 @@ export async function sumProviderCostInTimeRange(
 }
 
 /**
+ * 查询用户在指定时间范围内的消费总和（聚合该用户下所有 Key 的消费）
+ * 用于用户层限额检查（Redis 降级）
+ */
+export async function sumUserCostInTimeRange(
+  userId: number,
+  startTime: Date,
+  endTime: Date
+): Promise<number> {
+  const result = await db
+    .select({ total: sql<number>`COALESCE(SUM(${messageRequest.costUsd}), 0)` })
+    .from(messageRequest)
+    .innerJoin(keys, eq(messageRequest.key, keys.key))
+    .where(
+      and(
+        eq(keys.userId, userId),
+        gte(messageRequest.createdAt, startTime),
+        lt(messageRequest.createdAt, endTime),
+        isNull(messageRequest.deletedAt),
+        isNull(keys.deletedAt)
+      )
+    );
+
+  return Number(result[0]?.total || 0);
+}
+
+/**
+ * 查询主 Key 聚合消费（主 Key + 所有子 Key 的消费总和）
+ * 用于主 Key 聚合层限额检查（Redis 降级）
+ */
+export async function sumOwnerKeyAggregateCostInTimeRange(
+  ownerKeyId: number,
+  startTime: Date,
+  endTime: Date
+): Promise<number> {
+  // 查询主 Key + 所有子 Key 的 key 字符串
+  const keyRecords = await db
+    .select({ key: keys.key })
+    .from(keys)
+    .where(
+      and(
+        // 主 Key 自己或者 owner_key_id 等于 ownerKeyId 的子 Key
+        sql`${keys.id} = ${ownerKeyId} OR ${keys.ownerKeyId} = ${ownerKeyId}`,
+        isNull(keys.deletedAt)
+      )
+    );
+
+  if (keyRecords.length === 0) return 0;
+
+  const keyStrings = keyRecords.map((k) => k.key);
+
+  // 查询这些 key 的总消费
+  const result = await db
+    .select({ total: sql<number>`COALESCE(SUM(${messageRequest.costUsd}), 0)` })
+    .from(messageRequest)
+    .where(
+      and(
+        sql`${messageRequest.key} = ANY(ARRAY[${sql.raw(keyStrings.map((k) => `'${k}'`).join(","))}])`,
+        gte(messageRequest.createdAt, startTime),
+        lt(messageRequest.createdAt, endTime),
+        isNull(messageRequest.deletedAt)
+      )
+    );
+
+  return Number(result[0]?.total || 0);
+}
+
+/**
  * 查询指定供应商类型的近 N 天趋势（按供应商账号聚合）
  */
 export async function getProviderUsageTrendsFromDB(

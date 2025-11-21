@@ -14,6 +14,13 @@ export async function createUser(userData: CreateUserData): Promise<User> {
     tags: userData.tags ?? [],
     isEnabled: userData.isEnabled ?? true,
     expiresAt: userData.expiresAt ?? null,
+    // 用户级别限额字段
+    limit5hUsd: userData.limit5hUsd !== undefined ? userData.limit5hUsd?.toString() : null,
+    limitWeeklyUsd:
+      userData.limitWeeklyUsd !== undefined ? userData.limitWeeklyUsd?.toString() : null,
+    limitMonthlyUsd:
+      userData.limitMonthlyUsd !== undefined ? userData.limitMonthlyUsd?.toString() : null,
+    totalLimitUsd: userData.totalLimitUsd !== undefined ? userData.totalLimitUsd?.toString() : null,
   };
 
   const [user] = await db.insert(users).values(dbData).returning({
@@ -25,6 +32,10 @@ export async function createUser(userData: CreateUserData): Promise<User> {
     tags: users.tags,
     isEnabled: users.isEnabled,
     expiresAt: users.expiresAt,
+    limit5hUsd: users.limit5hUsd,
+    limitWeeklyUsd: users.limitWeeklyUsd,
+    limitMonthlyUsd: users.limitMonthlyUsd,
+    totalLimitUsd: users.totalLimitUsd,
     createdAt: users.createdAt,
     updatedAt: users.updatedAt,
     deletedAt: users.deletedAt,
@@ -44,6 +55,11 @@ export async function findUserList(limit: number = 50, offset: number = 0): Prom
       tags: users.tags,
       isEnabled: users.isEnabled,
       expiresAt: users.expiresAt,
+      // 用户级别限额字段
+      limit5hUsd: users.limit5hUsd,
+      limitWeeklyUsd: users.limitWeeklyUsd,
+      limitMonthlyUsd: users.limitMonthlyUsd,
+      totalLimitUsd: users.totalLimitUsd,
       createdAt: users.createdAt,
       updatedAt: users.updatedAt,
       deletedAt: users.deletedAt,
@@ -55,29 +71,6 @@ export async function findUserList(limit: number = 50, offset: number = 0): Prom
     .offset(offset);
 
   return result.map(toUser);
-}
-
-export async function findUserById(id: number): Promise<User | null> {
-  const [user] = await db
-    .select({
-      id: users.id,
-      name: users.name,
-      description: users.description,
-      role: users.role,
-      providerGroup: users.providerGroup,
-      tags: users.tags,
-      isEnabled: users.isEnabled,
-      expiresAt: users.expiresAt,
-      createdAt: users.createdAt,
-      updatedAt: users.updatedAt,
-      deletedAt: users.deletedAt,
-    })
-    .from(users)
-    .where(and(eq(users.id, id), isNull(users.deletedAt)));
-
-  if (!user) return null;
-
-  return toUser(user);
 }
 
 export async function updateUser(id: number, userData: UpdateUserData): Promise<User | null> {
@@ -92,6 +85,11 @@ export async function updateUser(id: number, userData: UpdateUserData): Promise<
     tags?: string[];
     isEnabled?: boolean;
     expiresAt?: Date | null;
+    // 用户级别限额字段
+    limit5hUsd?: string | null;
+    limitWeeklyUsd?: string | null;
+    limitMonthlyUsd?: string | null;
+    totalLimitUsd?: string | null;
     updatedAt?: Date;
   }
 
@@ -104,6 +102,19 @@ export async function updateUser(id: number, userData: UpdateUserData): Promise<
   if (userData.tags !== undefined) dbData.tags = userData.tags;
   if (userData.isEnabled !== undefined) dbData.isEnabled = userData.isEnabled;
   if (userData.expiresAt !== undefined) dbData.expiresAt = userData.expiresAt;
+
+  // 用户级别限额字段
+  if (userData.limit5hUsd !== undefined)
+    dbData.limit5hUsd = userData.limit5hUsd !== null ? userData.limit5hUsd.toString() : null;
+  if (userData.limitWeeklyUsd !== undefined)
+    dbData.limitWeeklyUsd =
+      userData.limitWeeklyUsd !== null ? userData.limitWeeklyUsd.toString() : null;
+  if (userData.limitMonthlyUsd !== undefined)
+    dbData.limitMonthlyUsd =
+      userData.limitMonthlyUsd !== null ? userData.limitMonthlyUsd.toString() : null;
+  if (userData.totalLimitUsd !== undefined)
+    dbData.totalLimitUsd =
+      userData.totalLimitUsd !== null ? userData.totalLimitUsd.toString() : null;
 
   const [user] = await db
     .update(users)
@@ -118,6 +129,10 @@ export async function updateUser(id: number, userData: UpdateUserData): Promise<
       tags: users.tags,
       isEnabled: users.isEnabled,
       expiresAt: users.expiresAt,
+      limit5hUsd: users.limit5hUsd,
+      limitWeeklyUsd: users.limitWeeklyUsd,
+      limitMonthlyUsd: users.limitMonthlyUsd,
+      totalLimitUsd: users.totalLimitUsd,
       createdAt: users.createdAt,
       updatedAt: users.updatedAt,
       deletedAt: users.deletedAt,
@@ -136,4 +151,36 @@ export async function deleteUser(id: number): Promise<boolean> {
     .returning({ id: users.id });
 
   return result.length > 0;
+}
+
+/**
+ * 根据 ID 查询用户（包含限额配置）
+ */
+export async function findUserById(id: number): Promise<User | null> {
+  const [user] = await db
+    .select({
+      id: users.id,
+      name: users.name,
+      description: users.description,
+      role: users.role,
+      providerGroup: users.providerGroup,
+      tags: users.tags,
+      isEnabled: users.isEnabled,
+      expiresAt: users.expiresAt,
+      // 用户级别限额字段
+      limit5hUsd: users.limit5hUsd,
+      limitWeeklyUsd: users.limitWeeklyUsd,
+      limitMonthlyUsd: users.limitMonthlyUsd,
+      totalLimitUsd: users.totalLimitUsd,
+      createdAt: users.createdAt,
+      updatedAt: users.updatedAt,
+      deletedAt: users.deletedAt,
+    })
+    .from(users)
+    .where(and(eq(users.id, id), isNull(users.deletedAt)))
+    .limit(1);
+
+  if (!user) return null;
+
+  return toUser(user);
 }

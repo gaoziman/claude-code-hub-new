@@ -8,34 +8,6 @@ import type { User } from "@/types/user";
 import { toKey, toUser } from "./_shared/transformers";
 import { Decimal, toCostDecimal } from "@/lib/utils/currency";
 
-export async function findKeyById(id: number): Promise<Key | null> {
-  const [key] = await db
-    .select({
-      id: keys.id,
-      userId: keys.userId,
-      key: keys.key,
-      name: keys.name,
-      isEnabled: keys.isEnabled,
-      expiresAt: keys.expiresAt,
-      canLoginWebUi: keys.canLoginWebUi,
-      scope: keys.scope,
-      limit5hUsd: keys.limit5hUsd,
-      limitWeeklyUsd: keys.limitWeeklyUsd,
-      limitMonthlyUsd: keys.limitMonthlyUsd,
-      totalLimitUsd: keys.totalLimitUsd,
-      limitConcurrentSessions: keys.limitConcurrentSessions,
-      rpmLimit: keys.rpmLimit,
-      dailyLimitUsd: keys.dailyLimitUsd,
-      createdAt: keys.createdAt,
-      updatedAt: keys.updatedAt,
-      deletedAt: keys.deletedAt,
-    })
-    .from(keys)
-    .where(and(eq(keys.id, id), isNull(keys.deletedAt)));
-
-  if (!key) return null;
-  return toKey(key);
-}
 
 export async function findKeyList(userId: number): Promise<Key[]> {
   const result = await db
@@ -75,6 +47,7 @@ export async function createKey(keyData: CreateKeyData): Promise<Key> {
     expiresAt: keyData.expires_at,
     canLoginWebUi: keyData.can_login_web_ui ?? true,
     scope: keyData.scope ?? "owner",
+    // 子 Key 独立限额
     limit5hUsd: keyData.limit_5h_usd != null ? keyData.limit_5h_usd.toString() : null,
     limitWeeklyUsd: keyData.limit_weekly_usd != null ? keyData.limit_weekly_usd.toString() : null,
     limitMonthlyUsd:
@@ -128,6 +101,7 @@ export async function updateKey(id: number, keyData: UpdateKeyData): Promise<Key
   if (keyData.expires_at !== undefined) dbData.expiresAt = keyData.expires_at;
   if (keyData.can_login_web_ui !== undefined) dbData.canLoginWebUi = keyData.can_login_web_ui;
   if (keyData.scope !== undefined) dbData.scope = keyData.scope;
+  // 子 Key 独立限额
   if (keyData.limit_5h_usd !== undefined)
     dbData.limit5hUsd = keyData.limit_5h_usd != null ? keyData.limit_5h_usd.toString() : null;
   if (keyData.limit_weekly_usd !== undefined)
@@ -508,4 +482,40 @@ export async function findKeysWithStatistics(
   }
 
   return stats;
+}
+
+/**
+ * 根据 ID 查询 Key（包含聚合限额配置）
+ */
+export async function findKeyById(keyId: number): Promise<Key | null> {
+  const [key] = await db
+    .select({
+      id: keys.id,
+      userId: keys.userId,
+      key: keys.key,
+      name: keys.name,
+      isEnabled: keys.isEnabled,
+      expiresAt: keys.expiresAt,
+      canLoginWebUi: keys.canLoginWebUi,
+      scope: keys.scope,
+      // ========== 主子关系 ==========
+      ownerKeyId: keys.ownerKeyId,
+      // ========== 子 Key 独立限额 ==========
+      limit5hUsd: keys.limit5hUsd,
+      limitWeeklyUsd: keys.limitWeeklyUsd,
+      limitMonthlyUsd: keys.limitMonthlyUsd,
+      totalLimitUsd: keys.totalLimitUsd,
+      limitConcurrentSessions: keys.limitConcurrentSessions,
+      rpmLimit: keys.rpmLimit,
+      dailyLimitUsd: keys.dailyLimitUsd,
+      createdAt: keys.createdAt,
+      updatedAt: keys.updatedAt,
+      deletedAt: keys.deletedAt,
+    })
+    .from(keys)
+    .where(and(eq(keys.id, keyId), isNull(keys.deletedAt)))
+    .limit(1);
+
+  if (!key) return null;
+  return toKey(key);
 }

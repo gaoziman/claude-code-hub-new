@@ -29,6 +29,11 @@ export function toUser(dbUser: any): User {
         })(),
     isEnabled: dbUser?.isEnabled ?? true,
     expiresAt: dbUser?.expiresAt ? new Date(dbUser.expiresAt) : null,
+    // 用户级别金额限流配置
+    limit5hUsd: dbUser?.limit5hUsd ? parseFloat(dbUser.limit5hUsd) : null,
+    limitWeeklyUsd: dbUser?.limitWeeklyUsd ? parseFloat(dbUser.limitWeeklyUsd) : null,
+    limitMonthlyUsd: dbUser?.limitMonthlyUsd ? parseFloat(dbUser.limitMonthlyUsd) : null,
+    totalLimitUsd: dbUser?.totalLimitUsd ? parseFloat(dbUser.totalLimitUsd) : null,
     createdAt: dbUser?.createdAt ? new Date(dbUser.createdAt) : new Date(),
     updatedAt: dbUser?.updatedAt ? new Date(dbUser.updatedAt) : new Date(),
   };
@@ -41,6 +46,8 @@ export function toKey(dbKey: any): Key {
     isEnabled: dbKey?.isEnabled ?? true,
     canLoginWebUi: dbKey?.canLoginWebUi ?? true,
     scope: (dbKey?.scope as Key["scope"]) ?? "owner",
+    ownerKeyId: dbKey?.ownerKeyId ?? null,
+    // 子 Key 独立限额
     limit5hUsd: dbKey?.limit5hUsd ? parseFloat(dbKey.limit5hUsd) : null,
     limitWeeklyUsd: dbKey?.limitWeeklyUsd ? parseFloat(dbKey.limitWeeklyUsd) : null,
     limitMonthlyUsd: dbKey?.limitMonthlyUsd ? parseFloat(dbKey.limitMonthlyUsd) : null,
