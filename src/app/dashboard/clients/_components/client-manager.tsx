@@ -1,7 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition, type ComponentType } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+  type ComponentType,
+  type KeyboardEvent,
+  type MouseEvent,
+} from "react";
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -41,7 +50,6 @@ import { setUserStatus } from "@/actions/users";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 import { UsageTimeRangeValue, USAGE_TIME_RANGE_META } from "@/lib/time-range";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { fetchUsersByTimeRange, getUserMetrics } from "../../_lib/user-data";
 
 const TIME_RANGE_ICON_MAP: Record<UsageTimeRangeValue, ComponentType<{ className?: string }>> = {
@@ -203,12 +211,36 @@ export function ClientManager({
     });
   }, [users, searchTerm, statusFilter, tagFilter, providerGroupFilter]);
 
+  const matchedUsersCount = filteredUsers.length;
+  const activeUserCount = summary.totalUsers - summary.disabledUsers - summary.expiredUsers;
+  const inlineStats = [
+    {
+      label: "匹配用户",
+      value: `${matchedUsersCount} 位`,
+      accent: "from-primary/20 to-primary/5",
+    },
+    {
+      label: "启用用户",
+      value: `${activeUserCount} 位`,
+      accent: "from-emerald-200 to-emerald-50",
+    },
+    {
+      label: "禁用",
+      value: `${summary.disabledUsers} 位`,
+      accent: "from-amber-100 to-orange-50",
+    },
+    {
+      label: "过期",
+      value: `${summary.expiredUsers} 位`,
+      accent: "from-rose-100 to-rose-50",
+    },
+  ];
+
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
   const [selectedUserId, setSelectedUserId] = useState<number | null>(
     () => initialUsers[0]?.id ?? null
   );
-  const [detailTab, setDetailTab] = useState<"table" | "card">("table");
 
   useEffect(() => {
     setPage(1);
@@ -237,63 +269,16 @@ export function ClientManager({
     : (paginatedUsers[0] ?? null);
   const selectedMetrics = selectedUser ? getUserMetrics(selectedUser) : null;
 
-  useEffect(() => {
-    setDetailTab("table");
-  }, [selectedUserId]);
-
-  const renderKeyCardView = () => {
-    if (!selectedUser || selectedUser.keys.length === 0) {
-      return (
-        <div className="rounded-2xl border border-dashed border-border/60 bg-muted/10 px-4 py-6 text-center text-sm text-muted-foreground">
-          当前用户暂无密钥
-        </div>
-      );
+  const handleUserCardKeyDown = (event: KeyboardEvent<HTMLDivElement>, userId: number) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      setSelectedUserId(userId);
     }
+  };
 
-    return (
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {selectedUser.keys.map((key) => (
-          <div
-            key={key.id ?? key.maskedKey ?? key.name}
-            className="rounded-2xl border border-border/60 bg-muted/10 p-4 space-y-3"
-          >
-            <div className="flex items-center justify-between">
-              <div className="font-semibold text-foreground">{key.name}</div>
-              <Badge variant={key.status === "enabled" ? "secondary" : "outline"}>
-                {key.status === "enabled" ? "启用" : "禁用"}
-              </Badge>
-            </div>
-            <p className="font-mono text-xs text-muted-foreground break-all">
-              {key.maskedKey ?? "—"}
-            </p>
-            <div className="grid gap-2 text-xs text-muted-foreground">
-              <div className="flex items-center justify-between">
-                <span>供应商</span>
-                <span className="text-foreground">{key.lastProviderName ?? "未知"}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span>今日调用</span>
-                <span className="text-foreground">
-                  {(key.todayCallCount ?? 0).toLocaleString()} 次
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span>今日消耗</span>
-                <span className="text-foreground">
-                  {formatCurrency(key.todayUsage ?? 0, currencyCode)}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span>最近使用</span>
-                <span className="text-foreground">
-                  {key.lastUsedAt ? <RelativeTime date={new Date(key.lastUsedAt)} /> : "暂无"}
-                </span>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    );
+  const handleQuickToggle = (event: MouseEvent<HTMLButtonElement>, user: UserDisplay) => {
+    event.stopPropagation();
+    handleStatusToggle(user, user.status !== "active");
   };
 
   const selectedRangeMeta =
@@ -398,14 +383,14 @@ export function ClientManager({
             description: "所有用户合计",
           },
         ].map(({ icon: Icon, ...card }) => (
-          <Card key={card.title} className="rounded-2xl border border-border/70">
+          <Card key={card.title} className="rounded-xl border border-border/60">
             <CardContent className="flex items-center justify-between p-5">
               <div>
                 <p className="text-sm text-muted-foreground">{card.title}</p>
                 <p className="text-3xl font-semibold tracking-tight">{card.value}</p>
                 <p className="text-xs text-muted-foreground mt-1">{card.description}</p>
               </div>
-              <div className="rounded-2xl bg-muted/40 p-3">
+              <div className="rounded-lg bg-muted/40 p-3">
                 <Icon className="h-5 w-5 text-primary" />
               </div>
             </CardContent>
@@ -413,14 +398,29 @@ export function ClientManager({
         ))}
       </div>
 
-      <Card className="rounded-3xl border border-border/70">
+      <Card className="rounded-2xl border border-border/60">
         <CardHeader className="pb-4">
           <CardTitle className="text-base font-semibold">用户与密钥</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-8 px-4 pb-8 pt-2 sm:px-6">
-          <div className="space-y-3">
-            <div className="grid gap-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-[repeat(6,minmax(0,1fr))]">
-              <div className="flex h-11 items-center gap-2 rounded-xl border border-border/70 bg-muted/30 px-3">
+        <CardContent className="space-y-6 px-4 pb-8 pt-2 sm:px-6">
+          <div className="grid gap-3 text-sm text-muted-foreground sm:grid-cols-2 xl:grid-cols-4">
+            {inlineStats.map((stat) => (
+              <div
+                key={stat.label}
+                className={cn(
+                  "rounded-lg border border-border/50 bg-gradient-to-br px-4 py-3 shadow-sm",
+                  stat.accent
+                )}
+              >
+                <p className="text-xs text-muted-foreground">{stat.label}</p>
+                <p className="text-2xl font-semibold text-foreground">{stat.value}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="rounded-2xl border border-border/50 bg-gradient-to-br from-background to-muted/30 p-4 shadow-[0_20px_40px_rgba(15,23,42,0.06)] sm:p-5">
+            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
+              <div className="flex h-11 items-center gap-2 rounded-lg border border-border/60 bg-white/70 px-3">
                 <Search className="h-4 w-4 text-muted-foreground" />
                 <Input
                   value={searchTerm}
@@ -434,7 +434,7 @@ export function ClientManager({
                   value={statusFilter}
                   onValueChange={(value) => setStatusFilter(value as StatusFilter)}
                 >
-                  <SelectTrigger className="h-11 w-full rounded-xl border border-border/70 bg-muted/30 px-3 text-sm">
+                  <SelectTrigger className="h-11 w-full rounded-lg border border-border/60 bg-white/70 px-3 text-sm">
                     <SelectValue placeholder="全部状态" />
                   </SelectTrigger>
                   <SelectContent align="end">
@@ -453,7 +453,7 @@ export function ClientManager({
                 >
                   <SelectTrigger
                     disabled={isTimeChanging}
-                    className="h-11 w-full rounded-xl border border-border/70 bg-muted/30 px-3 text-sm"
+                    className="h-11 w-full rounded-lg border border-border/60 bg-white/70 px-3 text-sm"
                   >
                     <SelectValue className="flex items-center gap-2" placeholder="统计范围" />
                   </SelectTrigger>
@@ -478,7 +478,7 @@ export function ClientManager({
                   onValueChange={(value) => setTagFilter(value === "all" ? "" : value)}
                   disabled={availableTags.length === 0}
                 >
-                  <SelectTrigger className="h-11 w-full rounded-xl border border-border/70 bg-muted/30 px-3 text-sm">
+                  <SelectTrigger className="h-11 w-full rounded-lg border border-border/60 bg-white/70 px-3 text-sm">
                     <SelectValue className="flex items-center gap-2" placeholder="全部标签" />
                   </SelectTrigger>
                   <SelectContent align="end">
@@ -507,7 +507,7 @@ export function ClientManager({
                   }
                   disabled={combinedProviderGroups.length === 0}
                 >
-                  <SelectTrigger className="h-11 w-full rounded-xl border border-border/70 bg-muted/30 px-3 text-sm">
+                  <SelectTrigger className="h-11 w-full rounded-lg border border-border/60 bg-white/70 px-3 text-sm">
                     <SelectValue placeholder="全部分组" />
                   </SelectTrigger>
                   <SelectContent align="end">
@@ -520,7 +520,7 @@ export function ClientManager({
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex justify-end">
+              <div className="flex items-center justify-end">
                 <AddUserDialog
                   providerGroupOptions={combinedProviderGroups}
                   availableTags={availableTags}
@@ -530,90 +530,128 @@ export function ClientManager({
           </div>
 
           {paginatedUsers.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-border/70 bg-muted/10 py-12 text-center text-sm text-muted-foreground">
+            <div className="rounded-xl border border-dashed border-border/60 bg-muted/10 py-12 text-center text-sm text-muted-foreground">
               没有匹配的用户
             </div>
           ) : (
-            <div className="space-y-8">
-              <div className="relative">
-                <div className="overflow-x-auto pb-2">
-                  <div className="grid min-w-[1100px] grid-cols-5 gap-4">
-                    {paginatedUsers.map((user) => {
-                      const metrics = getUserMetrics(user);
-                      const statusBadge = getStatusBadge(user);
-                      const isSelected = user.id === selectedUserId;
-                      return (
-                        <button
-                          type="button"
-                          key={user.id}
-                          onClick={() => setSelectedUserId(user.id)}
-                          className={cn(
-                            "group relative w-full rounded-2xl border px-4 py-4 text-left transition-all",
-                            isSelected
-                              ? "border-primary/60 bg-gradient-to-br from-primary/10 to-primary/5 shadow-[0_12px_30px_rgba(79,70,229,0.15)]"
-                              : "border-border/70 bg-card hover:border-primary/30"
-                          )}
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="space-y-1">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <span className="text-base font-semibold text-foreground">
-                                  {user.name}
-                                </span>
-                                {user.tags?.map((tag) => (
-                                  <Badge key={tag} variant="outline" className="text-[10px]">
-                                    {tag}
-                                  </Badge>
-                                ))}
-                                <Badge
-                                  variant={statusBadge.variant}
-                                  className={statusBadge.className}
-                                >
-                                  {statusBadge.label}
-                                </Badge>
-                              </div>
-                              <p className="text-xs text-muted-foreground">
-                                {metricLabelFull}用量{" "}
-                                {formatCurrency(metrics.todayUsage, currencyCode)} · 调用{" "}
-                                {metrics.todayCalls.toLocaleString()} 次
-                              </p>
-                            </div>
-                            <ChevronRight
-                              className={cn(
-                                "h-4 w-4 text-muted-foreground",
-                                isSelected && "text-primary"
-                              )}
-                            />
-                          </div>
-                          <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
-                            <div className="rounded-xl bg-muted/20 px-3 py-2">
-                              <p className="text-[11px]">启用密钥</p>
-                              <p className="text-sm font-semibold text-foreground">
-                                {metrics.activeKeyCount}/{metrics.totalKeys}
-                              </p>
-                            </div>
-                            <div className="rounded-xl bg-muted/20 px-3 py-2">
-                              <p className="text-[11px]">最近活跃</p>
-                              <p className="text-sm font-semibold text-foreground">
-                                {metrics.lastActivity ? (
-                                  <RelativeTime date={metrics.lastActivity} />
-                                ) : (
-                                  "暂无"
-                                )}
-                              </p>
-                            </div>
-                          </div>
-                        </button>
-                      );
-                    })}
+            <div className="space-y-6">
+              <div className="rounded-2xl border border-border/50 bg-gradient-to-b from-background via-white to-muted/20 p-5 shadow-[0_20px_40px_rgba(15,23,42,0.06)]">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-base font-semibold text-foreground">用户列表</p>
+                    <p className="text-xs text-muted-foreground">选择用户查看下方详情与密钥</p>
                   </div>
+                  <Badge variant="secondary" className="rounded-full px-3 py-1 text-xs">
+                    {matchedUsersCount} 人
+                  </Badge>
+                </div>
+                <div className="mt-4 grid gap-3 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                  {paginatedUsers.map((user) => {
+                    const metrics = getUserMetrics(user);
+                    const statusBadge = getStatusBadge(user);
+                    const isSelected = user.id === selectedUserId;
+                    return (
+                      <div
+                        key={user.id}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => setSelectedUserId(user.id)}
+                        onKeyDown={(event) => handleUserCardKeyDown(event, user.id)}
+                        className={cn(
+                          "group relative cursor-pointer rounded-xl border px-3 py-3 text-left transition-all focus-visible:ring-2 focus-visible:ring-primary",
+                          isSelected
+                            ? "border-primary/60 bg-gradient-to-br from-primary/10 to-primary/5 shadow-[0_12px_24px_rgba(0,121,107,0.2)]"
+                            : "border-border/60 bg-card hover:border-primary/40"
+                        )}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="space-y-1">
+                            <p className="text-sm font-semibold text-foreground">{user.name}</p>
+                            <p className="text-[11px] text-muted-foreground">
+                              {formatCurrency(metrics.todayUsage, currencyCode)} ·{" "}
+                              {metrics.todayCalls.toLocaleString()} 次
+                            </p>
+                          </div>
+                          <ChevronRight
+                            className={cn(
+                              "h-4 w-4 text-muted-foreground transition-colors",
+                              isSelected && "text-primary"
+                            )}
+                          />
+                        </div>
+                        <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+                          <span>
+                            启用 {metrics.activeKeyCount}/{metrics.totalKeys}
+                          </span>
+                          <span>
+                            最近{" "}
+                            {metrics.lastActivity ? (
+                              <RelativeTime date={metrics.lastActivity} />
+                            ) : (
+                              "暂无"
+                            )}
+                          </span>
+                        </div>
+                        <div className="mt-2 flex flex-wrap items-center gap-1">
+                          <Badge
+                            variant={statusBadge.variant}
+                            className={cn(
+                              "rounded-full px-2 py-0 text-[10px]",
+                              statusBadge.className
+                            )}
+                          >
+                            {statusBadge.label}
+                          </Badge>
+                          {user.providerGroup && (
+                            <Badge variant="outline" className="rounded-full px-2 py-0 text-[10px]">
+                              {user.providerGroup}
+                            </Badge>
+                          )}
+                          {user.tags?.slice(0, 2).map((tag) => (
+                            <Badge
+                              key={tag}
+                              variant="outline"
+                              className="rounded-full px-2 py-0 text-[10px]"
+                            >
+                              {tag}
+                            </Badge>
+                          ))}
+                          {user.tags && user.tags.length > 2 && (
+                            <span className="text-[10px] text-muted-foreground">
+                              +{user.tags.length - 2}
+                            </span>
+                          )}
+                        </div>
+                        {currentUser.role === "admin" && (
+                          <div className="mt-2 flex items-center gap-1 text-[11px]">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 rounded-full px-2"
+                              onClick={(event) => handleQuickToggle(event, user)}
+                            >
+                              {user.status === "active" ? "禁用" : "启用"}
+                            </Button>
+                            <div onClick={(event) => event.stopPropagation()}>
+                              <UserActions
+                                user={user}
+                                currentUser={currentUser}
+                                providerGroupOptions={combinedProviderGroups}
+                                availableTags={availableTags}
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
               <div>
                 {selectedUser ? (
-                  <div className="rounded-[32px] border border-border/60 bg-card p-6 shadow-[0_12px_35px_rgba(15,23,42,0.08)]">
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="rounded-2xl border border-border/50 bg-card p-6 shadow-[0_12px_30px_rgba(15,23,42,0.08)]">
+                    <div className="flex flex-col gap-4 border-b border-border/40 pb-5 lg:flex-row lg:items-start lg:justify-between">
                       <div>
                         <div className="flex flex-wrap items-center gap-2">
                           <h3 className="text-xl font-semibold text-foreground">
@@ -641,12 +679,12 @@ export function ClientManager({
                         </p>
                       </div>
                       <div className="flex flex-col gap-3 text-sm text-muted-foreground lg:items-end">
-                        <div className="inline-flex items-center gap-2 rounded-full bg-muted/30 px-3 py-1 text-xs">
+                        <div className="inline-flex items-center gap-2 rounded-full bg-muted/20 px-3 py-1 text-xs">
                           过期时间：{formatExpiresAt(selectedUser.expiresAt)}
                         </div>
                         <div className="flex flex-wrap items-center gap-2 lg:justify-end">
                           {currentUser.role === "admin" && (
-                            <div className="inline-flex items-center gap-2 rounded-full border border-border/70 px-3 py-1">
+                            <div className="inline-flex items-center gap-2 rounded-full border border-border/60 px-3 py-1">
                               <span>
                                 {selectedUser.status === "active"
                                   ? "启用中"
@@ -700,7 +738,7 @@ export function ClientManager({
                       ].map((metric) => (
                         <div
                           key={metric.label}
-                          className="rounded-2xl border border-border/60 bg-muted/10 px-4 py-3"
+                          className="rounded-md border border-border/50 bg-muted/10 px-4 py-3"
                         >
                           <p className="text-xs text-muted-foreground">{metric.label}</p>
                           <p className="text-base font-semibold text-foreground">{metric.value}</p>
@@ -708,32 +746,24 @@ export function ClientManager({
                       ))}
                     </div>
 
-                    <div className="mt-6 space-y-4">
-                      <Tabs
-                        value={detailTab}
-                        onValueChange={(value) => setDetailTab(value as typeof detailTab)}
-                        className="space-y-4"
-                      >
-                        <TabsList className="w-full justify-start rounded-full bg-muted/40 p-1">
-                          <TabsTrigger
-                            value="table"
-                            className="rounded-full px-4 py-1 text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg"
-                          >
-                            表格视图
-                          </TabsTrigger>
-                          <TabsTrigger
-                            value="card"
-                            className="rounded-full px-4 py-1 text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg"
-                          >
-                            卡片视图
-                          </TabsTrigger>
-                        </TabsList>
-                        <TabsContent value="table" className="space-y-4">
+                    <div className="mt-6">
+                      <div className="rounded-2xl border border-border/50 bg-muted/10 p-5">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div>
+                            <p className="text-base font-semibold text-foreground">密钥运行面板</p>
+                            <p className="text-xs text-muted-foreground">
+                              默认展示全宽表格，可直接查看额度、限额和异常状态
+                            </p>
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            统计范围：{metricLabelFull}
+                          </div>
+                        </div>
+                        <div className="mt-4 space-y-4">
                           <KeyListHeader
                             activeUser={selectedUser}
                             currentUser={currentUser}
                             canManageActiveUser={currentUser?.role === "admin"}
-                            allowScopeSelection={currentUser?.role === "admin"}
                             currencyCode={currencyCode}
                             showUserActions={false}
                             metricLabel={metricLabel}
@@ -742,31 +772,34 @@ export function ClientManager({
                           />
                           <KeyList
                             keys={selectedUser.keys}
+                            user={selectedUser}
                             currentUser={currentUser}
                             keyOwnerUserId={selectedUser.id}
                             allowManageKeys={currentUser?.role === "admin"}
                             currencyCode={currencyCode}
                             metricLabel={metricLabel}
                           />
-                        </TabsContent>
-                        <TabsContent value="card">{renderKeyCardView()}</TabsContent>
-                      </Tabs>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 ) : (
-                  <div className="rounded-2xl border border-dashed border-border/70 bg-muted/10 py-12 text-center text-sm text-muted-foreground">
-                    请选择左侧用户查看详情
+                  <div className="rounded-xl border border-dashed border-border/60 bg-muted/10 py-12 text-center text-sm text-muted-foreground">
+                    请选择上方用户查看详情
                   </div>
                 )}
               </div>
-              <DataPagination
-                page={page}
-                pageSize={pageSize}
-                total={filteredUsers.length}
-                onPageChange={setPage}
-                onPageSizeChange={setPageSize}
-                pageSizeOptions={[5, 10, 20, 50]}
-              />
+
+              <div className="rounded-2xl border border-border/60 bg-card p-4 shadow-inner">
+                <DataPagination
+                  page={page}
+                  pageSize={pageSize}
+                  total={filteredUsers.length}
+                  onPageChange={setPage}
+                  onPageSizeChange={setPageSize}
+                  pageSizeOptions={[5, 10, 20, 50]}
+                />
+              </div>
             </div>
           )}
         </CardContent>

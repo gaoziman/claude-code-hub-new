@@ -138,14 +138,35 @@ interface ProviderListCardProps {
   items: ProviderHealthScore[];
   emptyText: string;
   badgeTone: "positive" | "negative";
+  sortKey?: string;
+  windowParam?: number;
 }
 
-function ProviderListCard({ title, subtitle, items, emptyText, badgeTone }: ProviderListCardProps) {
+function ProviderListCard({
+  title,
+  subtitle,
+  items,
+  emptyText,
+  badgeTone,
+  sortKey,
+  windowParam,
+}: ProviderListCardProps) {
   return (
     <Card className="rounded-3xl border-border/70 shadow-[0_18px_45px_rgba(15,23,42,0.06)]">
-      <CardHeader>
-        <CardTitle className="text-lg font-semibold">{title}</CardTitle>
-        <CardDescription>{subtitle}</CardDescription>
+      <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <CardTitle className="text-lg font-semibold">{title}</CardTitle>
+          <CardDescription>{subtitle}</CardDescription>
+        </div>
+        {sortKey && (
+          <Button size="sm" variant="ghost" className="text-xs text-muted-foreground" asChild>
+            <Link
+              href={`/dashboard/providers/health?window=${windowParam ?? 6}&sort=${sortKey}#${PROVIDER_TABLE_SECTION_ID}`}
+            >
+              查看全部
+            </Link>
+          </Button>
+        )}
       </CardHeader>
       <CardContent className="space-y-4">
         {items.length === 0 ? (
@@ -156,16 +177,25 @@ function ProviderListCard({ title, subtitle, items, emptyText, badgeTone }: Prov
             return (
               <div
                 key={`${provider.providerId}-${badgeTone}`}
-                className="flex items-center justify-between rounded-2xl bg-muted/40 p-3"
+                className="flex items-center justify-between rounded-2xl border border-border/50 bg-white/80 p-3"
               >
-                <div>
-                  <p className="text-sm font-semibold text-foreground">
-                    {index + 1}. {provider.providerName}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    成功率 {formatPercent(provider.successRate)} · P95{" "}
-                    {formatLatency(provider.p95LatencyMs)}
-                  </p>
+                <div className="flex items-center gap-3">
+                  <div
+                    className={cn(
+                      "flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold",
+                      badgeTone === "positive"
+                        ? "bg-emerald-50 text-emerald-700"
+                        : "bg-rose-50 text-rose-700"
+                    )}
+                  >
+                    {index + 1}
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">{provider.providerName}</p>
+                    <p className="text-xs text-muted-foreground">
+                      成功率 {formatPercent(provider.successRate)} · P95 {formatLatency(provider.p95LatencyMs)}
+                    </p>
+                  </div>
                 </div>
                 <div
                   className={cn(
@@ -304,51 +334,48 @@ export default async function ProvidersHealthPage({ searchParams }: ProvidersHea
 
   return (
     <div className="mx-auto max-w-7xl space-y-8 px-6 py-8">
-      <section className="relative overflow-hidden rounded-3xl border border-border/20 bg-white p-6 shadow-[0_18px_50px_rgba(15,23,42,0.06)]">
-        <div className="pointer-events-none absolute inset-0">
-          <div className="absolute inset-y-4 left-4 right-4 rounded-[32px] border border-white/50 bg-gradient-to-r from-white via-emerald-50/60 to-white" />
-          <div className="absolute bottom-[-40px] left-[-20px] h-40 w-40 rounded-full bg-emerald-200/40 blur-3xl" />
-          <div className="absolute top-[-30px] right-[-10px] h-36 w-36 rounded-full bg-sky-200/40 blur-3xl" />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.12),_transparent_55%)]" />
-        </div>
-        <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-          <div className="space-y-4">
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="inline-flex items-center gap-2 rounded-full bg-white/70 px-3 py-1 text-xs font-medium text-emerald-700">
-                <Gauge className="h-4 w-4" /> 健康洞察 · 最近 {report.windowHours} 小时
+      <section className="rounded-2xl border border-border/30 bg-gradient-to-br from-white to-emerald-50/30 p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-2 rounded-full bg-white px-2.5 py-0.5 text-xs font-semibold text-emerald-700 shadow-sm">
+                <Gauge className="h-4 w-4" /> 健康洞察 · {report.windowHours} 小时窗口
               </span>
               <span
                 className={cn(
-                  "rounded-full px-3 py-1 text-xs font-semibold",
+                  "rounded-full px-2.5 py-0.5 text-xs font-semibold",
                   healthLevel.badgeClass
                 )}
               >
                 {healthLevel.label}
               </span>
             </div>
-            <div className="flex flex-wrap items-end gap-6">
+            <div className="flex flex-wrap items-end gap-4">
               <div>
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">
                   平均健康指数
                 </p>
-                <p className="text-4xl font-semibold tracking-tight text-foreground">
+                <p className="text-3xl font-semibold tracking-tight text-foreground">
                   {averageHealthScore.toFixed(1)}
                 </p>
               </div>
-              <p className="text-xs text-muted-foreground">
-                生成时间：{report.generatedAt.toLocaleString()}
-              </p>
+              <div className="text-xs text-muted-foreground">
+                <p>最近生成：{report.generatedAt.toLocaleString()}</p>
+                <p>数据源：{report.summary.providerCount} 个供应商</p>
+              </div>
             </div>
-            <div className="flex flex-wrap gap-2">
+          </div>
+          <div className="space-y-2 lg:w-1/2">
+            <div className="flex flex-wrap items-center gap-1">
               {WINDOW_OPTIONS.map((option) => (
                 <Link
                   key={option.value}
                   href={`/dashboard/providers/health?window=${option.value}&sort=${sortKey}`}
                   className={cn(
-                    "rounded-full border px-3.5 py-1.5 text-sm font-medium transition",
+                    "rounded-full border px-3 py-1 text-sm font-medium transition",
                     report.windowHours === option.value
                       ? "border-transparent bg-emerald-600 text-white shadow-lg shadow-emerald-600/30"
-                      : "border-border/70 bg-white/80 text-muted-foreground hover:text-foreground"
+                      : "border-border/60 bg-white/70 text-muted-foreground hover:text-foreground"
                   )}
                 >
                   {option.label}
@@ -358,45 +385,42 @@ export default async function ProvidersHealthPage({ searchParams }: ProvidersHea
                 <Link
                   href={`/dashboard/providers/health?window=${report.windowHours}&sort=${sortKey}`}
                 >
-                  <RefreshCw className="h-4 w-4" /> 刷新数据
+                  <RefreshCw className="h-4 w-4" /> 刷新
                 </Link>
               </Button>
             </div>
-          </div>
-          <div className="flex flex-1 flex-wrap gap-4 lg:justify-end">
-            {[
-              {
-                label: "覆盖供应商",
-                value: report.summary.providerCount.toString(),
-                desc: "参与评分的上游账号",
-              },
-              {
-                label: "请求总量",
-                value: report.summary.totalRequests.toLocaleString(),
-                desc: "统计窗口内全部请求",
-              },
-              {
-                label: "平均成功率",
-                value: formatPercent(report.summary.averageSuccessRate),
-                desc: "稳定性越高越好",
-              },
-              {
-                label: "熔断事件",
-                value: totalCircuitEvents.toLocaleString(),
-                desc: "近窗内触发次数",
-              },
-            ].map((stat) => (
-              <div
-                key={stat.label}
-                className="min-w-[150px] flex-1 rounded-2xl border border-white/70 bg-white/80 p-3 shadow-sm"
-              >
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                  {stat.label}
-                </p>
-                <p className="mt-1 text-2xl font-semibold text-foreground">{stat.value}</p>
-                <p className="text-xs text-muted-foreground">{stat.desc}</p>
-              </div>
-            ))}
+            <div className="grid gap-2 sm:grid-cols-2">
+              {[
+                {
+                  label: "覆盖供应商",
+                  value: report.summary.providerCount.toString(),
+                  hint: "参与评分账号",
+                },
+                {
+                  label: "请求总量",
+                  value: report.summary.totalRequests.toLocaleString(),
+                  hint: "窗口内全部请求",
+                },
+                {
+                  label: "平均成功率",
+                  value: formatPercent(report.summary.averageSuccessRate),
+                  hint: "整体稳定性",
+                },
+                {
+                  label: "熔断事件",
+                  value: totalCircuitEvents.toLocaleString(),
+                  hint: "需重点监控",
+                },
+              ].map((stat) => (
+                <div key={stat.label} className="rounded-xl border border-white/70 bg-white/90 p-3">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                    {stat.label}
+                  </p>
+                  <p className="mt-1 text-2xl font-semibold text-foreground">{stat.value}</p>
+                  <p className="text-xs text-muted-foreground">{stat.hint}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </section>
@@ -414,6 +438,8 @@ export default async function ProvidersHealthPage({ searchParams }: ProvidersHea
           items={bestProviders}
           emptyText="暂无可用数据"
           badgeTone="positive"
+          sortKey="score"
+          windowParam={report.windowHours}
         />
         <ProviderListCard
           title="需要关注"
@@ -421,6 +447,8 @@ export default async function ProvidersHealthPage({ searchParams }: ProvidersHea
           items={attentionProviders}
           emptyText="暂无风险供应商"
           badgeTone="negative"
+          sortKey="score"
+          windowParam={report.windowHours}
         />
         <Card className="rounded-3xl border-border/70 shadow-[0_18px_45px_rgba(15,23,42,0.06)]">
           <CardHeader>

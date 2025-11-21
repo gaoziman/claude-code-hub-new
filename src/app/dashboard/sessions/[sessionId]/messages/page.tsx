@@ -11,6 +11,7 @@ import { Section } from "@/components/section";
 import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
 import { formatCurrency, type CurrencyCode } from "@/lib/utils/currency";
+import { copyToClipboard } from "@/lib/utils/clipboard";
 
 async function fetchSystemSettings(): Promise<{ currencyDisplay: CurrencyCode }> {
   const response = await fetch("/api/system-settings");
@@ -75,7 +76,7 @@ export default function SessionMessagesPage() {
     if (!messages) return;
 
     try {
-      await navigator.clipboard.writeText(JSON.stringify(messages, null, 2));
+      await copyToClipboard(JSON.stringify(messages, null, 2));
       setCopiedMessages(true);
       setTimeout(() => setCopiedMessages(false), 2000);
     } catch (err) {
@@ -87,7 +88,7 @@ export default function SessionMessagesPage() {
     if (!response) return;
 
     try {
-      await navigator.clipboard.writeText(response);
+      await copyToClipboard(response);
       setCopiedResponse(true);
       setTimeout(() => setCopiedResponse(false), 2000);
     } catch (err) {

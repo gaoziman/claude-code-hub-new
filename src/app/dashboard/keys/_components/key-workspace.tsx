@@ -212,7 +212,6 @@ export function KeyWorkspace({
             activeUser={activeUser}
             currentUser={currentUser}
             canManageActiveUser={canManageActiveUser}
-            allowScopeSelection={currentUser.role === "admin"}
             showUserActions={currentUser.role === "admin"}
             currencyCode={currencyCode}
             metricLabel={metricMeta.shortLabel}
@@ -237,6 +236,7 @@ export function KeyWorkspace({
 
           <KeyList
             keys={filteredKeys}
+            user={activeUser!}
             currentUser={currentUser}
             keyOwnerUserId={activeUser?.id ?? currentUser.id}
             allowManageKeys={allowManageKeys}
