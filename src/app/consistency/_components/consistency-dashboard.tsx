@@ -2,38 +2,28 @@
 
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ShieldCheck, Activity, TimerReset } from "lucide-react";
+import { ShieldCheck, Settings2 } from "lucide-react";
 import { OverviewTab } from "./overview-tab";
-import { TaskConfigTab } from "./task-config-tab";
-import { HistoryTab } from "./history-tab";
+import { ManagementTab } from "./management-tab";
 import { cn } from "@/lib/utils";
 
 const TAB_ITEMS = [
   {
-    value: "overview",
-    title: "态势洞察",
+    value: "monitor",
+    title: "实时监控",
     description: "检测、修复、风险预警",
-    step: "STEP 01",
     icon: ShieldCheck,
   },
   {
-    value: "tasks",
-    title: "任务编排",
-    description: "定时策略、阈值、自动化",
-    step: "STEP 02",
-    icon: TimerReset,
-  },
-  {
-    value: "history",
-    title: "操作溯源",
-    description: "执行记录、异常复盘",
-    step: "STEP 03",
-    icon: Activity,
+    value: "management",
+    title: "管理中心",
+    description: "配置、历史、审计",
+    icon: Settings2,
   },
 ] as const;
 
 export function ConsistencyDashboard() {
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState("monitor");
 
   return (
     <div className="space-y-6">
@@ -72,16 +62,12 @@ export function ConsistencyDashboard() {
           })}
         </TabsList>
 
-        <TabsContent value="overview" className="space-y-8">
+        <TabsContent value="monitor" className="space-y-8">
           <OverviewTab />
         </TabsContent>
 
-        <TabsContent value="tasks" className="space-y-8">
-          <TaskConfigTab />
-        </TabsContent>
-
-        <TabsContent value="history" className="space-y-8">
-          <HistoryTab />
+        <TabsContent value="management" className="space-y-8">
+          <ManagementTab />
         </TabsContent>
       </Tabs>
     </div>

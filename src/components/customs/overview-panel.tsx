@@ -4,6 +4,8 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
+import { format, formatDistanceToNow } from "date-fns";
+import { zhCN } from "date-fns/locale";
 import {
   Activity,
   TrendingUp,
@@ -20,11 +22,18 @@ import {
   Server,
   Users as UsersIcon,
   ArrowRight,
+  Info,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { getOverviewData } from "@/actions/overview";
 import { formatCurrency } from "@/lib/utils/currency";
 import { cn, formatTokenAmount } from "@/lib/utils";
@@ -40,6 +49,22 @@ async function fetchOverviewData(): Promise<OverviewData> {
     throw new Error(result.error || "获取概览数据失败");
   }
   return result.data;
+}
+
+/**
+ * 格式化重置时间显示
+ */
+function formatResetTime(resetAt: Date | undefined, resetType: "natural" | "rolling" | undefined): string | null {
+  if (!resetAt) return null;
+
+  if (resetType === "natural") {
+    // 自然周期：显示绝对时间 + 相对时间
+    const absoluteTime = format(resetAt, "M月d日(E) HH:mm", { locale: zhCN });
+    const relativeTime = formatDistanceToNow(resetAt, { locale: zhCN, addSuffix: true });
+    return `将于 ${absoluteTime} 重置 (${relativeTime})`;
+  }
+
+  return null;
 }
 
 /**
@@ -129,6 +154,39 @@ function SessionListItem({
       </div>
     </Link>
   );
+}
+
+function getLimitVisualState(used: number, limit: number) {
+  if (!limit || limit <= 0) {
+    return {
+      ratio: 0,
+      textClass: "text-muted-foreground",
+      progressClass: "",
+    };
+  }
+
+  const ratio = Math.min(used / limit, 1);
+  if (ratio >= 1) {
+    return {
+      ratio,
+      textClass: "text-destructive",
+      progressClass: "[&_[data-slot=progress-indicator]]:bg-destructive",
+    };
+  }
+
+  if (ratio >= 0.7) {
+    return {
+      ratio,
+      textClass: "text-amber-500",
+      progressClass: "[&_[data-slot=progress-indicator]]:bg-amber-500",
+    };
+  }
+
+  return {
+    ratio,
+    textClass: "text-primary",
+    progressClass: "",
+  };
 }
 
 function KpiCard({
@@ -237,8 +295,10 @@ export function OverviewPanel({ currencyCode = "USD" }: OverviewPanelProps) {
     },
   ];
 
-  const showGlobalInsights = Boolean(data?.topUsers?.length || data?.topProviders?.length);
+  const showGlobalInsights =
+    metrics.role === "admin" || Boolean(data?.topUsers?.length || data?.topProviders?.length);
   const personalSummary = data?.personalSummary;
+  const shouldShowPersonalSummary = !showGlobalInsights && metrics.role !== "admin";
 
   return (
     <div className="space-y-4">
@@ -341,7 +401,7 @@ export function OverviewPanel({ currencyCode = "USD" }: OverviewPanelProps) {
       </div>
 
       <div className="grid gap-4 xl:grid-cols-3">
-        {showGlobalInsights ? (
+        {showGlobalInsights && (
           <>
             <Card className="rounded-2xl border border-border/60">
               <CardHeader className="pb-2">
@@ -436,42 +496,169 @@ export function OverviewPanel({ currencyCode = "USD" }: OverviewPanelProps) {
               </CardContent>
             </Card>
           </>
-        ) : (
+        )}
+
+        {shouldShowPersonalSummary && (
           <Card className="rounded-2xl border border-border/60 xl:col-span-3">
             <CardHeader className="pb-2">
               <div className="flex items-center gap-2">
                 <UsersIcon className="h-4 w-4 text-primary" />
                 <CardTitle className="text-base font-semibold">我的使用概览</CardTitle>
               </div>
-              <p className="text-xs text-muted-foreground">今日配额使用情况</p>
+              <p className="text-xs text-muted-foreground">今日配额使用情况与常用偏好</p>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center justify-between text-sm">
-                <span>今日消耗</span>
-                <span className="font-semibold text-primary">
-                  {formatCurrency(personalSummary?.todayCost ?? 0, currencyCode)}
-                </span>
+            <CardContent className="space-y-4">
+              <div className="flex flex-col gap-2 text-sm sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground">今日消耗</p>
+                  <p className="text-2xl font-semibold text-primary">
+                    {formatCurrency(personalSummary?.todayCost ?? 0, currencyCode)}
+                  </p>
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  今日调用次数：
+                  <span className="font-semibold text-foreground">
+                    {personalSummary?.todayRequests ?? 0}
+                  </span>
+                </div>
               </div>
-              {personalSummary?.dailyLimit ? (
-                <>
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>每日额度</span>
-                    <span>
-                      {formatCurrency(personalSummary.todayCost, currencyCode)} /{" "}
-                      {formatCurrency(personalSummary.dailyLimit, currencyCode)}
-                    </span>
+
+              {/* 用户级别额度 */}
+              {personalSummary?.userSpendingLimits && personalSummary.userSpendingLimits.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-blue-500" />
+                    <span className="text-sm font-semibold">用户级别额度</span>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="text-xs">该限额适用于您所有 Key 的总消费</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </div>
-                  <Progress
-                    value={Math.min(
-                      100,
-                      (personalSummary.todayCost / personalSummary.dailyLimit) * 100
-                    )}
-                    className="h-2"
-                  />
-                </>
-              ) : (
-                <p className="text-xs text-muted-foreground">未设置每日额度，默认无限制。</p>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {personalSummary.userSpendingLimits.map((limitItem) => {
+                      const state = getLimitVisualState(limitItem.used, limitItem.limit);
+                      const percent = limitItem.limit
+                        ? Math.min(100, (limitItem.used / limitItem.limit) * 100)
+                        : 0;
+
+                      const resetTimeText = formatResetTime(limitItem.resetAt, limitItem.resetType);
+
+                      return (
+                        <div
+                          key={`user-${limitItem.key}`}
+                          className="rounded-xl border border-blue-200/60 bg-blue-50/30 p-3 text-xs"
+                        >
+                          <div className="flex items-center justify-between text-muted-foreground">
+                            <span>{limitItem.label}</span>
+                            <span className={cn("font-semibold", state.textClass)}>
+                              {(state.ratio * 100).toFixed(0)}%
+                            </span>
+                          </div>
+                          <div className="mt-1 flex items-baseline justify-between gap-2 text-sm">
+                            <span className="font-semibold text-foreground">
+                              {formatCurrency(limitItem.used, currencyCode)}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              / {formatCurrency(limitItem.limit, currencyCode)}
+                            </span>
+                          </div>
+                          <Progress
+                            value={percent}
+                            className={cn("mt-2 h-1.5", state.progressClass)}
+                          />
+                          {resetTimeText && (
+                            <div className="mt-2 text-[10px] text-muted-foreground">
+                              {resetTimeText}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               )}
+
+              {/* Key级别额度 */}
+              {personalSummary?.keySpendingLimits && personalSummary.keySpendingLimits.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Key className="h-4 w-4 text-green-500" />
+                    <span className="text-sm font-semibold">
+                      当前 Key 额度 ({personalSummary.currentKeyName})
+                    </span>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="text-xs">该限额仅适用于当前 Key 的独立消费</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {personalSummary.keySpendingLimits.map((limitItem) => {
+                      const state = getLimitVisualState(limitItem.used, limitItem.limit);
+                      const percent = limitItem.limit
+                        ? Math.min(100, (limitItem.used / limitItem.limit) * 100)
+                        : 0;
+
+                      const resetTimeText = formatResetTime(limitItem.resetAt, limitItem.resetType);
+
+                      return (
+                        <div
+                          key={`key-${limitItem.key}`}
+                          className="rounded-xl border border-green-200/60 bg-green-50/30 p-3 text-xs"
+                        >
+                          <div className="flex items-center justify-between text-muted-foreground">
+                            <span>{limitItem.label}</span>
+                            <span className={cn("font-semibold", state.textClass)}>
+                              {(state.ratio * 100).toFixed(0)}%
+                            </span>
+                          </div>
+                          <div className="mt-1 flex items-baseline justify-between gap-2 text-sm">
+                            <span className="font-semibold text-foreground">
+                              {formatCurrency(limitItem.used, currencyCode)}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              / {formatCurrency(limitItem.limit, currencyCode)}
+                            </span>
+                          </div>
+                          <Progress
+                            value={percent}
+                            className={cn("mt-2 h-1.5", state.progressClass)}
+                          />
+                          {resetTimeText && (
+                            <div className="mt-2 text-[10px] text-muted-foreground">
+                              {resetTimeText}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* 无限额提示 */}
+              {(!personalSummary?.userSpendingLimits || personalSummary.userSpendingLimits.length === 0) &&
+               (!personalSummary?.keySpendingLimits || personalSummary.keySpendingLimits.length === 0) && (
+                <div className="rounded-xl border border-dashed border-border/60 bg-muted/20 p-4 text-xs text-muted-foreground">
+                  <p className="font-medium text-foreground mb-1">未设置限额</p>
+                  <p>用户级别和当前 Key 均未配置消费限额（5小时/周/月/累计）。</p>
+                  <p className="mt-2">
+                    💡 建议在「用户管理」中配置限额，以便更好地控制 API 成本。
+                  </p>
+                </div>
+              )}
+
               <div className="rounded-xl bg-muted/40 p-3 text-xs text-muted-foreground">
                 常用供应商：
                 <span className="font-semibold text-foreground">
