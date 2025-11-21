@@ -10,6 +10,13 @@ export interface User {
   tags: string[];
   isEnabled: boolean;
   expiresAt: Date | null;
+
+  // ========== 用户级别限额配置（管理员设置） ==========
+  limit5hUsd: number | null; // 5小时消费上限（美元）
+  limitWeeklyUsd: number | null; // 周消费上限（美元）
+  limitMonthlyUsd: number | null; // 月消费上限（美元）
+  totalLimitUsd: number | null; // 总费用上限（美元）
+
   createdAt: Date;
   updatedAt: Date;
   deletedAt?: Date;
@@ -25,6 +32,12 @@ export interface CreateUserData {
   tags?: string[];
   isEnabled?: boolean;
   expiresAt?: Date | null;
+
+  // 用户级别限额配置
+  limit5hUsd?: number | null;
+  limitWeeklyUsd?: number | null;
+  limitMonthlyUsd?: number | null;
+  totalLimitUsd?: number | null;
 }
 
 /**
@@ -37,6 +50,12 @@ export interface UpdateUserData {
   tags?: string[];
   isEnabled?: boolean;
   expiresAt?: Date | null;
+
+  // 用户级别限额配置
+  limit5hUsd?: number | null;
+  limitWeeklyUsd?: number | null;
+  limitMonthlyUsd?: number | null;
+  totalLimitUsd?: number | null;
 }
 
 /**
@@ -52,6 +71,9 @@ export interface UserKeyDisplay {
   status: "enabled" | "disabled";
   disabledReason?: "key_disabled" | "user_disabled" | "user_expired";
   todayUsage: number; // 今日消耗金额（美元）
+  weeklyUsageUsd?: number; // 周期内消耗金额（美元）
+  monthlyUsageUsd?: number; // 月周期消耗金额（美元）
+  totalUsageUsd?: number; // 总消耗金额（美元）
   todayCallCount: number; // 今日调用次数
   lastUsedAt: Date | null; // 最后使用时间
   lastProviderName: string | null; // 最后调用的供应商名称
@@ -68,7 +90,11 @@ export interface UserKeyDisplay {
   canLoginWebUi: boolean; // 是否允许使用该 Key 登录 Web UI
   scope: "owner" | "child";
   canManage?: boolean; // 当前登录视角是否允许管理该 Key
-  // 限额配置
+
+  // ========== 主子关系配置 ==========
+  ownerKeyId: number | null; // 主 Key ID（仅子 Key 填写）
+
+  // ========== 子 Key 独立限额配置 ==========
   limit5hUsd: number | null; // 5小时消费上限（美元）
   limitWeeklyUsd: number | null; // 周消费上限（美元）
   limitMonthlyUsd: number | null; // 月消费上限（美元）
@@ -91,6 +117,17 @@ export interface UserDisplay {
   isExpired: boolean;
   status: "active" | "disabled" | "expired";
   keys: UserKeyDisplay[];
+
+  // ========== 用户级别限额配置 ==========
+  limit5hUsd?: number | null;
+  limitWeeklyUsd?: number | null;
+  limitMonthlyUsd?: number | null;
+  totalLimitUsd?: number | null;
+
+  // ========== 用户聚合消费数据（所有 Key 的消费总和） ==========
+  userAggregateWeeklyUsage?: number; // 用户所有 Key 的周消费总和
+  userAggregateMonthlyUsage?: number; // 用户所有 Key 的月消费总和
+  userAggregateTotalUsage?: number; // 用户所有 Key 的总消费总和
 }
 
 /**

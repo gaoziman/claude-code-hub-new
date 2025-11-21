@@ -15,7 +15,10 @@ export interface Key {
   // Key 视角范围：owner(主 key) / child(子 key)
   scope: "owner" | "child";
 
-  // 金额限流配置
+  // ========== 主子关系 ==========
+  ownerKeyId: number | null; // 子 Key 所属的主 Key ID (仅子 key 有值)
+
+  // ========== 子 Key 独立限额 ==========
   limit5hUsd: number | null;
   limitWeeklyUsd: number | null;
   limitMonthlyUsd: number | null;
@@ -41,7 +44,7 @@ export interface CreateKeyData {
   // Web UI 登录权限控制
   can_login_web_ui?: boolean;
   scope?: "owner" | "child";
-  // 金额限流配置
+  // ========== 子 Key 独立限额配置 ==========
   limit_5h_usd?: number | null;
   limit_weekly_usd?: number | null;
   limit_monthly_usd?: number | null;
@@ -61,12 +64,12 @@ export interface UpdateKeyData {
   // Web UI 登录权限控制
   can_login_web_ui?: boolean;
   scope?: "owner" | "child";
-  // 金额限流配置
+  // ========== 子 Key 独立限额配置 ==========
   limit_5h_usd?: number | null;
   limit_weekly_usd?: number | null;
   limit_monthly_usd?: number | null;
   total_limit_usd?: number | null;
   limit_concurrent_sessions?: number;
-  rpm_limit?: number;
-  daily_limit_usd?: number;
+  rpm_limit?: number | null;
+  daily_limit_usd?: number | null;
 }

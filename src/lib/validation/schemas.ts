@@ -25,6 +25,55 @@ export const CreateUserSchema = z.object({
       }
       return null;
     }),
+  // 用户级别金额限流配置
+  limit5hUsd: z
+    .union([z.string(), z.number(), z.null()])
+    .optional()
+    .default(null)
+    .transform((value) => {
+      if (value === "" || value === null || value === undefined) return null;
+      const num = typeof value === "string" ? parseFloat(value) : value;
+      return isNaN(num) ? null : num;
+    })
+    .refine((value) => value === null || (value >= 0 && value <= 10000), {
+      message: "5小时消费上限必须在 0 到 10000 美元之间，或留空表示无限制",
+    }),
+  limitWeeklyUsd: z
+    .union([z.string(), z.number(), z.null()])
+    .optional()
+    .default(null)
+    .transform((value) => {
+      if (value === "" || value === null || value === undefined) return null;
+      const num = typeof value === "string" ? parseFloat(value) : value;
+      return isNaN(num) ? null : num;
+    })
+    .refine((value) => value === null || (value >= 0 && value <= 50000), {
+      message: "周消费上限必须在 0 到 50000 美元之间，或留空表示无限制",
+    }),
+  limitMonthlyUsd: z
+    .union([z.string(), z.number(), z.null()])
+    .optional()
+    .default(null)
+    .transform((value) => {
+      if (value === "" || value === null || value === undefined) return null;
+      const num = typeof value === "string" ? parseFloat(value) : value;
+      return isNaN(num) ? null : num;
+    })
+    .refine((value) => value === null || (value >= 0 && value <= 200000), {
+      message: "月消费上限必须在 0 到 200000 美元之间，或留空表示无限制",
+    }),
+  totalLimitUsd: z
+    .union([z.string(), z.number(), z.null()])
+    .optional()
+    .default(null)
+    .transform((value) => {
+      if (value === "" || value === null || value === undefined) return null;
+      const num = typeof value === "string" ? parseFloat(value) : value;
+      return isNaN(num) ? null : num;
+    })
+    .refine((value) => value === null || (value >= 0 && value <= 1000000), {
+      message: "总消费上限必须在 0 到 1000000 美元之间，或留空表示无限制",
+    }),
 });
 
 /**
@@ -48,6 +97,55 @@ export const UpdateUserSchema = z.object({
       }
       return null;
     }),
+  // 用户级别金额限流配置
+  limit5hUsd: z
+    .union([z.string(), z.number(), z.null()])
+    .optional()
+    .default(null)
+    .transform((value) => {
+      if (value === "" || value === null || value === undefined) return null;
+      const num = typeof value === "string" ? parseFloat(value) : value;
+      return isNaN(num) ? null : num;
+    })
+    .refine((value) => value === null || (value >= 0 && value <= 10000), {
+      message: "5小时消费上限必须在 0 到 10000 美元之间，或留空表示无限制",
+    }),
+  limitWeeklyUsd: z
+    .union([z.string(), z.number(), z.null()])
+    .optional()
+    .default(null)
+    .transform((value) => {
+      if (value === "" || value === null || value === undefined) return null;
+      const num = typeof value === "string" ? parseFloat(value) : value;
+      return isNaN(num) ? null : num;
+    })
+    .refine((value) => value === null || (value >= 0 && value <= 50000), {
+      message: "周消费上限必须在 0 到 50000 美元之间，或留空表示无限制",
+    }),
+  limitMonthlyUsd: z
+    .union([z.string(), z.number(), z.null()])
+    .optional()
+    .default(null)
+    .transform((value) => {
+      if (value === "" || value === null || value === undefined) return null;
+      const num = typeof value === "string" ? parseFloat(value) : value;
+      return isNaN(num) ? null : num;
+    })
+    .refine((value) => value === null || (value >= 0 && value <= 200000), {
+      message: "月消费上限必须在 0 到 200000 美元之间，或留空表示无限制",
+    }),
+  totalLimitUsd: z
+    .union([z.string(), z.number(), z.null()])
+    .optional()
+    .default(null)
+    .transform((value) => {
+      if (value === "" || value === null || value === undefined) return null;
+      const num = typeof value === "string" ? parseFloat(value) : value;
+      return isNaN(num) ? null : num;
+    })
+    .refine((value) => value === null || (value >= 0 && value <= 1000000), {
+      message: "总消费上限必须在 0 到 1000000 美元之间，或留空表示无限制",
+    }),
 });
 
 /**
@@ -64,34 +162,59 @@ export const KeyFormSchema = z.object({
   canLoginWebUi: z.boolean().optional().default(true),
   scope: z.enum(["owner", "child"]).optional().default("child"),
   // 金额限流配置
-  limit5hUsd: z.coerce
-    .number()
-    .min(0, "5小时消费上限不能为负数")
-    .max(10000, "5小时消费上限不能超过10000美元")
-    .nullable()
-    .optional(),
-  limitWeeklyUsd: z.coerce
-    .number()
-    .min(0, "周消费上限不能为负数")
-    .max(50000, "周消费上限不能超过50000美元")
-    .nullable()
-    .optional(),
-  limitMonthlyUsd: z.coerce
-    .number()
-    .min(0, "月消费上限不能为负数")
-    .max(200000, "月消费上限不能超过200000美元")
-    .nullable()
-    .optional(),
-  totalLimitUsd: z
-    .union([
-      z.coerce
-        .number()
-        .min(KEY_LIMITS.TOTAL_LIMIT.MIN, `总费用上限不能低于${KEY_LIMITS.TOTAL_LIMIT.MIN}美元`)
-        .max(KEY_LIMITS.TOTAL_LIMIT.MAX, `总费用上限不能超过${KEY_LIMITS.TOTAL_LIMIT.MAX}美元`),
-      z.literal(null),
-    ])
+  limit5hUsd: z
+    .union([z.string(), z.number(), z.null()])
     .optional()
-    .default(null),
+    .default(null)
+    .transform((value) => {
+      if (value === "" || value === null || value === undefined) return null;
+      const num = typeof value === "string" ? parseFloat(value) : value;
+      return isNaN(num) ? null : num;
+    })
+    .refine((value) => value === null || (value >= 0 && value <= 10000), {
+      message: "5小时消费上限必须在 0 到 10000 美元之间，或留空表示无限制",
+    }),
+  limitWeeklyUsd: z
+    .union([z.string(), z.number(), z.null()])
+    .optional()
+    .default(null)
+    .transform((value) => {
+      if (value === "" || value === null || value === undefined) return null;
+      const num = typeof value === "string" ? parseFloat(value) : value;
+      return isNaN(num) ? null : num;
+    })
+    .refine((value) => value === null || (value >= 0 && value <= 50000), {
+      message: "周消费上限必须在 0 到 50000 美元之间，或留空表示无限制",
+    }),
+  limitMonthlyUsd: z
+    .union([z.string(), z.number(), z.null()])
+    .optional()
+    .default(null)
+    .transform((value) => {
+      if (value === "" || value === null || value === undefined) return null;
+      const num = typeof value === "string" ? parseFloat(value) : value;
+      return isNaN(num) ? null : num;
+    })
+    .refine((value) => value === null || (value >= 0 && value <= 200000), {
+      message: "月消费上限必须在 0 到 200000 美元之间，或留空表示无限制",
+    }),
+  totalLimitUsd: z
+    .union([z.string(), z.number(), z.null()])
+    .optional()
+    .default(null)
+    .transform((value) => {
+      if (value === "" || value === null || value === undefined) return null;
+      const num = typeof value === "string" ? parseFloat(value) : value;
+      return isNaN(num) ? null : num;
+    })
+    .refine(
+      (value) =>
+        value === null ||
+        (value >= KEY_LIMITS.TOTAL_LIMIT.MIN && value <= KEY_LIMITS.TOTAL_LIMIT.MAX),
+      {
+        message: `总费用上限必须在 ${KEY_LIMITS.TOTAL_LIMIT.MIN} 到 ${KEY_LIMITS.TOTAL_LIMIT.MAX} 美元之间，或留空表示无限制`,
+      }
+    ),
   limitConcurrentSessions: z.coerce
     .number()
     .int("并发Session上限必须是整数")
@@ -100,26 +223,63 @@ export const KeyFormSchema = z.object({
     .optional()
     .default(0),
   rpmLimit: z
-    .union([
-      z.coerce
-        .number()
-        .int("RPM必须是整数")
-        .min(KEY_LIMITS.RPM.MIN, `RPM不能低于${KEY_LIMITS.RPM.MIN}`)
-        .max(KEY_LIMITS.RPM.MAX, `RPM不能超过${KEY_LIMITS.RPM.MAX}`),
-      z.literal(null),
-    ])
+    .union([z.string(), z.number(), z.null()])
     .optional()
-    .default(null),
+    .default(null)
+    .transform((value) => {
+      // 空字符串、null、undefined 都转换为 null（表示不设置限制）
+      if (value === "" || value === null || value === undefined) {
+        return null;
+      }
+      // 转换为数字
+      const num = typeof value === "string" ? parseFloat(value) : value;
+      if (isNaN(num)) {
+        return null;
+      }
+      return Math.floor(num); // RPM 必须是整数
+    })
+    .refine(
+      (value) => {
+        // null 是允许的（表示不设置 RPM 限制）
+        if (value === null) return true;
+        // 数字必须在范围内且为整数
+        return (
+          Number.isInteger(value) &&
+          value >= KEY_LIMITS.RPM.MIN &&
+          value <= KEY_LIMITS.RPM.MAX
+        );
+      },
+      {
+        message: `RPM 限制必须是 ${KEY_LIMITS.RPM.MIN} 到 ${KEY_LIMITS.RPM.MAX} 之间的整数，或留空表示无限制`,
+      }
+    ),
   dailyQuota: z
-    .union([
-      z.coerce
-        .number()
-        .min(KEY_LIMITS.DAILY_QUOTA.MIN, `每日额度不能低于${KEY_LIMITS.DAILY_QUOTA.MIN}美元`)
-        .max(KEY_LIMITS.DAILY_QUOTA.MAX, `每日额度不能超过${KEY_LIMITS.DAILY_QUOTA.MAX}美元`),
-      z.literal(null),
-    ])
+    .union([z.string(), z.number(), z.null()])
     .optional()
-    .default(null),
+    .default(null)
+    .transform((value) => {
+      // 空字符串、null、undefined 都转换为 null（表示不设置限制）
+      if (value === "" || value === null || value === undefined) {
+        return null;
+      }
+      // 转换为数字
+      const num = typeof value === "string" ? parseFloat(value) : value;
+      if (isNaN(num)) {
+        return null;
+      }
+      return num;
+    })
+    .refine(
+      (value) => {
+        // null 是允许的（表示不设置每日额度限制）
+        if (value === null) return true;
+        // 数字必须在范围内
+        return value >= KEY_LIMITS.DAILY_QUOTA.MIN && value <= KEY_LIMITS.DAILY_QUOTA.MAX;
+      },
+      {
+        message: `每日额度必须在 ${KEY_LIMITS.DAILY_QUOTA.MIN} 到 ${KEY_LIMITS.DAILY_QUOTA.MAX} 美元之间，或留空表示无限制`,
+      }
+    ),
 });
 
 /**
