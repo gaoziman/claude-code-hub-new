@@ -174,10 +174,7 @@ export class ConsistencyService {
             `[Consistency] 缓存预热 key=${keyId} dimension=${dimension} value=${databaseValue}`
           );
         } catch (error) {
-          logger.warn(
-            `[Consistency] 缓存预热失败 key=${keyId} dimension=${dimension}:`,
-            error
-          );
+          logger.warn(`[Consistency] 缓存预热失败 key=${keyId} dimension=${dimension}:`, error);
           // 预热失败不影响检测流程，继续执行
         }
       }
@@ -236,7 +233,7 @@ export class ConsistencyService {
         // 解析 ZSET member 格式："timestamp:cost" (例如 "1737358553000:0.0123")
         let total = 0;
         for (const member of members) {
-          const parts = member.split(':');
+          const parts = member.split(":");
           if (parts.length >= 2) {
             const costStr = parts[1];
             const cost = parseFloat(costStr);
@@ -246,7 +243,9 @@ export class ConsistencyService {
           }
         }
 
-        logger.debug(`[Consistency] 5h ZSET parsed: key=${keyId}, members=${members.length}, total=${total}`);
+        logger.debug(
+          `[Consistency] 5h ZSET parsed: key=${keyId}, members=${members.length}, total=${total}`
+        );
         return total;
       } else if (dimension === "total") {
         key = `key:${keyId}:total_cost`;
@@ -366,9 +365,7 @@ export class ConsistencyService {
         // 删除 ZSET 缓存
         await redis.del(key);
 
-        logger.info(
-          `[Consistency] 已清空 5h ZSET ${key}，下次 API 请求时会自动重建`
-        );
+        logger.info(`[Consistency] 已清空 5h ZSET ${key}，下次 API 请求时会自动重建`);
         return; // 5h 维度处理完毕，直接返回
       }
 

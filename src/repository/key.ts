@@ -8,7 +8,6 @@ import type { User } from "@/types/user";
 import { toKey, toUser } from "./_shared/transformers";
 import { Decimal, toCostDecimal } from "@/lib/utils/currency";
 
-
 export async function findKeyList(userId: number): Promise<Key[]> {
   const result = await db
     .select({

@@ -193,7 +193,8 @@ function ProviderListCard({
                   <div>
                     <p className="text-sm font-semibold text-foreground">{provider.providerName}</p>
                     <p className="text-xs text-muted-foreground">
-                      成功率 {formatPercent(provider.successRate)} · P95 {formatLatency(provider.p95LatencyMs)}
+                      成功率 {formatPercent(provider.successRate)} · P95{" "}
+                      {formatLatency(provider.p95LatencyMs)}
                     </p>
                   </div>
                 </div>

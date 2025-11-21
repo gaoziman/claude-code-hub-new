@@ -325,7 +325,10 @@ export function KeyList({
             <div className="flex items-center gap-1.5">
               <div className="truncate text-sm font-semibold text-foreground">{value}</div>
               {record.scope === "owner" && (
-                <Badge variant="outline" className="text-[11px] bg-orange-50 text-orange-700 border-orange-200">
+                <Badge
+                  variant="outline"
+                  className="text-[11px] bg-orange-50 text-orange-700 border-orange-200"
+                >
                   主Key
                 </Badge>
               )}

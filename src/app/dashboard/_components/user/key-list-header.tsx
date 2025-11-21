@@ -254,10 +254,7 @@ export function KeyListHeader({
               </DialogTrigger>
               <DialogContent className="max-w-2xl md:max-w-3xl xl:max-w-4xl max-h-[90vh] overflow-y-auto">
                 <FormErrorBoundary>
-                  <AddKeyForm
-                    userId={activeUser?.id}
-                    onSuccess={handleKeyCreated}
-                  />
+                  <AddKeyForm userId={activeUser?.id} onSuccess={handleKeyCreated} />
                 </FormErrorBoundary>
               </DialogContent>
             </Dialog>
