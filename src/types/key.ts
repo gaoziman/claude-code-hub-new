@@ -27,6 +27,9 @@ export interface Key {
   rpmLimit: number | null;
   dailyLimitUsd: number | null;
 
+  // ========== 账期周期配置 ==========
+  billingCycleStart: Date | null; // 账期起始日期（如果为空，继承用户的）
+
   createdAt: Date;
   updatedAt: Date;
   deletedAt?: Date;
@@ -52,6 +55,8 @@ export interface CreateKeyData {
   limit_concurrent_sessions?: number;
   rpm_limit?: number | null;
   daily_limit_usd?: number | null;
+  // ========== 账期周期配置 ==========
+  billing_cycle_start?: Date | null;
 }
 
 /**
@@ -72,4 +77,6 @@ export interface UpdateKeyData {
   limit_concurrent_sessions?: number;
   rpm_limit?: number | null;
   daily_limit_usd?: number | null;
+  // ========== 账期周期配置 ==========
+  billing_cycle_start?: Date | null;
 }

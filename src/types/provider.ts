@@ -51,6 +51,9 @@ export interface Provider {
   proxyUrl: string | null;
   proxyFallbackToDirect: boolean;
 
+  // 客户端限制：仅限官方 Claude CLI 调用
+  onlyClaudeCli: boolean;
+
   // 废弃（保留向后兼容，但不再使用）
   // TPM (Tokens Per Minute): 每分钟可处理的文本总量
   tpm: number | null;
@@ -99,6 +102,8 @@ export interface ProviderDisplay {
   // 代理配置
   proxyUrl: string | null;
   proxyFallbackToDirect: boolean;
+  // 客户端限制
+  onlyClaudeCli: boolean;
   // 废弃字段（保留向后兼容）
   tpm: number | null;
   rpm: number | null;
@@ -111,6 +116,12 @@ export interface ProviderDisplay {
   todayCallCount?: number;
   lastCallTime?: string | null;
   lastCallModel?: string | null;
+}
+
+export interface ProviderUsageTrendPoint {
+  date: string;
+  totalCostUsd: string;
+  callCount: number;
 }
 
 export interface CreateProviderData {
@@ -148,6 +159,9 @@ export interface CreateProviderData {
   // 代理配置（支持 HTTP/HTTPS/SOCKS5）
   proxy_url?: string | null;
   proxy_fallback_to_direct?: boolean;
+
+  // 客户端限制：仅限官方 Claude CLI 调用
+  only_claude_cli?: boolean;
 
   // 废弃字段（保留向后兼容）
   // TPM (Tokens Per Minute): 每分钟可处理的文本总量
@@ -195,6 +209,9 @@ export interface UpdateProviderData {
   // 代理配置（支持 HTTP/HTTPS/SOCKS5）
   proxy_url?: string | null;
   proxy_fallback_to_direct?: boolean;
+
+  // 客户端限制：仅限官方 Claude CLI 调用
+  only_claude_cli?: boolean;
 
   // 废弃字段（保留向后兼容）
   // TPM (Tokens Per Minute): 每分钟可处理的文本总量

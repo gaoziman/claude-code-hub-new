@@ -17,6 +17,13 @@ export interface User {
   limitMonthlyUsd: number | null; // 月消费上限（美元）
   totalLimitUsd: number | null; // 总费用上限（美元）
 
+  // ========== 账期周期配置 ==========
+  billingCycleStart: Date | null; // 账期起始日期
+
+  // ========== 余额系统（按量付费） ==========
+  balanceUsd: number; // 用户余额（美元），默认 0
+  balanceUpdatedAt: Date | null; // 余额最后更新时间
+
   createdAt: Date;
   updatedAt: Date;
   deletedAt?: Date;
@@ -38,6 +45,9 @@ export interface CreateUserData {
   limitWeeklyUsd?: number | null;
   limitMonthlyUsd?: number | null;
   totalLimitUsd?: number | null;
+
+  // 账期周期配置
+  billingCycleStart?: Date | null;
 }
 
 /**
@@ -56,6 +66,9 @@ export interface UpdateUserData {
   limitWeeklyUsd?: number | null;
   limitMonthlyUsd?: number | null;
   totalLimitUsd?: number | null;
+
+  // 账期周期配置
+  billingCycleStart?: Date | null;
 }
 
 /**
@@ -123,6 +136,13 @@ export interface UserDisplay {
   limitWeeklyUsd?: number | null;
   limitMonthlyUsd?: number | null;
   totalLimitUsd?: number | null;
+
+  // ========== 账期周期配置 ==========
+  billingCycleStart?: Date | null; // 账期起始日期
+
+  // ========== 余额系统（按量付费） ==========
+  balanceUsd?: number; // 用户余额（美元）
+  balanceUpdatedAt?: Date | null; // 余额最后更新时间
 
   // ========== 用户聚合消费数据（所有 Key 的消费总和） ==========
   userAggregateWeeklyUsage?: number; // 用户所有 Key 的周消费总和

@@ -149,6 +149,11 @@ export interface MessageRequest {
   // 供应商倍率（记录该请求使用的 cost_multiplier）
   costMultiplier?: number;
 
+  // ========== 支付来源追踪（双轨计费） ==========
+  paymentSource?: 'package' | 'balance' | 'mixed'; // 支付来源
+  packageCostUsd?: number; // 从套餐中扣除的金额
+  balanceCostUsd?: number; // 从余额中扣除的金额
+
   // Session ID（用于会话粘性和日志追踪）
   sessionId?: string;
 
@@ -194,6 +199,11 @@ export interface CreateMessageRequestData {
 
   // 供应商倍率（记录该请求使用的 cost_multiplier）
   cost_multiplier?: number;
+
+  // ========== 支付来源追踪（双轨计费） ==========
+  payment_source?: 'package' | 'balance' | 'mixed'; // 支付来源
+  package_cost_usd?: Numeric; // 从套餐中扣除的金额
+  balance_cost_usd?: Numeric; // 从余额中扣除的金额
 
   // Session ID（用于会话粘性和日志追踪）
   session_id?: string;
