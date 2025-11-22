@@ -40,11 +40,22 @@ export default async function UsageLogsPage({
 
   return (
     <div className="space-y-6">
-      <div className="space-y-1">
-        <h1 className="text-lg font-semibold leading-tight">使用记录</h1>
-        <p className="text-sm text-muted-foreground">查看 API 调用日志和使用统计</p>
+      {/* 简约页面头部 */}
+      <div className="space-y-2">
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">使用记录</h1>
+        <p className="text-sm text-slate-600">查看 API 调用日志和使用统计</p>
       </div>
-      <Suspense fallback={<div className="text-center py-8 text-muted-foreground">加载中...</div>}>
+
+      <Suspense
+        fallback={
+          <div className="flex min-h-[400px] items-center justify-center">
+            <div className="space-y-3 text-center">
+              <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-blue-500" />
+              <p className="text-sm text-slate-600">加载中...</p>
+            </div>
+          </div>
+        }
+      >
         <UsageLogsView
           isAdmin={isAdmin}
           users={users}

@@ -260,7 +260,7 @@ export function ErrorDetailsDialog({
               title="错误信息"
               description="供应商返回的原始错误"
             >
-              <div className="rounded-xl border bg-destructive/5 p-0 font-mono text-xs text-destructive">
+              <div className="rounded-lg border bg-destructive/5 p-0 font-mono text-xs text-destructive">
                 <pre className="whitespace-pre-wrap break-words p-3">
                   {formatErrorMessage(errorMessage)}
                 </pre>
@@ -303,7 +303,7 @@ function InfoCard({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col justify-between rounded-2xl border bg-muted/30 p-4 shadow-sm">
+    <div className="flex flex-col justify-between rounded-lg border bg-muted/30 p-4 shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 text-sm font-semibold">
@@ -357,7 +357,7 @@ function TimelineCard({ providerChain }: { providerChain: ProviderChainItem[] })
   }, [timeline]);
 
   return (
-    <div className="space-y-3 rounded-2xl border bg-background/80 p-4 shadow-sm">
+    <div className="space-y-3 rounded-lg border bg-background/80 p-4 shadow-sm">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm font-semibold">
           <ArrowRight className="h-4 w-4 text-primary" />
@@ -367,13 +367,13 @@ function TimelineCard({ providerChain }: { providerChain: ProviderChainItem[] })
           <span className="text-xs text-muted-foreground">总耗时：{totalDuration}ms</span>
         )}
       </div>
-      <div className="rounded-xl bg-muted/20 text-xs leading-relaxed">
+      <div className="rounded-lg bg-muted/20 text-xs leading-relaxed">
         <div className="max-h-[420px] overflow-auto space-y-3 p-4">
           {segments.map((segment, idx) =>
             segment.type === "code" ? (
               <pre
                 key={`code-${idx}`}
-                className="whitespace-pre-wrap break-words rounded-lg border border-muted-foreground/20 bg-background p-3 font-mono text-xs"
+                className="whitespace-pre-wrap break-words rounded-md border border-muted-foreground/20 bg-background p-3 font-mono text-xs"
               >
                 {segment.content}
               </pre>

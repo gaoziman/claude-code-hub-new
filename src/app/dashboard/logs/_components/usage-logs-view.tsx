@@ -3,7 +3,7 @@
 import { useState, useTransition, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getUsageLogs } from "@/actions/usage-logs";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, Pause, Play, Activity, Coins, SquareStack, HardDrive } from "lucide-react";
 import { UsageLogsFilters } from "./usage-logs-filters";
@@ -218,14 +218,14 @@ export function UsageLogsView({
   const handlePageChange = (page: number) => {
     const query = new URLSearchParams(params.toString());
     query.set("page", page.toString());
-    router.push(`/dashboard/logs?${query.toString()}`);
+    router.push(`/dashboard/logs?${query.toString()}`, { scroll: false });
   };
 
   const handlePageSizeChange = (size: number) => {
     const query = new URLSearchParams(params.toString());
     query.set("pageSize", size.toString());
     query.set("page", "1");
-    router.push(`/dashboard/logs?${query.toString()}`);
+    router.push(`/dashboard/logs?${query.toString()}`, { scroll: false });
   };
 
   const summary = data?.summary;
@@ -235,112 +235,108 @@ export function UsageLogsView({
       : 0;
   const summarySection = summary ? (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-      <Card className="rounded-2xl border border-border/60 bg-gradient-to-br from-card to-card/80 shadow-[0_10px_20px_rgba(15,23,42,0.05)] transition-all hover:-translate-y-0.5">
-        <CardContent className="p-3.5 sm:p-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="space-y-1">
-              <p className="text-sm font-medium text-muted-foreground">总请求数</p>
-              <p className="text-[22px] font-semibold tracking-tight sm:text-[26px]">
-                {summary.totalRequests.toLocaleString()}
-                <span className="ml-1 text-sm font-normal text-muted-foreground">次</span>
-              </p>
-              <p className="text-xs text-muted-foreground">今日所有 API 调用</p>
-            </div>
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-muted/40 text-orange-500">
-              <Activity className="h-4 w-4" />
-            </div>
+      {/* 总请求数卡片 */}
+      <div className="group relative overflow-hidden rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition-all hover:border-orange-300 hover:shadow-md">
+        <div className="flex items-start justify-between">
+          <div className="space-y-1">
+            <p className="text-xs text-slate-500">总请求数</p>
+            <p className="text-3xl font-semibold text-slate-900">
+              {summary.totalRequests.toLocaleString()}
+            </p>
+            <p className="text-xs text-slate-400">今日 API 调用次数</p>
           </div>
-        </CardContent>
-      </Card>
-
-      <Card className="rounded-2xl border border-border/60 bg-gradient-to-br from-card to-card/80 shadow-[0_10px_20px_rgba(15,23,42,0.05)] transition-all hover:-translate-y-0.5">
-        <CardContent className="p-3.5 sm:p-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="space-y-1">
-              <p className="text-sm font-medium text-muted-foreground">总消耗金额</p>
-              <p className="text-[22px] font-semibold tracking-tight text-green-600 sm:text-[26px] dark:text-green-400">
-                {formatCurrency(summary.totalCost, currencyCode)}
-              </p>
-              <p className="text-xs text-muted-foreground">含缓存读写成本</p>
-            </div>
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-muted/40 text-emerald-500">
-              <Coins className="h-4 w-4" />
-            </div>
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-50">
+            <Activity className="h-5 w-5 text-orange-600" />
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <Card className="rounded-2xl border border-border/60 bg-gradient-to-br from-card to-card/80 shadow-[0_10px_20px_rgba(15,23,42,0.05)] transition-all hover:-translate-y-0.5">
-        <CardContent className="space-y-2.5 p-3.5 sm:p-4">
-          <div className="flex items-start justify-between gap-3">
+      {/* 总消耗金额卡片 */}
+      <div className="group relative overflow-hidden rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition-all hover:border-emerald-300 hover:shadow-md">
+        <div className="flex items-start justify-between">
+          <div className="space-y-1">
+            <p className="text-xs text-slate-500">总消耗金额</p>
+            <p className="text-3xl font-semibold text-slate-900">
+              {formatCurrency(summary.totalCost, currencyCode)}
+            </p>
+            <p className="text-xs text-slate-400">包含缓存费用</p>
+          </div>
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50">
+            <Coins className="h-5 w-5 text-emerald-600" />
+          </div>
+        </div>
+      </div>
+
+      {/* 总Token数卡片 */}
+      <div className="group relative overflow-hidden rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition-all hover:border-purple-300 hover:shadow-md">
+        <div className="space-y-3">
+          <div className="flex items-start justify-between">
             <div className="space-y-1">
-              <p className="text-sm font-medium text-muted-foreground">总 Token 数</p>
-              <p className="text-[22px] font-semibold tracking-tight text-purple-600 sm:text-[26px] dark:text-purple-400">
+              <p className="text-xs text-slate-500">总 Token 数</p>
+              <p className="text-3xl font-semibold text-slate-900">
                 {formatTokenAmount(summary.totalTokens)}
               </p>
             </div>
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-muted/40 text-purple-500">
-              <SquareStack className="h-4 w-4" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-50">
+              <SquareStack className="h-5 w-5 text-purple-600" />
             </div>
           </div>
-          <div className="flex flex-wrap gap-1.5 text-[11px]">
-            <span className="rounded-full bg-muted/50 px-2.5 py-0.5 text-muted-foreground">
-              输入 <span className="font-mono font-medium text-foreground">{formatTokenAmount(summary.totalInputTokens)}</span>
-            </span>
-            <span className="rounded-full bg-muted/50 px-2.5 py-0.5 text-muted-foreground">
-              输出 <span className="font-mono font-medium text-foreground">{formatTokenAmount(summary.totalOutputTokens)}</span>
-            </span>
+          <div className="flex gap-2 text-xs">
+            <div className="flex-1 rounded-md bg-slate-50 px-2 py-1.5 text-slate-600">
+              输入: {formatTokenAmount(summary.totalInputTokens)}
+            </div>
+            <div className="flex-1 rounded-md bg-slate-50 px-2 py-1.5 text-slate-600">
+              输出: {formatTokenAmount(summary.totalOutputTokens)}
+            </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <Card className="rounded-2xl border border-border/60 bg-gradient-to-br from-card to-card/80 shadow-[0_10px_20px_rgba(15,23,42,0.05)] transition-all hover:-translate-y-0.5">
-        <CardContent className="space-y-2.5 p-3.5 sm:p-4">
-          <div className="flex items-start justify-between gap-3">
+      {/* 缓存Token卡片 */}
+      <div className="group relative overflow-hidden rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition-all hover:border-cyan-300 hover:shadow-md">
+        <div className="space-y-3">
+          <div className="flex items-start justify-between">
             <div className="space-y-1">
-              <p className="text-sm font-medium text-muted-foreground">缓存 Token</p>
-              <p className="text-[22px] font-semibold tracking-tight text-orange-500 sm:text-[26px]">
+              <p className="text-xs text-slate-500">缓存 Token</p>
+              <p className="text-3xl font-semibold text-slate-900">
                 {formatTokenAmount(totalCacheTokens)}
               </p>
             </div>
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-muted/40 text-amber-500">
-              <HardDrive className="h-4 w-4" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-cyan-50">
+              <HardDrive className="h-5 w-5 text-cyan-600" />
             </div>
           </div>
-          <div className="flex flex-wrap gap-1.5 text-[11px]">
-            <span className="rounded-full bg-muted/50 px-2.5 py-0.5 text-muted-foreground">
-              写入 <span className="font-mono font-medium text-foreground">{formatTokenAmount(summary.totalCacheCreationTokens)}</span>
-            </span>
-            <span className="rounded-full bg-muted/50 px-2.5 py-0.5 text-muted-foreground">
-              读取 <span className="font-mono font-medium text-foreground">{formatTokenAmount(summary.totalCacheReadTokens)}</span>
-            </span>
+          <div className="flex gap-2 text-xs">
+            <div className="flex-1 rounded-md bg-slate-50 px-2 py-1.5 text-slate-600">
+              写入: {formatTokenAmount(summary.totalCacheCreationTokens)}
+            </div>
+            <div className="flex-1 rounded-md bg-slate-50 px-2 py-1.5 text-slate-600">
+              读取: {formatTokenAmount(summary.totalCacheReadTokens)}
+            </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   ) : null;
 
   const filtersSection = (
-    <Card className="rounded-2xl border border-border/60 shadow-sm">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base font-semibold">筛选条件</CardTitle>
-        <CardDescription className="text-sm text-muted-foreground">
-          精确定位想要查看的请求范围
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="pt-2">
-        <UsageLogsFilters
-          isAdmin={isAdmin}
-          isChildKeyView={isChildKeyView}
-          users={users}
-          providers={providers}
-          initialKeys={initialKeys}
-          filters={filters}
-          onChange={handleFilterChange}
-          onReset={() => router.push(`/dashboard/logs?date=${formatDate(getTodayDate())}`)}
-        />
-      </CardContent>
-    </Card>
+    <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="mb-4">
+        <h3 className="text-sm font-semibold text-slate-900">筛选条件</h3>
+        <p className="text-xs text-slate-500">选择查询范围和参数</p>
+      </div>
+
+      <UsageLogsFilters
+        isAdmin={isAdmin}
+        isChildKeyView={isChildKeyView}
+        users={users}
+        providers={providers}
+        initialKeys={initialKeys}
+        filters={filters}
+        onChange={handleFilterChange}
+        onReset={() => router.push(`/dashboard/logs?date=${formatDate(getTodayDate())}`)}
+      />
+    </div>
   );
 
   const tableSection = (
