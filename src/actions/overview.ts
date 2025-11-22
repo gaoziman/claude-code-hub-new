@@ -75,6 +75,8 @@ export interface OverviewData {
     keySpendingLimits?: PersonalSpendingLimit[];
     /** 当前Key名称 */
     currentKeyName?: string;
+    /** 账户余额（美元） */
+    balanceUsd?: number;
   };
 }
 
@@ -226,6 +228,7 @@ export async function getOverviewData(): Promise<ActionResult<OverviewData>> {
         userSpendingLimits,
         keySpendingLimits,
         currentKeyName: session.key.name,
+        balanceUsd: session.user.balanceUsd ?? 0,
       };
     }
 

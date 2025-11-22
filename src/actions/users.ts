@@ -13,7 +13,7 @@ import { createKey } from "@/repository/key";
 import { getSession } from "@/lib/auth";
 import type { ActionResult } from "./types";
 import { UsageTimeRangeValue, resolveUsageTimeRange } from "@/lib/time-range";
-import { getTimeRangeForPeriod } from "@/lib/rate-limit/time-utils";
+import { getTimeRangeForPeriod, getTimeRangeForBillingPeriod } from "@/lib/rate-limit/time-utils";
 
 type GetUsersParam = UsageTimeRangeValue | { timeRange?: UsageTimeRangeValue } | undefined;
 
@@ -50,8 +50,9 @@ export async function getUsers(params?: GetUsersParam): Promise<UserDisplay[]> {
     const userDisplays: UserDisplay[] = await Promise.all(
       users.map(async (user) => {
         try {
-          const weeklyRange = getTimeRangeForPeriod("weekly");
-          const monthlyRange = getTimeRangeForPeriod("monthly");
+          // 使用用户的账期起始日期计算周期范围，没有设置则回退到自然周期
+          const weeklyRange = getTimeRangeForBillingPeriod("weekly", user.billingCycleStart);
+          const monthlyRange = getTimeRangeForBillingPeriod("monthly", user.billingCycleStart);
           const totalRange = getTimeRangeForPeriod("total");
 
           const [
@@ -129,6 +130,11 @@ export async function getUsers(params?: GetUsersParam): Promise<UserDisplay[]> {
             limitWeeklyUsd: user.limitWeeklyUsd,
             limitMonthlyUsd: user.limitMonthlyUsd,
             totalLimitUsd: user.totalLimitUsd,
+            // 账期周期配置
+            billingCycleStart: user.billingCycleStart,
+            // 余额字段
+            balanceUsd: user.balanceUsd,
+            balanceUpdatedAt: user.balanceUpdatedAt,
             // 用户聚合消费数据
             userAggregateWeeklyUsage,
             userAggregateMonthlyUsage,
@@ -200,6 +206,7 @@ export async function getUsers(params?: GetUsersParam): Promise<UserDisplay[]> {
             expiresAt: expiresAtIso,
             isExpired,
             status: !user.isEnabled ? "disabled" : isExpired ? "expired" : "active",
+            billingCycleStart: user.billingCycleStart,
             keys: [],
           };
         }
@@ -226,6 +233,8 @@ export async function addUser(data: {
   limitWeeklyUsd?: number | null;
   limitMonthlyUsd?: number | null;
   totalLimitUsd?: number | null;
+  // 账期周期配置
+  billingCycleStart?: string | null;
 }): Promise<ActionResult> {
   try {
     // 权限检查：只有管理员可以添加用户
@@ -245,6 +254,7 @@ export async function addUser(data: {
       limitWeeklyUsd: data.limitWeeklyUsd,
       limitMonthlyUsd: data.limitMonthlyUsd,
       totalLimitUsd: data.totalLimitUsd,
+      billingCycleStart: data.billingCycleStart ?? null,
     });
 
     const normalizedTags = Array.from(
@@ -253,6 +263,12 @@ export async function addUser(data: {
     const expiresAtDate =
       validatedData.expiresAt && typeof validatedData.expiresAt === "string"
         ? new Date(validatedData.expiresAt)
+        : null;
+
+    // 账期起始日期转换
+    const billingCycleStartDate =
+      validatedData.billingCycleStart && typeof validatedData.billingCycleStart === "string"
+        ? new Date(validatedData.billingCycleStart)
         : null;
 
     const newUser = await createUser({
@@ -266,6 +282,7 @@ export async function addUser(data: {
       limitWeeklyUsd: validatedData.limitWeeklyUsd,
       limitMonthlyUsd: validatedData.limitMonthlyUsd,
       totalLimitUsd: validatedData.totalLimitUsd,
+      billingCycleStart: billingCycleStartDate,
     });
 
     // 为新用户创建默认密钥（使用用户名称作为 Key 名称）
@@ -306,6 +323,8 @@ export async function editUser(
     limitWeeklyUsd?: number | null;
     limitMonthlyUsd?: number | null;
     totalLimitUsd?: number | null;
+    // 账期周期配置
+    billingCycleStart?: string | null;
   }
 ): Promise<ActionResult> {
   try {
@@ -326,6 +345,14 @@ export async function editUser(
       expiresAtValue = validatedData.expiresAt ? new Date(validatedData.expiresAt) : null;
     }
 
+    // 账期起始日期转换
+    let billingCycleStartValue: Date | null | undefined = undefined;
+    if (validatedData.billingCycleStart !== undefined) {
+      billingCycleStartValue = validatedData.billingCycleStart
+        ? new Date(validatedData.billingCycleStart)
+        : null;
+    }
+
     await updateUser(userId, {
       name: validatedData.name,
       description: validatedData.note,
@@ -337,6 +364,7 @@ export async function editUser(
       limitWeeklyUsd: validatedData.limitWeeklyUsd,
       limitMonthlyUsd: validatedData.limitMonthlyUsd,
       totalLimitUsd: validatedData.totalLimitUsd,
+      billingCycleStart: billingCycleStartValue,
     });
 
     revalidatePath("/dashboard");

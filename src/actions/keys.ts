@@ -35,6 +35,8 @@ export async function addKey(data: {
   limitConcurrentSessions?: number;
   rpmLimit?: number | null;
   dailyQuota?: number | null;
+  // 账期周期配置
+  billingCycleStart?: string | null;
 }): Promise<ActionResult<{ generatedKey: string; name: string }>> {
   try {
     // 权限检查：用户只能给自己添加Key，管理员可以给所有人添加Key
@@ -61,6 +63,8 @@ export async function addKey(data: {
       limitConcurrentSessions: data.limitConcurrentSessions,
       rpmLimit: data.rpmLimit,
       dailyQuota: data.dailyQuota,
+      // 账期周期配置
+      billingCycleStart: data.billingCycleStart,
     });
 
     // 检查是否存在同名的生效key
@@ -91,6 +95,10 @@ export async function addKey(data: {
       limit_concurrent_sessions: validatedData.limitConcurrentSessions,
       rpm_limit: validatedData.rpmLimit,
       daily_limit_usd: validatedData.dailyQuota,
+      // 账期周期配置
+      billing_cycle_start: validatedData.billingCycleStart
+        ? new Date(validatedData.billingCycleStart)
+        : undefined,
     });
 
     revalidatePath("/dashboard");

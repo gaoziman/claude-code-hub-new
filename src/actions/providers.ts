@@ -10,6 +10,7 @@ import {
   renameProviderGroup,
   clearProviderGroup,
   getActiveProviderIds,
+  getProviderUsageTrendFromDB,
 } from "@/repository/provider";
 import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
@@ -17,6 +18,7 @@ import {
   type ProviderDisplay,
   type ProviderType,
   type ProviderGroupSummary,
+  type ProviderUsageTrendPoint,
 } from "@/types/provider";
 import { maskKey } from "@/lib/utils/validation";
 import { getSession } from "@/lib/auth";
@@ -138,6 +140,7 @@ export async function getProviders(): Promise<ProviderDisplay[]> {
         circuitBreakerHalfOpenSuccessThreshold: provider.circuitBreakerHalfOpenSuccessThreshold,
         proxyUrl: provider.proxyUrl,
         proxyFallbackToDirect: provider.proxyFallbackToDirect,
+        onlyClaudeCli: provider.onlyClaudeCli,
         tpm: provider.tpm,
         rpm: provider.rpm,
         rpd: provider.rpd,
@@ -187,6 +190,7 @@ export async function addProvider(data: {
   circuit_breaker_half_open_success_threshold?: number;
   proxy_url?: string | null;
   proxy_fallback_to_direct?: boolean;
+  only_claude_cli?: boolean;
   codex_instructions_strategy?: "auto" | "force_official" | "keep_original";
   tpm: number | null;
   rpm: number | null;
@@ -229,6 +233,7 @@ export async function addProvider(data: {
         validated.circuit_breaker_half_open_success_threshold ?? 2,
       proxy_url: validated.proxy_url ?? null,
       proxy_fallback_to_direct: validated.proxy_fallback_to_direct ?? false,
+      only_claude_cli: validated.only_claude_cli ?? true,
       tpm: validated.tpm ?? null,
       rpm: validated.rpm ?? null,
       rpd: validated.rpd ?? null,
@@ -275,6 +280,24 @@ export async function getProviderGroupsSummary(): Promise<ProviderGroupSummary[]
     return [];
   }
   return listProviderGroups();
+}
+
+export async function getProviderUsageTrend(
+  providerId: number,
+  days = 30
+): Promise<ActionResult<ProviderUsageTrendPoint[]>> {
+  try {
+    const session = await getSession();
+    if (!session || session.user.role !== "admin") {
+      return { ok: false, error: "未授权" };
+    }
+
+    const data = await getProviderUsageTrendFromDB(providerId, days);
+    return { ok: true, data };
+  } catch (error) {
+    logger.error("获取供应商使用趋势失败", error);
+    return { ok: false, error: "获取供应商使用趋势失败" };
+  }
 }
 
 export async function renameProviderGroupAction(
@@ -346,6 +369,7 @@ export async function editProvider(
     circuit_breaker_half_open_success_threshold?: number;
     proxy_url?: string | null;
     proxy_fallback_to_direct?: boolean;
+    only_claude_cli?: boolean;
     codex_instructions_strategy?: "auto" | "force_official" | "keep_original";
     tpm?: number | null;
     rpm?: number | null;
