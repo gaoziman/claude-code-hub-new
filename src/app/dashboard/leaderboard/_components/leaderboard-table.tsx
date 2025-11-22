@@ -97,7 +97,7 @@ export function LeaderboardTable({
   return (
     <Card className="border-none shadow-none">
       <CardContent className="p-0">
-        <div className="rounded-3xl border border-border/60 bg-background">
+        <div className="rounded-lg border border-border/60 bg-background">
           <Table>
             <TableHeader>
               <TableRow>

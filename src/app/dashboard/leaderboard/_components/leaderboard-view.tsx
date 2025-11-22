@@ -372,7 +372,7 @@ export function LeaderboardView({ viewer, currencyCode }: LeaderboardViewProps) 
         )}
       </div>
 
-      <div className="space-y-3 rounded-3xl border border-border/60 bg-card/70 p-4 shadow-sm">
+      <div className="space-y-3 rounded-lg border border-border/60 bg-card/70 p-4 shadow-sm">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <SegmentedControl
             value={period}
@@ -454,7 +454,7 @@ function SummaryCard({ title, value, subtitle, hint, icon, meta }: SummaryCardPr
             <p className="text-xs text-muted-foreground">{title}</p>
             <p className="text-xl font-semibold">{value}</p>
           </div>
-          {icon ? <div className="rounded-2xl bg-muted/60 p-2">{icon}</div> : null}
+          {icon ? <div className="rounded-lg bg-muted/60 p-2">{icon}</div> : null}
         </div>
         {subtitle ? (
           <p className="text-xs text-muted-foreground">{subtitle}</p>
@@ -466,7 +466,7 @@ function SummaryCard({ title, value, subtitle, hint, icon, meta }: SummaryCardPr
             {meta.map((item) => (
               <div
                 key={item.label}
-                className="rounded-lg border border-dashed border-border/60 px-2 py-1"
+                className="rounded-md border border-dashed border-border/60 px-2 py-1"
               >
                 <p className="text-[11px] uppercase tracking-wide">{item.label}</p>
                 <p className="text-sm font-semibold text-foreground">{item.value}</p>
@@ -517,7 +517,7 @@ function MyRankCard({
           )}
         </div>
         {viewer ? (
-          <div className="rounded-2xl border border-dashed border-border/60 p-3 text-sm">
+          <div className="rounded-lg border border-dashed border-border/60 p-3 text-sm">
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">用户</span>
               <span className="font-medium">{viewer.name ?? "未知用户"}</span>
@@ -565,7 +565,7 @@ function TopPerformerCard({
         : formatTokenAmount(entry.totalTokens);
 
   return (
-    <div className="rounded-2xl border border-border/60 bg-card/80 p-3 shadow-sm">
+    <div className="rounded-lg border border-border/60 bg-card/80 p-3 shadow-sm">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div
