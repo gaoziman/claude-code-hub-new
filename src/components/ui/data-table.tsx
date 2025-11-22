@@ -119,14 +119,17 @@ export function DataTable<T extends TableData>({
       )}
       style={maxHeight ? { maxHeight } : undefined}
     >
-      <Table style={minWidth ? { minWidth } : undefined}>
+      <Table
+        className="table-fixed w-full"
+        style={minWidth ? { minWidth } : undefined}
+      >
         <TableHeader className={cn(stickyHeader && "sticky top-0 z-10 bg-background")}>
           <TableRow>
             {columns.map((column) => (
               <TableHead
                 key={column.key}
                 className={cn(
-                  "whitespace-nowrap",
+                  "whitespace-nowrap overflow-hidden",
                   column.align === 'center' && "text-center",
                   column.align === 'right' && "text-right",
                   column.className
