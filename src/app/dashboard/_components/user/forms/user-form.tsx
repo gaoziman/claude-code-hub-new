@@ -16,7 +16,7 @@ import { ProviderGroupSelect } from "./provider-group-select";
 import { Button } from "@/components/ui/button";
 import { ExpirySelector } from "@/components/ui/expiry-selector";
 import { formatDateTimeLocal } from "@/lib/utils/datetime";
-import { getResetInfo } from "@/lib/rate-limit/time-utils";
+import { getResetInfoForBillingPeriod } from "@/lib/rate-limit/time-utils";
 
 interface UserFormProps {
   user?: {
@@ -32,6 +32,8 @@ interface UserFormProps {
     limitWeeklyUsd?: number | null;
     limitMonthlyUsd?: number | null;
     totalLimitUsd?: number | null;
+    // 账期周期配置
+    billingCycleStart?: Date | null;
   };
   onSuccess?: () => void;
   providerGroupOptions?: string[];
@@ -64,6 +66,8 @@ export function UserForm({
       limitWeeklyUsd: user?.limitWeeklyUsd ?? null,
       limitMonthlyUsd: user?.limitMonthlyUsd ?? null,
       totalLimitUsd: user?.totalLimitUsd ?? null,
+      // 账期周期配置
+      billingCycleStart: user?.billingCycleStart ? formatDateTimeLocal(user.billingCycleStart) : "",
     },
     onSubmit: async (data) => {
       startTransition(async () => {
@@ -82,6 +86,8 @@ export function UserForm({
               limitWeeklyUsd: data.limitWeeklyUsd,
               limitMonthlyUsd: data.limitMonthlyUsd,
               totalLimitUsd: data.totalLimitUsd,
+              // 账期周期配置
+              billingCycleStart: data.billingCycleStart || null,
             });
           } else {
             res = await addUser({
@@ -96,6 +102,8 @@ export function UserForm({
               limitWeeklyUsd: data.limitWeeklyUsd,
               limitMonthlyUsd: data.limitMonthlyUsd,
               totalLimitUsd: data.totalLimitUsd,
+              // 账期周期配置
+              billingCycleStart: data.billingCycleStart || null,
             });
           }
 
@@ -127,22 +135,33 @@ export function UserForm({
     form.setValue("tags", [...currentTags, normalized]);
   };
 
-  // 计算周限额和月限额的重置时间说明
+  // 获取当前设置的账期起始日期
+  const billingCycleStartValue = form.values.billingCycleStart as string;
+
+  // 计算周限额和月限额的重置时间说明（基于账期周期）
   const weeklyResetInfo = useMemo(() => {
-    const resetInfo = getResetInfo("weekly");
-    if (resetInfo.resetAt) {
+    const billingCycleStartDate = billingCycleStartValue ? new Date(billingCycleStartValue) : null;
+    const resetInfo = getResetInfoForBillingPeriod("weekly", billingCycleStartDate);
+    if (resetInfo.type === "billing" && resetInfo.resetAt) {
+      return `从账期起始日开始每7天重置，将于 ${format(resetInfo.resetAt, "M月d日(E) HH:mm", { locale: zhCN })} 重置`;
+    }
+    if (resetInfo.type === "natural" && resetInfo.resetAt) {
       return `从每周一 00:00 开始计算，将于 ${format(resetInfo.resetAt, "M月d日(E) HH:mm", { locale: zhCN })} 重置`;
     }
     return null;
-  }, []);
+  }, [billingCycleStartValue]);
 
   const monthlyResetInfo = useMemo(() => {
-    const resetInfo = getResetInfo("monthly");
-    if (resetInfo.resetAt) {
+    const billingCycleStartDate = billingCycleStartValue ? new Date(billingCycleStartValue) : null;
+    const resetInfo = getResetInfoForBillingPeriod("monthly", billingCycleStartDate);
+    if (resetInfo.type === "billing" && resetInfo.resetAt) {
+      return `从账期起始日开始每30天重置，将于 ${format(resetInfo.resetAt, "M月d日 HH:mm", { locale: zhCN })} 重置`;
+    }
+    if (resetInfo.type === "natural" && resetInfo.resetAt) {
       return `从每月1号 00:00 开始计算，将于 ${format(resetInfo.resetAt, "M月d日 HH:mm", { locale: zhCN })} 重置`;
     }
     return null;
-  }, []);
+  }, [billingCycleStartValue]);
 
   return (
     <DialogFormLayout
@@ -219,6 +238,24 @@ export function UserForm({
             控制该用户所有密钥的总消费。留空表示无限制。
           </p>
         </div>
+
+        {/* 账期起始日期设置 */}
+        <div className="space-y-1">
+          <TextField
+            label="账期起始日期"
+            type="datetime-local"
+            placeholder="留空=使用自然周期"
+            {...form.getFieldProps("billingCycleStart")}
+            value={(form.values.billingCycleStart as string) || ""}
+            onChange={(val) => {
+              form.setValue("billingCycleStart", val || "");
+            }}
+          />
+          <p className="text-[10px] text-muted-foreground">
+            设置后，周限额将从此日期开始每7天重置，月限额每30天重置。留空则使用自然周（周一）和自然月（1号）。
+          </p>
+        </div>
+
         <div className="grid grid-cols-2 gap-3">
           <TextField
             label="5小时消费上限 (USD)"
