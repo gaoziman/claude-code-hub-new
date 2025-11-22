@@ -74,6 +74,16 @@ export const CreateUserSchema = z.object({
     .refine((value) => value === null || (value >= 0 && value <= 1000000), {
       message: "总消费上限必须在 0 到 1000000 美元之间，或留空表示无限制",
     }),
+  // 账期周期配置
+  billingCycleStart: z
+    .union([z.string(), z.null()])
+    .optional()
+    .transform((value) => {
+      if (typeof value === "string" && value.trim().length > 0) {
+        return value;
+      }
+      return null;
+    }),
 });
 
 /**
@@ -145,6 +155,16 @@ export const UpdateUserSchema = z.object({
     })
     .refine((value) => value === null || (value >= 0 && value <= 1000000), {
       message: "总消费上限必须在 0 到 1000000 美元之间，或留空表示无限制",
+    }),
+  // 账期周期配置
+  billingCycleStart: z
+    .union([z.string(), z.null()])
+    .optional()
+    .transform((value) => {
+      if (typeof value === "string" && value.trim().length > 0) {
+        return value;
+      }
+      return null;
     }),
 });
 
@@ -280,6 +300,16 @@ export const KeyFormSchema = z.object({
         message: `每日额度必须在 ${KEY_LIMITS.DAILY_QUOTA.MIN} 到 ${KEY_LIMITS.DAILY_QUOTA.MAX} 美元之间，或留空表示无限制`,
       }
     ),
+  // 账期周期配置
+  billingCycleStart: z
+    .union([z.string(), z.null()])
+    .optional()
+    .transform((value) => {
+      if (typeof value === "string" && value.trim().length > 0) {
+        return value;
+      }
+      return null;
+    }),
 });
 
 /**
@@ -368,7 +398,9 @@ export const CreateProviderSchema = z.object({
   // 代理配置
   proxy_url: z.string().max(512, "代理地址长度不能超过512个字符").nullable().optional(),
   proxy_fallback_to_direct: z.boolean().optional().default(false),
-  // 废弃字段（保留向后兼容，不再验证范围）
+  // 客户端限制配置
+  only_claude_cli: z.boolean().optional().default(true),
+  // 废弃字段（保留向后兼容,不再验证范围）
   tpm: z.number().int().nullable().optional(),
   rpm: z.number().int().nullable().optional(),
   rpd: z.number().int().nullable().optional(),
@@ -453,6 +485,8 @@ export const UpdateProviderSchema = z
     // 代理配置
     proxy_url: z.string().max(512, "代理地址长度不能超过512个字符").nullable().optional(),
     proxy_fallback_to_direct: z.boolean().optional(),
+    // 客户端限制配置
+    only_claude_cli: z.boolean().optional(),
     // 废弃字段（保留向后兼容，不再验证范围）
     tpm: z.number().int().nullable().optional(),
     rpm: z.number().int().nullable().optional(),

@@ -7,7 +7,7 @@ import {
   GET_COST_5H_ROLLING_WINDOW,
 } from "@/lib/redis/lua-scripts";
 import { sumKeyCostToday } from "@/repository/statistics";
-import { getTimeRangeForPeriod, getTTLForPeriod, getSecondsUntilMidnight } from "./time-utils";
+import { getTimeRangeForPeriod, getTTLForPeriod, getSecondsUntilMidnight, getTimeRangeForBillingPeriod } from "./time-utils";
 
 interface CostLimit {
   amount: number | null | undefined;
@@ -21,6 +21,10 @@ export class RateLimitService {
   /**
    * 检查金额限制（User、Owner Key Aggregate、Key 或 Provider）
    * 优先使用 Redis，失败时降级到数据库查询（防止 Redis 清空后超支）
+   *
+   * @param billingCycleStart 账期起始日期（可选）
+   *   - 如果提供：使用账期周期计算周/月限额，直接查询数据库（准确性优先）
+   *   - 如果未提供：使用自然周/月周期，优先使用 Redis 缓存（性能优先）
    */
   static async checkCostLimits(
     id: number,
@@ -30,7 +34,8 @@ export class RateLimitService {
       limit_weekly_usd?: number | null;
       limit_monthly_usd?: number | null;
       total_limit_usd?: number | null;
-    }
+    },
+    billingCycleStart?: Date | null
   ): Promise<{ allowed: boolean; reason?: string; current?: number }> {
     const costLimits: CostLimit[] = [
       { amount: limits.limit_5h_usd, period: "5h", name: "5小时" },
@@ -39,8 +44,21 @@ export class RateLimitService {
       { amount: limits.total_limit_usd ?? null, period: "total", name: "总计" },
     ];
 
+    // 如果设置了账期起始日期，且有周/月限额，直接使用数据库查询（账期周期准确性优先）
+    // 因为 Redis 的 key 是基于自然周/月的，无法精确匹配账期周期
+    const hasWeeklyOrMonthlyLimit =
+      (limits.limit_weekly_usd && limits.limit_weekly_usd > 0) ||
+      (limits.limit_monthly_usd && limits.limit_monthly_usd > 0);
+
+    if (billingCycleStart && hasWeeklyOrMonthlyLimit) {
+      logger.debug(
+        `[RateLimit] Using billing cycle for ${type}:${id}, billingCycleStart: ${billingCycleStart.toISOString()}`
+      );
+      return await this.checkCostLimitsFromDatabase(id, type, costLimits, billingCycleStart);
+    }
+
     try {
-      // Fast Path: Redis 查询
+      // Fast Path: Redis 查询（仅限自然周期模式）
       if (this.redis && this.redis.status === "ready") {
         const now = Date.now();
         const window5h = 5 * 60 * 60 * 1000; // 5 hours in ms
@@ -126,11 +144,16 @@ export class RateLimitService {
 
   /**
    * 从数据库检查金额限制（降级路径）
+   *
+   * @param billingCycleStart 账期起始日期（可选）
+   *   - 如果提供：使用账期周期计算周/月限额时间范围
+   *   - 如果未提供：使用自然周/月周期
    */
   private static async checkCostLimitsFromDatabase(
     id: number,
     type: "user" | "owner_key_aggregate" | "key" | "provider",
-    costLimits: CostLimit[]
+    costLimits: CostLimit[],
+    billingCycleStart?: Date | null
   ): Promise<{ allowed: boolean; reason?: string }> {
     const {
       sumKeyCostInTimeRange,
@@ -142,11 +165,13 @@ export class RateLimitService {
     for (const limit of costLimits) {
       if (!limit.amount || limit.amount <= 0) continue;
 
-      // 计算时间范围（使用新的时间工具函数）
+      // 计算时间范围
+      // - 如果有 billingCycleStart：使用账期周期
+      // - 否则：使用自然周/月周期
       const { startTime, endTime } =
         limit.period === "total"
           ? { startTime: new Date(0), endTime: new Date() }
-          : getTimeRangeForPeriod(limit.period);
+          : getTimeRangeForBillingPeriod(limit.period, billingCycleStart);
 
       // 查询数据库
       let current: number;
@@ -646,5 +671,206 @@ export class RateLimitService {
     }
 
     return current;
+  }
+
+  /**
+   * 检查用户成本限额（套餐 + 余额双轨）
+   *
+   * 业务场景：
+   * - 用户有周/月套餐限额 + 按量付费余额
+   * - 优先从套餐中扣款，套餐用完后从余额扣款
+   *
+   * @param userId - 用户ID
+   * @param limits - 用户套餐限额配置
+   * @param balanceUsd - 用户当前余额（美元）
+   * @param estimatedCost - 预估本次请求成本
+   * @returns 检查结果 + 支付策略
+   */
+  static async checkUserCostWithBalance(
+    userId: number,
+    limits: {
+      limit_5h_usd?: number | null;
+      limit_weekly_usd?: number | null;
+      limit_monthly_usd?: number | null;
+      total_limit_usd?: number | null;
+    },
+    balanceUsd: number,
+    estimatedCost: number
+  ): Promise<{
+    allowed: boolean;
+    reason?: string;
+    paymentStrategy?: {
+      fromPackage: number; // 从套餐中扣除的金额
+      fromBalance: number; // 从余额中扣除的金额
+      source: 'package' | 'balance' | 'mixed'; // 支付来源
+    };
+  }> {
+    // 1. 检查套餐限额（5h/周/月/总计）
+    const packageCheck = await this.checkCostLimits(userId, "user", limits);
+
+    // 如果套餐限额检查失败，尝试使用余额支付
+    if (!packageCheck.allowed) {
+      // 套餐已用尽，检查余额是否足够
+      if (balanceUsd >= estimatedCost) {
+        return {
+          allowed: true,
+          paymentStrategy: {
+            fromPackage: 0,
+            fromBalance: estimatedCost,
+            source: 'balance',
+          },
+        };
+      } else {
+        // 套餐用尽且余额不足
+        return {
+          allowed: false,
+          reason: `套餐已用尽且余额不足（余额: $${balanceUsd.toFixed(4)}, 需要: $${estimatedCost.toFixed(4)}）`,
+        };
+      }
+    }
+
+    // 2. 套餐限额检查通过，计算剩余配额（保守估计）
+    const costLimits: CostLimit[] = [
+      { amount: limits.limit_5h_usd, period: "5h", name: "5小时" },
+      { amount: limits.limit_weekly_usd, period: "weekly", name: "周" },
+      { amount: limits.limit_monthly_usd, period: "monthly", name: "月" },
+      { amount: limits.total_limit_usd ?? null, period: "total", name: "总计" },
+    ];
+
+    // 计算每个限额的剩余额度
+    let minRemaining = Infinity;
+    let hasAnyLimit = false;
+
+    try {
+      if (this.redis && this.redis.status === "ready") {
+        const now = Date.now();
+        const window5h = 5 * 60 * 60 * 1000;
+
+        for (const limit of costLimits) {
+          if (!limit.amount || limit.amount <= 0) continue;
+          hasAnyLimit = true;
+
+          let current = 0;
+
+          if (limit.period === "5h") {
+            const key = `user:${userId}:cost_5h_rolling`;
+            const result = (await this.redis.eval(
+              GET_COST_5H_ROLLING_WINDOW,
+              1,
+              key,
+              now.toString(),
+              window5h.toString()
+            )) as string;
+            current = parseFloat(result || "0");
+          } else if (limit.period === "total") {
+            const value = await this.redis.get(`user:${userId}:total_cost`);
+            current = parseFloat((value as string) || "0");
+          } else {
+            const value = await this.redis.get(`user:${userId}:cost_${limit.period}`);
+            current = parseFloat((value as string) || "0");
+          }
+
+          const remaining = limit.amount - current;
+          if (remaining < minRemaining) {
+            minRemaining = remaining;
+          }
+        }
+      } else {
+        // Redis 不可用，从数据库查询
+        logger.warn("[RateLimit] Redis unavailable for balance check, querying database");
+
+        const {
+          sumUserCostInTimeRange,
+        } = await import("@/repository/statistics");
+
+        for (const limit of costLimits) {
+          if (!limit.amount || limit.amount <= 0) continue;
+          hasAnyLimit = true;
+
+          const { startTime, endTime } =
+            limit.period === "total"
+              ? { startTime: new Date(0), endTime: new Date() }
+              : getTimeRangeForPeriod(limit.period);
+
+          const current = await sumUserCostInTimeRange(userId, startTime, endTime);
+          const remaining = limit.amount - current;
+
+          if (remaining < minRemaining) {
+            minRemaining = remaining;
+          }
+        }
+      }
+    } catch (error) {
+      logger.error("[RateLimit] Failed to calculate package remaining:", error);
+      // 计算失败，降级为纯余额支付
+      if (balanceUsd >= estimatedCost) {
+        return {
+          allowed: true,
+          paymentStrategy: {
+            fromPackage: 0,
+            fromBalance: estimatedCost,
+            source: 'balance',
+          },
+        };
+      } else {
+        return {
+          allowed: false,
+          reason: `余额不足（余额: $${balanceUsd.toFixed(4)}, 需要: $${estimatedCost.toFixed(4)}）`,
+        };
+      }
+    }
+
+    // 3. 如果没有设置任何套餐限额，纯余额支付
+    if (!hasAnyLimit) {
+      if (balanceUsd >= estimatedCost) {
+        return {
+          allowed: true,
+          paymentStrategy: {
+            fromPackage: 0,
+            fromBalance: estimatedCost,
+            source: 'balance',
+          },
+        };
+      } else {
+        return {
+          allowed: false,
+          reason: `余额不足（余额: $${balanceUsd.toFixed(4)}, 需要: $${estimatedCost.toFixed(4)}）`,
+        };
+      }
+    }
+
+    // 4. 计算支付策略
+    if (minRemaining >= estimatedCost) {
+      // 套餐剩余额度足够，全部从套餐支付
+      return {
+        allowed: true,
+        paymentStrategy: {
+          fromPackage: estimatedCost,
+          fromBalance: 0,
+          source: 'package',
+        },
+      };
+    } else {
+      // 套餐剩余额度不足，需要混合支付
+      const fromPackage = Math.max(0, minRemaining); // 套餐中可用的部分
+      const fromBalance = estimatedCost - fromPackage; // 余额中需要支付的部分
+
+      // 检查余额是否足够
+      if (balanceUsd >= fromBalance) {
+        return {
+          allowed: true,
+          paymentStrategy: {
+            fromPackage,
+            fromBalance,
+            source: 'mixed',
+          },
+        };
+      } else {
+        return {
+          allowed: false,
+          reason: `套餐剩余 $${fromPackage.toFixed(4)}，余额不足（需要 $${fromBalance.toFixed(4)}, 当前 $${balanceUsd.toFixed(4)}）`,
+        };
+      }
+    }
   }
 }

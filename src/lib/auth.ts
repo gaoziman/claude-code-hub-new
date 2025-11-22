@@ -32,6 +32,9 @@ export async function validateKey(keyString: string): Promise<AuthSession | null
       limitWeeklyUsd: null,
       limitMonthlyUsd: null,
       totalLimitUsd: null,
+      billingCycleStart: null,
+      balanceUsd: 0,
+      balanceUpdatedAt: null,
       createdAt: now,
       updatedAt: now,
     };
@@ -49,6 +52,7 @@ export async function validateKey(keyString: string): Promise<AuthSession | null
       limitWeeklyUsd: null,
       limitMonthlyUsd: null,
       totalLimitUsd: null,
+      billingCycleStart: null,
       limitConcurrentSessions: 0,
       rpmLimit: null,
       dailyLimitUsd: null,

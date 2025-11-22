@@ -207,3 +207,202 @@ export function getDailyResetTime(): Date {
     timezone
   );
 }
+
+// ========== 账期周期计算函数（基于用户的账期起始日期） ==========
+
+/**
+ * 根据账期起始日期计算当前周期的时间范围
+ * - 5h: 滚动窗口（过去 5 小时），不受账期影响
+ * - weekly: 从账期起始日开始，每 7 天为一个周期
+ * - monthly: 从账期起始日开始，每 30 天为一个周期
+ * - total: 累计，不受账期影响
+ *
+ * @param period 周期类型
+ * @param billingCycleStart 账期起始日期，如果为空则回退到自然周期
+ */
+export function getTimeRangeForBillingPeriod(
+  period: TimePeriod,
+  billingCycleStart: Date | null | undefined
+): TimeRange {
+  // 如果没有设置账期起始日期，回退到自然周期
+  if (!billingCycleStart) {
+    return getTimeRangeForPeriod(period);
+  }
+
+  const now = new Date();
+  const endTime = now;
+  let startTime: Date;
+
+  switch (period) {
+    case "5h":
+      // 滚动窗口：不受账期影响
+      startTime = new Date(now.getTime() - 5 * 60 * 60 * 1000);
+      break;
+
+    case "weekly": {
+      // 从账期起始日开始，每 7 天为一个周期
+      const daysSinceStart = Math.floor(
+        (now.getTime() - billingCycleStart.getTime()) / (24 * 60 * 60 * 1000)
+      );
+      const currentWeekNumber = Math.floor(daysSinceStart / 7);
+      startTime = addDays(billingCycleStart, currentWeekNumber * 7);
+      break;
+    }
+
+    case "monthly": {
+      // 从账期起始日开始，每 30 天为一个周期
+      const daysSinceStart = Math.floor(
+        (now.getTime() - billingCycleStart.getTime()) / (24 * 60 * 60 * 1000)
+      );
+      const currentMonthNumber = Math.floor(daysSinceStart / 30);
+      startTime = addDays(billingCycleStart, currentMonthNumber * 30);
+      break;
+    }
+
+    case "total":
+      startTime = new Date(0);
+      break;
+
+    default:
+      startTime = new Date(0);
+      break;
+  }
+
+  return { startTime, endTime };
+}
+
+/**
+ * 根据账期起始日期计算 Redis Key 的 TTL（秒）
+ * - 5h: 5 小时（固定）
+ * - weekly: 到下一个 7 天周期开始的秒数
+ * - monthly: 到下一个 30 天周期开始的秒数
+ *
+ * @param period 周期类型
+ * @param billingCycleStart 账期起始日期，如果为空则回退到自然周期
+ */
+export function getTTLForBillingPeriod(
+  period: TimePeriod,
+  billingCycleStart: Date | null | undefined
+): number {
+  // 如果没有设置账期起始日期，回退到自然周期
+  if (!billingCycleStart) {
+    return getTTLForPeriod(period);
+  }
+
+  const now = new Date();
+
+  switch (period) {
+    case "5h":
+      return 5 * 3600; // 5 小时
+
+    case "weekly": {
+      // 计算到下一个 7 天周期开始的秒数
+      const daysSinceStart = Math.floor(
+        (now.getTime() - billingCycleStart.getTime()) / (24 * 60 * 60 * 1000)
+      );
+      const currentWeekNumber = Math.floor(daysSinceStart / 7);
+      const nextWeekStart = addDays(billingCycleStart, (currentWeekNumber + 1) * 7);
+
+      return Math.ceil((nextWeekStart.getTime() - now.getTime()) / 1000);
+    }
+
+    case "monthly": {
+      // 计算到下一个 30 天周期开始的秒数
+      const daysSinceStart = Math.floor(
+        (now.getTime() - billingCycleStart.getTime()) / (24 * 60 * 60 * 1000)
+      );
+      const currentMonthNumber = Math.floor(daysSinceStart / 30);
+      const nextMonthStart = addDays(billingCycleStart, (currentMonthNumber + 1) * 30);
+
+      return Math.ceil((nextMonthStart.getTime() - now.getTime()) / 1000);
+    }
+
+    case "total":
+      return 0; // 永不过期
+  }
+
+  return 0;
+}
+
+/**
+ * 扩展的重置信息接口（支持账期周期）
+ */
+export interface BillingResetInfo {
+  type: "rolling" | "natural" | "billing";
+  resetAt?: Date; // 重置时间
+  period?: string; // 滚动窗口的周期描述
+  cycleStart?: Date; // 当前周期开始时间
+  cycleEnd?: Date; // 当前周期结束时间（即重置时间）
+}
+
+/**
+ * 根据账期起始日期获取重置信息（用于前端展示）
+ *
+ * @param period 周期类型
+ * @param billingCycleStart 账期起始日期，如果为空则回退到自然周期
+ */
+export function getResetInfoForBillingPeriod(
+  period: TimePeriod,
+  billingCycleStart: Date | null | undefined
+): BillingResetInfo {
+  // 如果没有设置账期起始日期，回退到自然周期
+  if (!billingCycleStart) {
+    const naturalInfo = getResetInfo(period);
+    return {
+      ...naturalInfo,
+      type: naturalInfo.type,
+    };
+  }
+
+  const now = new Date();
+
+  switch (period) {
+    case "5h":
+      return {
+        type: "rolling",
+        period: "5 小时",
+      };
+
+    case "weekly": {
+      const daysSinceStart = Math.floor(
+        (now.getTime() - billingCycleStart.getTime()) / (24 * 60 * 60 * 1000)
+      );
+      const currentWeekNumber = Math.floor(daysSinceStart / 7);
+      const cycleStart = addDays(billingCycleStart, currentWeekNumber * 7);
+      const cycleEnd = addDays(billingCycleStart, (currentWeekNumber + 1) * 7);
+
+      return {
+        type: "billing",
+        resetAt: cycleEnd,
+        cycleStart,
+        cycleEnd,
+      };
+    }
+
+    case "monthly": {
+      const daysSinceStart = Math.floor(
+        (now.getTime() - billingCycleStart.getTime()) / (24 * 60 * 60 * 1000)
+      );
+      const currentMonthNumber = Math.floor(daysSinceStart / 30);
+      const cycleStart = addDays(billingCycleStart, currentMonthNumber * 30);
+      const cycleEnd = addDays(billingCycleStart, (currentMonthNumber + 1) * 30);
+
+      return {
+        type: "billing",
+        resetAt: cycleEnd,
+        cycleStart,
+        cycleEnd,
+      };
+    }
+
+    case "total":
+      return {
+        type: "rolling",
+        period: "生命周期",
+      };
+  }
+
+  return {
+    type: "rolling",
+  };
+}
