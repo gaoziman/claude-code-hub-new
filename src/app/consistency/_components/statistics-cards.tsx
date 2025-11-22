@@ -58,7 +58,7 @@ export function StatisticsCards({ result }: StatisticsCardsProps) {
         return (
           <div
             key={card.key}
-            className="relative overflow-hidden rounded-3xl border bg-white p-5 shadow-[0_18px_45px_rgba(15,23,42,0.06)]"
+            className="relative overflow-hidden rounded-lg border bg-white p-5 shadow-[0_18px_45px_rgba(15,23,42,0.06)]"
           >
             <div className="space-y-4">
               <div className="flex items-center justify-between">
@@ -68,7 +68,7 @@ export function StatisticsCards({ result }: StatisticsCardsProps) {
                   </p>
                   <p className="mt-2 text-3xl font-semibold">{card.formatter(Number(rawValue))}</p>
                 </div>
-                <div className="rounded-2xl bg-muted/30 p-3 text-primary">
+                <div className="rounded-md bg-muted/30 p-3 text-primary">
                   <Icon className="h-5 w-5" />
                 </div>
               </div>

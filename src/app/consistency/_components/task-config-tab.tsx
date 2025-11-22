@@ -126,7 +126,7 @@ export function TaskConfigTab() {
   return (
     <div className="space-y-6">
       <section className="grid gap-4 lg:grid-cols-[1.05fr,0.95fr]">
-        <div className="rounded-2xl border border-border/60 bg-white p-5 shadow-sm">
+        <div className="rounded-md border border-border/60 bg-white p-5 shadow-sm">
           <div className="flex flex-col gap-3 text-sm lg:flex-row lg:items-center lg:justify-between">
             <div>
               <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground">
@@ -199,7 +199,7 @@ export function TaskConfigTab() {
           )}
         </div>
 
-        <div className="rounded-2xl border border-primary/40 bg-gradient-to-br from-primary/5 to-transparent p-5 shadow-inner">
+        <div className="rounded-md border border-primary/40 bg-gradient-to-br from-primary/5 to-transparent p-5 shadow-inner">
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <div>
@@ -228,7 +228,7 @@ export function TaskConfigTab() {
             <Button
               onClick={handleTrigger}
               disabled={isTriggeringTask}
-              className="w-full rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90"
+              className="w-full rounded-md bg-primary text-primary-foreground hover:bg-primary/90"
             >
               <Play className="mr-1 h-4 w-4" />
               {isTriggeringTask ? "触发中..." : "立即触发一次检测"}
@@ -243,9 +243,9 @@ export function TaskConfigTab() {
         </div>
       </section>
 
-      <section className="rounded-3xl border bg-card p-6 shadow-sm">
+      <section className="rounded-lg border bg-card p-6 shadow-sm">
         <div className="flex items-center gap-3">
-          <div className="rounded-2xl bg-muted/60 p-2">
+          <div className="rounded-md bg-muted/60 p-2">
             <Settings2 className="h-5 w-5 text-primary" />
           </div>
           <div>
@@ -263,7 +263,7 @@ export function TaskConfigTab() {
                 setFormData({ ...formData, intervalHours: Number(value) as 1 | 3 | 6 | 12 | 24 })
               }
             >
-              <SelectTrigger id="interval" className="rounded-2xl">
+              <SelectTrigger id="interval" className="rounded-md">
                 <SelectValue placeholder="选择检测间隔" />
               </SelectTrigger>
               <SelectContent>
@@ -288,7 +288,7 @@ export function TaskConfigTab() {
               onChange={(e) =>
                 setFormData({ ...formData, thresholdUsd: parseFloat(e.target.value) || 0 })
               }
-              className="rounded-2xl"
+              className="rounded-md"
             />
             <p className="text-xs text-muted-foreground">差异金额低于此值的记录会自动忽略</p>
           </div>
@@ -305,12 +305,12 @@ export function TaskConfigTab() {
               onChange={(e) =>
                 setFormData({ ...formData, thresholdRate: parseFloat(e.target.value) || 0 })
               }
-              className="rounded-2xl"
+              className="rounded-md"
             />
             <p className="text-xs text-muted-foreground">适当提高阈值可减少低风险告警</p>
           </div>
 
-          <div className="flex flex-col justify-between rounded-2xl border border-dashed p-4">
+          <div className="flex flex-col justify-between rounded-md border border-dashed p-4">
             <div>
               <p className="text-sm text-muted-foreground">配置更新时间</p>
               <p className="mt-2 text-lg font-semibold">
@@ -325,7 +325,7 @@ export function TaskConfigTab() {
           <Button
             onClick={handleSave}
             disabled={isSaving}
-            className="rounded-2xl bg-orange-600 hover:bg-orange-700"
+            className="rounded-md bg-orange-600 hover:bg-orange-700"
           >
             {isSaving ? "保存中..." : "保存配置"}
           </Button>
@@ -341,7 +341,7 @@ export function TaskConfigTab() {
                 thresholdRate: config.thresholdRate,
               })
             }
-            className="rounded-2xl"
+            className="rounded-md"
           >
             重置
           </Button>
@@ -353,7 +353,7 @@ export function TaskConfigTab() {
 
 function renderMetric(label: string, value: string, hint?: string) {
   return (
-    <div className="rounded-2xl border border-white/60 bg-white/80 p-4 shadow-sm">
+    <div className="rounded-md border border-white/60 bg-white/80 p-4 shadow-sm">
       <p className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground">{label}</p>
       <p className="mt-2 text-lg font-semibold text-foreground">{value}</p>
       {hint ? <p className="mt-1 text-xs text-muted-foreground">{hint}</p> : null}

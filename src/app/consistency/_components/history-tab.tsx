@@ -159,7 +159,7 @@ export function HistoryTab() {
               desc: `${statistics.totalFixed} / ${statistics.totalInconsistencies}`,
             },
           ].map((item) => (
-            <div key={item.label} className="rounded-2xl border bg-white p-4 shadow-sm">
+            <div key={item.label} className="rounded-md border bg-white p-4 shadow-sm">
               <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
                 {item.label}
               </p>
@@ -171,7 +171,7 @@ export function HistoryTab() {
       )}
 
       {/* 筛选栏 */}
-      <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-border/50 bg-white/90 p-4 shadow-sm">
+      <div className="flex flex-wrap items-center gap-4 rounded-md border border-border/50 bg-white/90 p-4 shadow-sm">
         <Select
           value={query.operationType || "all"}
           onValueChange={(value) =>
@@ -183,7 +183,7 @@ export function HistoryTab() {
             })
           }
         >
-          <SelectTrigger className="w-[200px] rounded-2xl border border-border/50 bg-muted/20 text-left">
+          <SelectTrigger className="w-[200px] rounded-md border border-border/50 bg-muted/20 text-left">
             <SelectValue placeholder="操作类型" />
           </SelectTrigger>
           <SelectContent>
@@ -208,7 +208,7 @@ export function HistoryTab() {
       </div>
 
       {/* 历史记录表格 */}
-      <div className="overflow-hidden rounded-2xl border border-border/60 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-md border border-border/60 bg-white shadow-sm">
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/20">

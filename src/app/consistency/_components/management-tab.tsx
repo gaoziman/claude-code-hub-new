@@ -65,7 +65,7 @@ import { getTaskStatusBadge } from "./task-status-utils";
 import { DataPagination } from "@/components/data-pagination";
 
 export function ManagementTab() {
-  const [config, setConfig] = useState<ConsistencyTaskConfig | null>(null);
+  const [, setConfig] = useState<ConsistencyTaskConfig | null>(null);
   const [taskStatus, setTaskStatus] = useState<TaskStatus | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isTriggeringTask, setIsTriggeringTask] = useState(false);
@@ -249,7 +249,7 @@ export function ManagementTab() {
   return (
     <div className="space-y-8">
       {/* 任务状态监控 */}
-      <section className="rounded-3xl border bg-white p-6 shadow-sm">
+      <section className="rounded-lg border bg-white p-6 shadow-sm">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
@@ -278,25 +278,25 @@ export function ManagementTab() {
         </div>
 
         <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-2xl border bg-muted/10 p-4">
+          <div className="rounded-md border bg-muted/10 p-4">
             <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">状态</p>
             <p className="mt-2 text-lg font-semibold text-foreground">
               {taskStatus?.enabled ? "已启用" : "已停用"}
             </p>
           </div>
-          <div className="rounded-2xl border bg-muted/10 p-4">
+          <div className="rounded-md border bg-muted/10 p-4">
             <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">上次运行</p>
             <p className="mt-2 text-sm font-medium text-foreground">
               {taskStatus?.lastRun ? new Date(taskStatus.lastRun).toLocaleString() : "从未运行"}
             </p>
           </div>
-          <div className="rounded-2xl border bg-muted/10 p-4">
+          <div className="rounded-md border bg-muted/10 p-4">
             <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">下次运行</p>
             <p className="mt-2 text-sm font-medium text-foreground">
               {taskStatus?.nextRun ? new Date(taskStatus.nextRun).toLocaleString() : "未排程"}
             </p>
           </div>
-          <div className="rounded-2xl border bg-muted/10 p-4">
+          <div className="rounded-md border bg-muted/10 p-4">
             <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
               上次发现异常
             </p>
@@ -308,7 +308,7 @@ export function ManagementTab() {
       </section>
 
       {/* 任务配置表单 */}
-      <section className="rounded-3xl border bg-white p-6 shadow-sm">
+      <section className="rounded-lg border bg-white p-6 shadow-sm">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
@@ -420,24 +420,24 @@ export function ManagementTab() {
       {/* 统计卡片 */}
       {statistics && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-3xl border bg-white p-5 shadow-sm">
+          <div className="rounded-lg border bg-white p-5 shadow-sm">
             <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">总检测次数</p>
             <p className="mt-2 text-3xl font-semibold">{statistics.totalChecks}</p>
             <p className="mt-1 text-xs text-muted-foreground">最近 7 天</p>
           </div>
-          <div className="rounded-3xl border bg-white p-5 shadow-sm">
+          <div className="rounded-lg border bg-white p-5 shadow-sm">
             <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">发现不一致</p>
             <p className="mt-2 text-3xl font-semibold text-amber-600">
               {statistics.totalInconsistencies}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">累计发现</p>
           </div>
-          <div className="rounded-3xl border bg-white p-5 shadow-sm">
+          <div className="rounded-lg border bg-white p-5 shadow-sm">
             <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">已修复项</p>
             <p className="mt-2 text-3xl font-semibold text-emerald-600">{statistics.totalFixed}</p>
             <p className="mt-1 text-xs text-muted-foreground">累计修复</p>
           </div>
-          <div className="rounded-3xl border bg-white p-5 shadow-sm">
+          <div className="rounded-lg border bg-white p-5 shadow-sm">
             <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">修复率</p>
             <p className="mt-2 text-3xl font-semibold">{statistics.fixRate.toFixed(1)}%</p>
             <p className="mt-1 text-xs text-muted-foreground">自动修复比例</p>
@@ -446,7 +446,7 @@ export function ManagementTab() {
       )}
 
       {/* 操作历史 */}
-      <section className="rounded-3xl border bg-white p-6 shadow-sm">
+      <section className="rounded-lg border bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
@@ -458,7 +458,7 @@ export function ManagementTab() {
             <Select
               value={query.operationType || "all"}
               onValueChange={(value) =>
-                setQuery({ ...query, page: 1, operationType: value === "all" ? undefined : value as any })
+                setQuery({ ...query, page: 1, operationType: value === "all" ? undefined : value as ConsistencyHistoryQuery["operationType"] })
               }
             >
               <SelectTrigger className="w-[160px]">
@@ -485,7 +485,7 @@ export function ManagementTab() {
           </div>
         </div>
 
-        <div className="mt-6 rounded-2xl border">
+        <div className="mt-6 rounded-md border">
           <Table>
             <TableHeader>
               <TableRow>
@@ -567,7 +567,7 @@ export function ManagementTab() {
       </section>
 
       {/* 危险操作区 */}
-      <section className="rounded-3xl border border-red-200 bg-red-50/50 p-6 shadow-sm">
+      <section className="rounded-lg border border-red-200 bg-red-50/50 p-6 shadow-sm">
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center gap-2">
@@ -588,7 +588,7 @@ export function ManagementTab() {
             全局重建缓存
           </Button>
         </div>
-        <div className="mt-4 rounded-2xl border border-red-300 bg-white p-4 text-sm text-red-800">
+        <div className="mt-4 rounded-md border border-red-300 bg-white p-4 text-sm text-red-800">
           <p className="font-medium">全局重建缓存操作说明：</p>
           <ul className="mt-2 list-inside list-disc space-y-1 text-xs">
             <li>将清空所有 key:*:cost_* 相关的 Redis 缓存</li>

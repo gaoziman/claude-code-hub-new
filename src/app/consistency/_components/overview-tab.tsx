@@ -194,7 +194,7 @@ export function OverviewTab() {
   return (
     <div className="space-y-8">
       {(checkResult || taskConfig) && (
-        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50/90 px-4 py-3 text-xs text-amber-900">
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-200 bg-amber-50/90 px-4 py-3 text-xs text-amber-900">
           <span className="inline-flex items-center gap-2 font-medium">
             <AlertTriangle className="h-4 w-4" />
             一致性提醒
@@ -224,7 +224,7 @@ export function OverviewTab() {
         </div>
       )}
 
-      <section className="rounded-3xl border bg-white p-5 shadow-sm">
+      <section className="rounded-lg border bg-white p-5 shadow-sm">
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
           <div className="space-y-4">
             <div className="flex items-center gap-3">
@@ -275,7 +275,7 @@ export function OverviewTab() {
           </div>
           <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
             {quickStats.map((stat) => (
-              <div key={stat.label} className="rounded-2xl border bg-muted/10 p-3">
+              <div key={stat.label} className="rounded-md border bg-muted/10 p-3">
                 <div className="text-xs text-muted-foreground">{stat.label}</div>
                 <p className="mt-1 text-xl font-semibold">{stat.value}</p>
                 <p className="text-xs text-muted-foreground">{stat.desc}</p>
@@ -291,7 +291,7 @@ export function OverviewTab() {
         </div>
       </section>
 
-      <section className="rounded-3xl border bg-white p-6 shadow-sm">
+      <section className="rounded-lg border bg-white p-6 shadow-sm">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Risk Watch</p>
@@ -315,7 +315,7 @@ export function OverviewTab() {
             topRisks.map((risk) => (
               <div
                 key={`${risk.keyId}-${risk.dimension}`}
-                className="rounded-2xl border border-border/60 bg-muted/10 p-4"
+                className="rounded-md border border-border/60 bg-muted/10 p-4"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0">
@@ -352,7 +352,7 @@ export function OverviewTab() {
               </div>
             ))
           ) : (
-            <div className="col-span-full rounded-2xl border border-dashed border-border/60 p-8 text-center text-sm text-muted-foreground">
+            <div className="col-span-full rounded-md border border-dashed border-border/60 p-8 text-center text-sm text-muted-foreground">
               暂无异常 Key，数据一致性良好
             </div>
           )}

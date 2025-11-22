@@ -108,7 +108,7 @@ export function InconsistencyTable({ items, onRefresh }: InconsistencyTableProps
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-3 rounded-2xl border border-dashed border-border/70 bg-muted/30 p-4">
+      <div className="flex flex-wrap gap-3 rounded-md border border-dashed border-border/70 bg-muted/30 p-4">
         <Select value={dimensionFilter} onValueChange={setDimensionFilter}>
           <SelectTrigger className="w-[180px] rounded-xl border-muted-foreground/30">
             <SelectValue placeholder="筛选维度" />

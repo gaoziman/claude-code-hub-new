@@ -36,7 +36,7 @@ export function HistoryGlance() {
   }
 
   return (
-    <div className="rounded-3xl border bg-white p-4 shadow-sm">
+    <div className="rounded-lg border bg-white p-4 shadow-sm">
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-semibold">操作溯源快照</h3>
@@ -48,7 +48,7 @@ export function HistoryGlance() {
       </div>
 
       {isLoading ? (
-        <div className="mt-4 flex items-center gap-2 rounded-2xl border border-dashed p-4 text-sm text-muted-foreground">
+        <div className="mt-4 flex items-center gap-2 rounded-md border border-dashed p-4 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" />
           加载中...
         </div>
@@ -80,7 +80,7 @@ export function HistoryGlance() {
           ))}
         </div>
       ) : (
-        <div className="mt-4 rounded-2xl border border-dashed p-4 text-center text-sm text-muted-foreground">
+        <div className="mt-4 rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground">
           暂无操作记录
         </div>
       )}
