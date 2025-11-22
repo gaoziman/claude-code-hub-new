@@ -117,7 +117,7 @@ export function KeyTrendPanel({
 
   const chartNode = React.useMemo(() => {
     if (!data) {
-      return <Skeleton className="h-[260px] w-full rounded-2xl" />;
+      return <Skeleton className="h-[260px] w-full rounded-lg" />;
     }
 
     if (!data.keys.length) {
@@ -130,7 +130,7 @@ export function KeyTrendPanel({
   }, [currencyCode, data, isFetching, metric]);
 
   return (
-    <div className="rounded-[28px] border border-border/60 bg-gradient-to-b from-white via-white to-slate-50 p-6 shadow-[0_18px_55px_rgba(15,23,42,0.08)] dark:from-slate-900 dark:via-slate-900/95 dark:to-slate-900">
+    <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="max-w-xl">
           <p className="text-lg font-semibold text-foreground">{title}</p>
@@ -289,7 +289,7 @@ function KeyTrendChart({ data, currencyCode, metric, loading }: KeyTrendChartPro
   return (
     <ChartContainer
       config={chartConfig}
-      className="aspect-auto h-[260px] w-full rounded-2xl bg-gradient-to-b from-slate-50 via-white to-white px-2 py-4 dark:from-slate-900/60 dark:via-slate-900 dark:to-slate-900"
+      className="aspect-auto h-[260px] w-full rounded-lg bg-slate-50 px-2 py-4 dark:bg-slate-900/60"
     >
       <LineChart data={normalizedData} margin={{ left: 4, right: 24, top: 10, bottom: 4 }}>
         <CartesianGrid
@@ -408,7 +408,7 @@ function KeyTrendTooltip({
     .slice(0, 6);
 
   return (
-    <div className="min-w-[220px] max-w-sm rounded-2xl border border-border/60 bg-background/95 p-4 shadow-xl backdrop-blur">
+    <div className="min-w-[220px] max-w-sm rounded-lg border border-slate-200 bg-background/95 p-4 shadow-lg backdrop-blur dark:border-slate-700">
       <div className="text-sm font-semibold text-foreground">{datum.displayDate || label}</div>
       <div className="mt-3 space-y-2">
         {ranking.length === 0 ? (
@@ -453,7 +453,7 @@ function MetricHighlight({
   hint?: React.ReactNode;
 }) {
   return (
-    <div className="rounded-2xl border border-border/40 bg-white/70 px-4 py-3 dark:bg-slate-900/40">
+    <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900/40">
       <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
       <p className="mt-1 text-xl font-semibold text-foreground">{value}</p>
       {hint ? <p className="text-[11px] text-muted-foreground">{hint}</p> : null}
@@ -463,7 +463,7 @@ function MetricHighlight({
 
 function TrendEmptyState({ message }: { message: string }) {
   return (
-    <div className="flex h-[220px] flex-col items-center justify-center rounded-2xl border border-dashed border-border/60 bg-white/70 text-sm text-muted-foreground dark:bg-slate-900/40">
+    <div className="flex h-[220px] flex-col items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 text-sm text-muted-foreground dark:border-slate-700 dark:bg-slate-900/40">
       {message}
     </div>
   );
