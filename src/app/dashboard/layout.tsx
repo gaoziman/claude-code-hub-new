@@ -14,7 +14,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   return (
     <div className="min-h-screen bg-background">
       <DashboardHeader session={session} />
-      <main className="mx-auto w-full max-w-7xl px-6 py-8">{children}</main>
+      <main className="mx-auto w-full max-w-[1600px] px-6 py-8">{children}</main>
     </div>
   );
 }
