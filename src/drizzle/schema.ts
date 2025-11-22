@@ -31,6 +31,16 @@ export const users = pgTable('users', {
   limitMonthlyUsd: numeric('limit_monthly_usd', { precision: 10, scale: 2 }),
   totalLimitUsd: numeric('total_limit_usd', { precision: 12, scale: 2 }),
 
+  // ========== 账期周期配置 ==========
+  // 账期起始日期：用于计算周/月限额的起点
+  // 周限额从此日期开始每7天重置，月限额从此日期开始每30天重置
+  // 默认为用户创建时间，管理员可手动调整
+  billingCycleStart: timestamp('billing_cycle_start', { withTimezone: true }),
+
+  // ========== 余额系统（按量付费） ==========
+  balanceUsd: numeric('balance_usd', { precision: 12, scale: 4 }).notNull().default('0'),
+  balanceUpdatedAt: timestamp('balance_updated_at', { withTimezone: true }),
+
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
   deletedAt: timestamp('deleted_at', { withTimezone: true }),
@@ -69,6 +79,11 @@ export const keys = pgTable('keys', {
   limitConcurrentSessions: integer('limit_concurrent_sessions').default(0),
   rpmLimit: integer('rpm_limit').default(100),
   dailyLimitUsd: numeric('daily_limit_usd', { precision: 10, scale: 2 }).default('100.00'),
+
+  // ========== 账期周期配置 ==========
+  // Key 的账期起始日期：用于计算该 Key 独立的周/月限额周期
+  // 如果为空，则继承所属用户的 billingCycleStart
+  billingCycleStart: timestamp('billing_cycle_start', { withTimezone: true }),
 
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
@@ -144,6 +159,11 @@ export const providers = pgTable('providers', {
   proxyUrl: varchar('proxy_url', { length: 512 }),
   proxyFallbackToDirect: boolean('proxy_fallback_to_direct').default(false),
 
+  // 客户端限制：仅限官方 Claude CLI 调用
+  // 启用后，只有官方 Claude Code 客户端才能调用此供应商
+  // 第三方工具（如 Cursor、IDE 插件）将被拒绝访问
+  onlyClaudeCli: boolean('only_claude_cli').notNull().default(true),
+
   // 废弃（保留向后兼容，但不再使用）
   tpm: integer('tpm').default(0),
   rpm: integer('rpm').default(0),
@@ -175,6 +195,14 @@ export const messageRequest = pgTable('message_request', {
 
   // 供应商倍率（用于日志展示，记录该请求使用的 cost_multiplier）
   costMultiplier: numeric('cost_multiplier', { precision: 10, scale: 4 }),
+
+  // ========== 支付来源追踪（双轨计费） ==========
+  // 支付来源：package=仅套餐, balance=仅余额, mixed=混合支付
+  paymentSource: varchar('payment_source', { length: 20 }).$type<'package' | 'balance' | 'mixed'>(),
+  // 从套餐中扣除的金额（套餐限额内消耗）
+  packageCostUsd: numeric('package_cost_usd', { precision: 21, scale: 15 }),
+  // 从余额中扣除的金额（按量付费消耗）
+  balanceCostUsd: numeric('balance_cost_usd', { precision: 21, scale: 15 }),
 
   // Session ID（用于会话粘性和日志追踪）
   sessionId: varchar('session_id', { length: 64 }),
@@ -357,10 +385,50 @@ export const consistencyHistory = pgTable('consistency_history', {
   operationTypeIdx: index('idx_consistency_history_operation_type').on(table.operationType),
 }));
 
+// Balance Transactions table (余额流水账)
+export const balanceTransactions = pgTable('balance_transactions', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull(),
+
+  // 变动金额（正数=充值，负数=扣款）
+  amount: numeric('amount', { precision: 12, scale: 4 }).notNull(),
+
+  // 变动前余额
+  balanceBefore: numeric('balance_before', { precision: 12, scale: 4 }).notNull(),
+
+  // 变动后余额
+  balanceAfter: numeric('balance_after', { precision: 12, scale: 4 }).notNull(),
+
+  // 交易类型：recharge=充值, deduction=扣款, refund=退款, adjustment=调整
+  type: varchar('type', { length: 20 }).notNull().$type<'recharge' | 'deduction' | 'refund' | 'adjustment'>(),
+
+  // 操作者ID（充值/调整时记录管理员ID，扣款时为系统）
+  operatorId: integer('operator_id'),
+
+  // 操作者名称（充值/调整时记录管理员名称，扣款时为 'system'）
+  operatorName: varchar('operator_name', { length: 64 }),
+
+  // 备注（充值原因、扣款关联的 message_request.id 等）
+  note: text('note'),
+
+  // 关联的消息请求ID（扣款时记录）
+  messageRequestId: integer('message_request_id'),
+
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  // 优化按用户查询流水的复合索引（按时间倒序）
+  balanceTransactionsUserTimeIdx: index('idx_balance_transactions_user_time').on(table.userId, table.createdAt.desc()),
+  // 优化按类型查询的索引
+  balanceTransactionsTypeIdx: index('idx_balance_transactions_type').on(table.type),
+  // 关联消息请求的索引（扣款时关联）
+  balanceTransactionsMessageIdx: index('idx_balance_transactions_message').on(table.messageRequestId),
+}));
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   keys: many(keys),
   messageRequests: many(messageRequest),
+  balanceTransactions: many(balanceTransactions),
 }));
 
 export const keysRelations = relations(keys, ({ one, many }) => ({
@@ -383,5 +451,12 @@ export const messageRequestRelations = relations(messageRequest, ({ one }) => ({
   provider: one(providers, {
     fields: [messageRequest.providerId],
     references: [providers.id],
+  }),
+}));
+
+export const balanceTransactionsRelations = relations(balanceTransactions, ({ one }) => ({
+  user: one(users, {
+    fields: [balanceTransactions.userId],
+    references: [users.id],
   }),
 }));
