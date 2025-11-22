@@ -1,0 +1,1 @@
+ALTER TABLE "providers" ADD COLUMN "only_claude_cli" boolean DEFAULT true NOT NULL;
