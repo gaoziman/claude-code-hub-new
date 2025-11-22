@@ -34,6 +34,11 @@ export function toUser(dbUser: any): User {
     limitWeeklyUsd: dbUser?.limitWeeklyUsd ? parseFloat(dbUser.limitWeeklyUsd) : null,
     limitMonthlyUsd: dbUser?.limitMonthlyUsd ? parseFloat(dbUser.limitMonthlyUsd) : null,
     totalLimitUsd: dbUser?.totalLimitUsd ? parseFloat(dbUser.totalLimitUsd) : null,
+    // 账期周期配置
+    billingCycleStart: dbUser?.billingCycleStart ? new Date(dbUser.billingCycleStart) : null,
+    // 余额系统
+    balanceUsd: dbUser?.balanceUsd ? parseFloat(dbUser.balanceUsd) : 0,
+    balanceUpdatedAt: dbUser?.balanceUpdatedAt ? new Date(dbUser.balanceUpdatedAt) : null,
     createdAt: dbUser?.createdAt ? new Date(dbUser.createdAt) : new Date(),
     updatedAt: dbUser?.updatedAt ? new Date(dbUser.updatedAt) : new Date(),
   };
@@ -55,6 +60,8 @@ export function toKey(dbKey: any): Key {
     limitConcurrentSessions: dbKey?.limitConcurrentSessions ?? 0,
     rpmLimit: dbKey?.rpmLimit ?? null,
     dailyLimitUsd: dbKey?.dailyLimitUsd ? parseFloat(dbKey.dailyLimitUsd) : null,
+    // 账期周期配置
+    billingCycleStart: dbKey?.billingCycleStart ? new Date(dbKey.billingCycleStart) : null,
     createdAt: dbKey?.createdAt ? new Date(dbKey.createdAt) : new Date(),
     updatedAt: dbKey?.updatedAt ? new Date(dbKey.updatedAt) : new Date(),
   };
@@ -81,6 +88,7 @@ export function toProvider(dbProvider: any): Provider {
     circuitBreakerHalfOpenSuccessThreshold: dbProvider?.circuitBreakerHalfOpenSuccessThreshold ?? 2,
     proxyUrl: dbProvider?.proxyUrl ?? null,
     proxyFallbackToDirect: dbProvider?.proxyFallbackToDirect ?? false,
+    onlyClaudeCli: dbProvider?.onlyClaudeCli ?? true,
     tpm: dbProvider?.tpm ?? null,
     rpm: dbProvider?.rpm ?? null,
     rpd: dbProvider?.rpd ?? null,
@@ -101,6 +109,10 @@ export function toMessageRequest(dbMessage: any): MessageRequest {
       const formatted = formatCostForStorage(dbMessage?.costUsd);
       return formatted ?? undefined;
     })(),
+    // 支付来源追踪（双轨计费）
+    paymentSource: dbMessage?.paymentSource ?? undefined,
+    packageCostUsd: dbMessage?.packageCostUsd ? parseFloat(dbMessage.packageCostUsd) : undefined,
+    balanceCostUsd: dbMessage?.balanceCostUsd ? parseFloat(dbMessage.balanceCostUsd) : undefined,
   };
 }
 

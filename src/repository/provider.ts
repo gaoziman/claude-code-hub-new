@@ -10,6 +10,7 @@ import type {
   UpdateProviderData,
   ProviderType,
   ProviderGroupSummary,
+  ProviderUsageTrendPoint,
 } from "@/types/provider";
 import { toProvider } from "./_shared/transformers";
 import { getEnvConfig } from "@/lib/config";
@@ -72,6 +73,7 @@ export async function createProvider(providerData: CreateProviderData): Promise<
     circuitBreakerHalfOpenSuccessThreshold: providers.circuitBreakerHalfOpenSuccessThreshold,
     proxyUrl: providers.proxyUrl,
     proxyFallbackToDirect: providers.proxyFallbackToDirect,
+    onlyClaudeCli: providers.onlyClaudeCli,
     tpm: providers.tpm,
     rpm: providers.rpm,
     rpd: providers.rpd,
@@ -113,6 +115,7 @@ export async function findProviderList(
       circuitBreakerHalfOpenSuccessThreshold: providers.circuitBreakerHalfOpenSuccessThreshold,
       proxyUrl: providers.proxyUrl,
       proxyFallbackToDirect: providers.proxyFallbackToDirect,
+      onlyClaudeCli: providers.onlyClaudeCli,
       tpm: providers.tpm,
       rpm: providers.rpm,
       rpd: providers.rpd,
@@ -236,6 +239,8 @@ export async function updateProvider(
   if (providerData.proxy_url !== undefined) dbData.proxyUrl = providerData.proxy_url;
   if (providerData.proxy_fallback_to_direct !== undefined)
     dbData.proxyFallbackToDirect = providerData.proxy_fallback_to_direct;
+  if (providerData.only_claude_cli !== undefined)
+    dbData.onlyClaudeCli = providerData.only_claude_cli;
   if (providerData.tpm !== undefined) dbData.tpm = providerData.tpm;
   if (providerData.rpm !== undefined) dbData.rpm = providerData.rpm;
   if (providerData.rpd !== undefined) dbData.rpd = providerData.rpd;
@@ -435,4 +440,41 @@ export async function getProviderStatistics(): Promise<
     });
     throw error;
   }
+}
+
+export async function getProviderUsageTrendFromDB(
+  providerId: number,
+  days = 30
+): Promise<ProviderUsageTrendPoint[]> {
+  const timezone = getEnvConfig().TZ;
+  const clampedDays = Math.max(1, Math.min(days, 90));
+  const daysOffset = clampedDays - 1;
+
+  const query = sql`
+    WITH date_range AS (
+      SELECT generate_series(
+        (CURRENT_TIMESTAMP AT TIME ZONE ${timezone})::date - INTERVAL '${sql.raw(daysOffset.toString())} days',
+        (CURRENT_TIMESTAMP AT TIME ZONE ${timezone})::date,
+        '1 day'::interval
+      )::date AS date
+    )
+    SELECT
+      dr.date,
+      COUNT(mr.id) AS call_count,
+      COALESCE(SUM(mr.cost_usd), 0) AS total_cost
+    FROM date_range dr
+    LEFT JOIN message_request mr ON mr.provider_id = ${providerId}
+      AND mr.deleted_at IS NULL
+      AND DATE_TRUNC('day', mr.created_at AT TIME ZONE ${timezone})::date = dr.date
+    GROUP BY dr.date
+    ORDER BY dr.date ASC
+  `;
+
+  const rows = await db.execute(query);
+
+  return Array.from(rows).map((row) => ({
+    date: new Date((row as { date: Date }).date).toISOString().split("T")[0],
+    totalCostUsd: String((row as { total_cost: string | number }).total_cost ?? "0"),
+    callCount: Number((row as { call_count: number }).call_count ?? 0),
+  }));
 }

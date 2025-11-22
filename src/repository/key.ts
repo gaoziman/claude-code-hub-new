@@ -27,6 +27,7 @@ export async function findKeyList(userId: number): Promise<Key[]> {
       limitConcurrentSessions: keys.limitConcurrentSessions,
       rpmLimit: keys.rpmLimit,
       dailyLimitUsd: keys.dailyLimitUsd,
+      billingCycleStart: keys.billingCycleStart,
       createdAt: keys.createdAt,
       updatedAt: keys.updatedAt,
       deletedAt: keys.deletedAt,
@@ -61,6 +62,8 @@ export async function createKey(keyData: CreateKeyData): Promise<Key> {
         : keyData.daily_limit_usd != null
           ? keyData.daily_limit_usd.toString()
           : null,
+    // 账期周期配置
+    billingCycleStart: keyData.billing_cycle_start ?? null,
   };
 
   const [key] = await db.insert(keys).values(dbData).returning({
@@ -79,6 +82,7 @@ export async function createKey(keyData: CreateKeyData): Promise<Key> {
     limitConcurrentSessions: keys.limitConcurrentSessions,
     rpmLimit: keys.rpmLimit,
     dailyLimitUsd: keys.dailyLimitUsd,
+    billingCycleStart: keys.billingCycleStart,
     createdAt: keys.createdAt,
     updatedAt: keys.updatedAt,
     deletedAt: keys.deletedAt,

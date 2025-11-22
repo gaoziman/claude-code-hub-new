@@ -61,24 +61,41 @@ export async function updateMessageRequestDuration(id: number, durationMs: numbe
 }
 
 /**
- * 更新消息请求的费用
+ * 更新消息请求的费用（支持双轨计费）
  */
 export async function updateMessageRequestCost(
   id: number,
-  costUsd: CreateMessageRequestData["cost_usd"]
+  costUsd: CreateMessageRequestData["cost_usd"],
+  paymentStrategy?: {
+    fromPackage: number;
+    fromBalance: number;
+    source: "package" | "balance" | "mixed";
+  } | null
 ): Promise<void> {
   const formattedCost = formatCostForStorage(costUsd);
   if (!formattedCost) {
     return;
   }
 
-  await db
-    .update(messageRequest)
-    .set({
-      costUsd: formattedCost,
-      updatedAt: new Date(),
-    })
-    .where(eq(messageRequest.id, id));
+  const updateData: {
+    costUsd: string;
+    updatedAt: Date;
+    paymentSource?: "package" | "balance" | "mixed";
+    packageCostUsd?: string;
+    balanceCostUsd?: string;
+  } = {
+    costUsd: formattedCost,
+    updatedAt: new Date(),
+  };
+
+  // 添加支付来源追踪
+  if (paymentStrategy) {
+    updateData.paymentSource = paymentStrategy.source;
+    updateData.packageCostUsd = paymentStrategy.fromPackage.toFixed(15);
+    updateData.balanceCostUsd = paymentStrategy.fromBalance.toFixed(15);
+  }
+
+  await db.update(messageRequest).set(updateData).where(eq(messageRequest.id, id));
 }
 
 /**

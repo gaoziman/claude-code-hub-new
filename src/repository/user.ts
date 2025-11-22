@@ -21,6 +21,8 @@ export async function createUser(userData: CreateUserData): Promise<User> {
     limitMonthlyUsd:
       userData.limitMonthlyUsd !== undefined ? userData.limitMonthlyUsd?.toString() : null,
     totalLimitUsd: userData.totalLimitUsd !== undefined ? userData.totalLimitUsd?.toString() : null,
+    // 账期周期配置
+    billingCycleStart: userData.billingCycleStart ?? null,
   };
 
   const [user] = await db.insert(users).values(dbData).returning({
@@ -36,6 +38,9 @@ export async function createUser(userData: CreateUserData): Promise<User> {
     limitWeeklyUsd: users.limitWeeklyUsd,
     limitMonthlyUsd: users.limitMonthlyUsd,
     totalLimitUsd: users.totalLimitUsd,
+    billingCycleStart: users.billingCycleStart,
+    balanceUsd: users.balanceUsd,
+    balanceUpdatedAt: users.balanceUpdatedAt,
     createdAt: users.createdAt,
     updatedAt: users.updatedAt,
     deletedAt: users.deletedAt,
@@ -60,6 +65,11 @@ export async function findUserList(limit: number = 50, offset: number = 0): Prom
       limitWeeklyUsd: users.limitWeeklyUsd,
       limitMonthlyUsd: users.limitMonthlyUsd,
       totalLimitUsd: users.totalLimitUsd,
+      // 账期周期配置
+      billingCycleStart: users.billingCycleStart,
+      // 余额字段
+      balanceUsd: users.balanceUsd,
+      balanceUpdatedAt: users.balanceUpdatedAt,
       createdAt: users.createdAt,
       updatedAt: users.updatedAt,
       deletedAt: users.deletedAt,
@@ -90,6 +100,8 @@ export async function updateUser(id: number, userData: UpdateUserData): Promise<
     limitWeeklyUsd?: string | null;
     limitMonthlyUsd?: string | null;
     totalLimitUsd?: string | null;
+    // 账期周期配置
+    billingCycleStart?: Date | null;
     updatedAt?: Date;
   }
 
@@ -116,6 +128,10 @@ export async function updateUser(id: number, userData: UpdateUserData): Promise<
     dbData.totalLimitUsd =
       userData.totalLimitUsd !== null ? userData.totalLimitUsd.toString() : null;
 
+  // 账期周期配置
+  if (userData.billingCycleStart !== undefined)
+    dbData.billingCycleStart = userData.billingCycleStart;
+
   const [user] = await db
     .update(users)
     .set(dbData)
@@ -133,6 +149,9 @@ export async function updateUser(id: number, userData: UpdateUserData): Promise<
       limitWeeklyUsd: users.limitWeeklyUsd,
       limitMonthlyUsd: users.limitMonthlyUsd,
       totalLimitUsd: users.totalLimitUsd,
+      billingCycleStart: users.billingCycleStart,
+      balanceUsd: users.balanceUsd,
+      balanceUpdatedAt: users.balanceUpdatedAt,
       createdAt: users.createdAt,
       updatedAt: users.updatedAt,
       deletedAt: users.deletedAt,
@@ -172,6 +191,11 @@ export async function findUserById(id: number): Promise<User | null> {
       limitWeeklyUsd: users.limitWeeklyUsd,
       limitMonthlyUsd: users.limitMonthlyUsd,
       totalLimitUsd: users.totalLimitUsd,
+      // 账期周期配置
+      billingCycleStart: users.billingCycleStart,
+      // 余额字段
+      balanceUsd: users.balanceUsd,
+      balanceUpdatedAt: users.balanceUpdatedAt,
       createdAt: users.createdAt,
       updatedAt: users.updatedAt,
       deletedAt: users.deletedAt,
