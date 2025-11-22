@@ -20,7 +20,6 @@ interface KeyActionsProps {
 export function KeyActions({
   keyData,
   currentUser,
-  keyOwnerUserId: _keyOwnerUserId,
   canDelete,
   showLabels = false,
   allowManage,

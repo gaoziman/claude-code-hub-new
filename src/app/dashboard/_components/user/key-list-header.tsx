@@ -203,28 +203,38 @@ export function KeyListHeader({
   return (
     <>
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="space-y-2">
+        <div className="space-y-2 flex-1">
           <p className="text-sm font-semibold text-foreground">密钥运行概览（{metricLabel}）</p>
-          <div className="grid gap-3 text-xs text-muted-foreground sm:grid-cols-2 xl:grid-cols-3">
-            <div className="rounded-md border border-border/50 bg-background px-3 py-2 shadow-sm">
-              <p className="text-[11px]">{metricLabel}用量</p>
-              <p className="text-base font-semibold text-foreground">
+          <div className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-md border border-border/50 bg-background px-2.5 py-1.5 shadow-sm">
+              <p className="text-[10px]">{metricLabel}用量</p>
+              <p className="text-sm font-semibold text-foreground">
                 {activeUser ? formatCurrency(totalRangeUsage, currencyCode) : "-"}
               </p>
             </div>
             {activeUser && (
-              <div className="rounded-md border border-border/50 bg-background px-3 py-2 shadow-sm">
-                <p className="text-[11px]">启用 Key</p>
-                <p className="text-base font-semibold text-foreground">
+              <div className="rounded-md border border-border/50 bg-background px-2.5 py-1.5 shadow-sm">
+                <p className="text-[10px]">启用 Key</p>
+                <p className="text-sm font-semibold text-foreground">
                   {activeUser.keys.filter((key) => key.status === "enabled").length}/
                   {activeUser.keys.length}
                 </p>
               </div>
             )}
+            {activeUser && (
+              <div className="rounded-md border border-orange-200/50 dark:border-orange-900/30 bg-gradient-to-br from-orange-50/50 to-orange-100/30 dark:from-orange-950/20 dark:to-orange-900/10 px-2.5 py-1.5 shadow-sm">
+                <p className="text-[10px] text-orange-600 dark:text-orange-400">账户余额</p>
+                <p className="text-sm font-semibold text-orange-600 dark:text-orange-400">
+                  ${(activeUser.balanceUsd ?? 0).toFixed(2)}
+                </p>
+              </div>
+            )}
             {proxyStatusContent && (
-              <div className="space-y-1 rounded-md border border-border/50 bg-background px-3 py-2 shadow-sm text-xs text-muted-foreground">
-                <p className="text-[11px]">代理状态</p>
-                {proxyStatusContent}
+              <div className="space-y-0.5 rounded-md border border-border/50 bg-background px-2.5 py-1.5 shadow-sm text-xs text-muted-foreground">
+                <p className="text-[10px]">代理状态</p>
+                <div className="text-[10px]">
+                  {proxyStatusContent}
+                </div>
               </div>
             )}
           </div>
