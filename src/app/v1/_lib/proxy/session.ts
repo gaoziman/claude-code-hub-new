@@ -66,6 +66,13 @@ export class ProxySession {
   // 上次选择的决策上下文（用于记录到 providerChain）
   private _lastSelectionContext?: ProviderChainItem["decisionContext"];
 
+  // ========== 支付策略（双轨计费） ==========
+  paymentStrategy: {
+    fromPackage: number; // 从套餐中扣除的金额
+    fromBalance: number; // 从余额中扣除的金额
+    source: "package" | "balance" | "mixed"; // 支付来源
+  } | null = null;
+
   private constructor(init: {
     startTime: number;
     method: string;

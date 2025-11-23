@@ -13,26 +13,49 @@ export class ProxyRateLimitGuard {
 
     if (!user || !key) return null;
 
-    // ========== 第一层：用户级别限流检查 ==========
-    logger.info(`[RateLimit] Layer 1: Checking user-level limits for user=${user.id}`);
+    // ========== 第一层：用户级别限流检查（双轨：套餐 + 余额） ==========
+    logger.info(`[RateLimit] Layer 1: Checking user-level limits (dual-track) for user=${user.id}`);
 
-    // 查询用户配置（包含限额字段）
+    // 查询用户配置（包含限额和余额字段）
     const { findUserById } = await import("@/repository/user");
     const userConfig = await findUserById(user.id);
 
     if (userConfig) {
-      const userCostCheck = await RateLimitService.checkCostLimits(user.id, "user", {
-        limit_5h_usd: userConfig.limit5hUsd,
-        limit_weekly_usd: userConfig.limitWeeklyUsd,
-        limit_monthly_usd: userConfig.limitMonthlyUsd,
-        total_limit_usd: userConfig.totalLimitUsd,
-      });
+      // 保守估算成本：$0.10（实际扣款在 response-handler 中根据真实 token 消耗进行）
+      const estimatedCost = 0.1;
+
+      logger.info(
+        `[RateLimit] User balance=${userConfig.balanceUsd}, estimatedCost=${estimatedCost}`
+      );
+
+      // 调用双轨检查方法（套餐 + 余额）
+      const userCostCheck = await RateLimitService.checkUserCostWithBalance(
+        user.id,
+        {
+          limit_5h_usd: userConfig.limit5hUsd,
+          limit_weekly_usd: userConfig.limitWeeklyUsd,
+          limit_monthly_usd: userConfig.limitMonthlyUsd,
+          total_limit_usd: userConfig.totalLimitUsd,
+        },
+        userConfig.balanceUsd,
+        estimatedCost
+      );
 
       if (!userCostCheck.allowed) {
         logger.warn(
-          `[RateLimit] User cost limit exceeded: user=${user.id}, ${userCostCheck.reason}`
+          `[RateLimit] User cost/balance limit exceeded: user=${user.id}, ${userCostCheck.reason}`
         );
         return this.buildRateLimitResponse(user.id, "user", userCostCheck.reason!);
+      }
+
+      // 存储支付策略到 session，供 response-handler 使用
+      if (userCostCheck.paymentStrategy) {
+        session.paymentStrategy = userCostCheck.paymentStrategy;
+        logger.info(
+          `[RateLimit] Payment strategy: source=${userCostCheck.paymentStrategy.source}, ` +
+            `fromPackage=${userCostCheck.paymentStrategy.fromPackage.toFixed(4)}, ` +
+            `fromBalance=${userCostCheck.paymentStrategy.fromBalance.toFixed(4)}`
+        );
       }
     }
 

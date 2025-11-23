@@ -141,13 +141,15 @@ export class ProxyResponseHandler {
         if (usageRecord && usageMetrics && messageContext) {
           await updateRequestCostFromUsage(
             messageContext.id,
+            messageContext.user.id,
             session.getOriginalModel(),
             session.getCurrentModel(),
             usageMetrics,
-            provider.costMultiplier
+            provider.costMultiplier,
+            session.paymentStrategy
           );
 
-          // 追踪消费到 Redis（用于限流）
+          // 追踪消费到 Redis（用于限流，仅追踪从套餐扣除的部分）
           await trackCostToRedis(session, usageMetrics);
         }
 
@@ -406,13 +408,15 @@ export class ProxyResponseHandler {
 
         await updateRequestCostFromUsage(
           messageContext.id,
+          messageContext.user.id,
           session.getOriginalModel(),
           session.getCurrentModel(),
           usageForCost,
-          provider.costMultiplier
+          provider.costMultiplier,
+          session.paymentStrategy
         );
 
-        // 追踪消费到 Redis（用于限流）
+        // 追踪消费到 Redis（用于限流，仅追踪从套餐扣除的部分）
         await trackCostToRedis(session, usageForCost);
 
         // 更新 session 使用量到 Redis（用于实时监控）
@@ -559,10 +563,16 @@ function extractUsageMetrics(value: unknown): UsageMetrics | null {
 
 async function updateRequestCostFromUsage(
   messageId: number,
+  userId: number,
   originalModel: string | null,
   redirectedModel: string | null,
   usage: UsageMetrics | null,
-  costMultiplier: number = 1.0
+  costMultiplier: number = 1.0,
+  paymentStrategy: {
+    fromPackage: number;
+    fromBalance: number;
+    source: "package" | "balance" | "mixed";
+  } | null = null
 ): Promise<void> {
   if (!usage) {
     logger.warn("[CostCalculation] No usage data, skipping cost update", { messageId });
@@ -623,10 +633,33 @@ async function updateRequestCostFromUsage(
     costUsd: cost.toString(),
     costMultiplier,
     usage,
+    paymentStrategy,
   });
 
   if (cost.gt(0)) {
-    await updateMessageRequestCost(messageId, cost);
+    // ========== 双轨扣款：根据支付策略扣款 ==========
+    if (paymentStrategy && paymentStrategy.fromBalance > 0) {
+      // 从余额中扣款
+      const { deductBalance } = await import("@/repository/balance");
+
+      const deductionResult = await deductBalance(
+        userId,
+        paymentStrategy.fromBalance,
+        messageId
+      );
+
+      logger.info("[CostCalculation] Deducted balance successfully", {
+        messageId,
+        userId,
+        amount: paymentStrategy.fromBalance,
+        balanceBefore: deductionResult.balanceBefore,
+        balanceAfter: deductionResult.balanceAfter,
+        transactionId: deductionResult.transactionId,
+      });
+    }
+
+    // 更新 message_request 表（包含支付来源追踪）
+    await updateMessageRequestCost(messageId, cost, paymentStrategy);
   } else {
     logger.warn("[CostCalculation] Calculated cost is zero or negative", {
       messageId,
@@ -643,6 +676,10 @@ async function updateRequestCostFromUsage(
 /**
  * 追踪消费到 Redis（用于限流）
  * 实现三层成本追踪：① 当前 Key → ② 主 Key 聚合 → ③ 用户级别
+ *
+ * 双轨计费说明：
+ * - 如果有支付策略（paymentStrategy），只追踪从套餐扣除的部分（fromPackage）
+ * - 从余额扣除的部分不追踪到Redis，因为余额在数据库中实时扣款
  */
 async function trackCostToRedis(session: ProxySession, usage: UsageMetrics | null): Promise<void> {
   if (!usage || !session.sessionId) return;
@@ -664,11 +701,28 @@ async function trackCostToRedis(session: ProxySession, usage: UsageMetrics | nul
   const cost = calculateRequestCost(usage, priceData.priceData, provider.costMultiplier);
   if (cost.lte(0)) return;
 
-  const costFloat = parseFloat(cost.toString());
+  // ========== 双轨计费：只追踪从套餐扣除的部分 ==========
+  let costToTrack: number;
+  if (session.paymentStrategy) {
+    // 有支付策略时，只追踪从套餐扣除的部分
+    costToTrack = session.paymentStrategy.fromPackage;
+    logger.debug(
+      `[ResponseHandler] Using dual-track billing: totalCost=${cost.toString()}, ` +
+        `trackingPackageCost=${costToTrack}, balanceCost=${session.paymentStrategy.fromBalance}`
+    );
+  } else {
+    // 没有支付策略时，追踪全部成本（向后兼容）
+    costToTrack = parseFloat(cost.toString());
+  }
+
+  if (costToTrack <= 0) {
+    logger.debug(`[ResponseHandler] Package cost is zero, skipping Redis tracking`);
+    return;
+  }
 
   // ========== ① 追踪当前 Key 的成本 ==========
-  await RateLimitService.trackCost(key.id, provider.id, session.sessionId, costFloat, "key");
-  logger.debug(`[ResponseHandler] Tracked cost for key=${key.id}, cost=${costFloat}`);
+  await RateLimitService.trackCost(key.id, provider.id, session.sessionId, costToTrack, "key");
+  logger.debug(`[ResponseHandler] Tracked cost for key=${key.id}, cost=${costToTrack}`);
 
   // ========== ② 追踪主 Key 聚合成本 ==========
   // 确定 ownerKeyId：如果当前 key 是主 key（scope=owner），则 ownerKeyId = key.id
@@ -680,17 +734,17 @@ async function trackCostToRedis(session: ProxySession, usage: UsageMetrics | nul
       ownerKeyId,
       provider.id,
       session.sessionId,
-      costFloat,
+      costToTrack,
       "owner_key_aggregate"
     );
     logger.debug(
-      `[ResponseHandler] Tracked aggregate cost for ownerKeyId=${ownerKeyId}, cost=${costFloat}`
+      `[ResponseHandler] Tracked aggregate cost for ownerKeyId=${ownerKeyId}, cost=${costToTrack}`
     );
   }
 
-  // ========== ③ 追踪用户级别成本 ==========
-  await RateLimitService.trackCost(user.id, provider.id, session.sessionId, costFloat, "user");
-  logger.debug(`[ResponseHandler] Tracked cost for user=${user.id}, cost=${costFloat}`);
+  // ========== ③ 追踪用户级别成本（仅追踪套餐消费） ==========
+  await RateLimitService.trackCost(user.id, provider.id, session.sessionId, costToTrack, "user");
+  logger.debug(`[ResponseHandler] Tracked cost for user=${user.id}, cost=${costToTrack}`);
 
   // 刷新 session 时间戳（滑动窗口）
   void SessionTracker.refreshSession(session.sessionId, key.id, provider.id).catch((error) => {
