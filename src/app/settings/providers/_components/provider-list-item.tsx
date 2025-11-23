@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Edit, Globe, Key, RotateCcw, Copy, Trash2 } from "lucide-react";
+import { Edit, Globe, Key, RotateCcw, Copy, Trash2, Eye } from "lucide-react";
 import type { ProviderDisplay, ProviderGroupSummary } from "@/types/provider";
 import type { User } from "@/types/user";
 import { getProviderTypeConfig } from "@/lib/provider-type-utils";
@@ -30,6 +30,7 @@ import { removeProvider, resetProviderCircuit } from "@/actions/providers";
 import { toast } from "sonner";
 import type { CurrencyCode } from "@/lib/utils/currency";
 import { formatCurrency } from "@/lib/utils/currency";
+import { ProviderDetailsDialog } from "./provider-details-dialog";
 
 interface ProviderListItemProps {
   item: ProviderDisplay;
@@ -211,9 +212,26 @@ export function ProviderListItem({
               </Badge>
             )}
 
-            {/* 编辑和克隆按钮 - 仅管理员可见 */}
+            {/* 详情 / 编辑 / 克隆 / 删除按钮 - 仅管理员可见 */}
             {canEdit && (
               <div className="flex items-center gap-1">
+                <ProviderDetailsDialog
+                  provider={item}
+                  health={healthStatus}
+                  currencyCode={currencyCode}
+                  canEdit={canEdit}
+                  onEdit={() => setOpenEdit(true)}
+                  onClone={() => setOpenClone(true)}
+                  tooltip="详情"
+                  triggerButtonProps={{
+                    variant: "ghost",
+                    size: "icon",
+                    "aria-label": "查看详情",
+                    className:
+                      "h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity",
+                    children: <Eye className="h-3.5 w-3.5" />,
+                  }}
+                />
                 {/* 编辑按钮 */}
                 <Dialog open={openEdit} onOpenChange={setOpenEdit}>
                   <DialogTrigger asChild>

@@ -119,6 +119,11 @@ export function ProviderForm({
     sourceProvider?.proxyFallbackToDirect ?? false
   );
 
+  // 客户端限制配置
+  const [onlyClaudeCli, setOnlyClaudeCli] = useState<boolean>(
+    sourceProvider?.onlyClaudeCli ?? true
+  );
+
   // Codex Instructions 策略配置
   const [codexInstructionsStrategy, setCodexInstructionsStrategy] =
     useState<CodexInstructionsStrategy>(sourceProvider?.codexInstructionsStrategy ?? "auto");
@@ -162,6 +167,7 @@ export function ProviderForm({
             circuit_breaker_half_open_success_threshold?: number;
             proxy_url?: string | null;
             proxy_fallback_to_direct?: boolean;
+            only_claude_cli?: boolean;
             codex_instructions_strategy?: CodexInstructionsStrategy;
             tpm?: number | null;
             rpm?: number | null;
@@ -192,6 +198,7 @@ export function ProviderForm({
             circuit_breaker_half_open_success_threshold: halfOpenSuccessThreshold ?? 2,
             proxy_url: proxyUrl.trim() || null,
             proxy_fallback_to_direct: proxyFallbackToDirect,
+            only_claude_cli: onlyClaudeCli,
             codex_instructions_strategy: codexInstructionsStrategy,
             tpm: null,
             rpm: null,
@@ -235,6 +242,7 @@ export function ProviderForm({
             circuit_breaker_half_open_success_threshold: halfOpenSuccessThreshold ?? 2,
             proxy_url: proxyUrl.trim() || null,
             proxy_fallback_to_direct: proxyFallbackToDirect,
+            only_claude_cli: onlyClaudeCli,
             codex_instructions_strategy: codexInstructionsStrategy,
             tpm: null,
             rpm: null,
@@ -270,6 +278,7 @@ export function ProviderForm({
           setHalfOpenSuccessThreshold(2);
           setProxyUrl("");
           setProxyFallbackToDirect(false);
+          setOnlyClaudeCli(true);
           setCodexInstructionsStrategy("auto");
         }
         onSuccess?.();
@@ -744,6 +753,38 @@ export function ProviderForm({
                 测试通过配置的代理访问供应商 URL（使用 HEAD 请求，不消耗额度）
               </p>
             </div>
+          </div>
+        </div>
+
+        {/* 客户端限制配置 */}
+        <div className="space-y-4 pt-2 border-t">
+          <div className="space-y-1">
+            <div className="text-sm font-medium">客户端限制</div>
+            <p className="text-xs text-muted-foreground">
+              配置供应商的客户端访问限制，提高安全性
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label htmlFor={isEdit ? "edit-only-claude-cli" : "only-claude-cli"}>
+                  仅限官方 Claude CLI 调用
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  启用后，只有官方 Claude Code 客户端才能调用此供应商，第三方工具（如 Cursor、IDE 插件）将被拒绝访问
+                </p>
+              </div>
+              <Switch
+                id={isEdit ? "edit-only-claude-cli" : "only-claude-cli"}
+                checked={onlyClaudeCli}
+                onCheckedChange={setOnlyClaudeCli}
+                disabled={isPending}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              ⚠️ 启用后，非官方客户端请求将返回 403 错误。如需允许第三方工具访问，请关闭此开关。
+            </p>
           </div>
         </div>
 

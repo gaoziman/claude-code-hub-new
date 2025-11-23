@@ -28,6 +28,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Copy, Edit, RotateCcw, Trash2 } from "lucide-react";
+import { ProviderDetailsDialog } from "./provider-details-dialog";
 import { ProviderForm } from "./forms/provider-form";
 import { FormErrorBoundary } from "@/components/form-error-boundary";
 import { useProviderEdit } from "./hooks/use-provider-edit";
@@ -201,13 +202,6 @@ function ProviderTableRow({
     return value.toString();
   };
 
-  const latestCall =
-    provider.lastCallTime && provider.lastCallModel
-      ? `${provider.lastCallModel} @ ${provider.lastCallTime}`
-      : provider.lastCallTime
-        ? provider.lastCallTime
-        : "暂无记录";
-
   const todayCost = provider.todayTotalCostUsd
     ? formatCurrency(parseFloat(provider.todayTotalCostUsd), currencyCode)
     : formatCurrency(0, currencyCode);
@@ -297,28 +291,10 @@ function ProviderTableRow({
           </div>
         </TableCell>
         <TableCell>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div className="cursor-help rounded-md border border-transparent px-2 py-1 hover:border-border/70 hover:bg-muted/40 transition-colors">
-                <div className="text-sm font-medium text-foreground">{todayCost}</div>
-                <div className="text-xs text-muted-foreground">{todayCalls}</div>
-              </div>
-            </TooltipTrigger>
-            <TooltipContent className="space-y-1 text-xs">
-              <p>
-                <span className="text-muted-foreground">今日费用：</span>
-                {todayCost}
-              </p>
-              <p>
-                <span className="text-muted-foreground">今日调用：</span>
-                {todayCalls}
-              </p>
-              <p>
-                <span className="text-muted-foreground">最新调用：</span>
-                {latestCall}
-              </p>
-            </TooltipContent>
-          </Tooltip>
+          <div className="space-y-1">
+            <div className="text-sm font-medium text-foreground">{todayCost}</div>
+            <div className="text-xs text-muted-foreground">{todayCalls}</div>
+          </div>
         </TableCell>
         <TableCell>
           <div className="flex items-center gap-2">
@@ -347,6 +323,20 @@ function ProviderTableRow({
         <TableCell>
           {canEdit ? (
             <div className="flex items-center gap-1">
+              <ProviderDetailsDialog
+                provider={provider}
+                health={health}
+                currencyCode={currencyCode}
+                canEdit={canEdit}
+                onEdit={() => setOpenEdit(true)}
+                onClone={() => setOpenClone(true)}
+                tooltip="详情"
+                triggerButtonProps={{
+                  variant: "ghost",
+                  size: "icon",
+                  className: "h-8 w-8",
+                }}
+              />
               <Dialog open={openEdit} onOpenChange={setOpenEdit}>
                 <Tooltip>
                   <TooltipTrigger asChild>
