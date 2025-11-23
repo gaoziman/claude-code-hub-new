@@ -29,9 +29,10 @@ export const ENABLE_CODEX_INSTRUCTIONS_INJECTION =
   process.env.ENABLE_CODEX_INSTRUCTIONS_INJECTION === "true" || false;
 
 /**
- * 检测是否为官方 Codex CLI 客户端
+ * 检测是否为官方 Claude Code / Codex CLI 客户端
  *
  * 官方客户端 User-Agent 格式：
+ * - claude-cli/2.0.47 (external, cli) - 官方 Claude Code 客户端（主流版本）
  * - codex_vscode/0.35.0 (Windows 10.0.26100; x86_64) unknown (Cursor; 0.4.10)
  * - codex_cli_rs/0.50.0 (Mac OS 26.0.1; arm64) vscode/1.7.54
  *
@@ -43,12 +44,13 @@ export function isOfficialCodexClient(userAgent: string | null): boolean {
     return false;
   }
 
-  // 官方客户端检测正则（参考 claude-relay-service）
-  const codexCliPattern = /^(codex_vscode|codex_cli_rs)\/[\d.]+/i;
+  // 官方客户端检测正则
+  // 支持: claude-cli (官方 Claude Code), codex_vscode, codex_cli_rs
+  const codexCliPattern = /^(claude-cli|codex_vscode|codex_cli_rs)\/[\d.]+/i;
   const isOfficial = codexCliPattern.test(userAgent);
 
   if (isOfficial) {
-    logger.debug("[CodexSanitizer] Official Codex CLI client detected", {
+    logger.debug("[CodexSanitizer] Official Claude Code / Codex CLI client detected", {
       userAgent: userAgent.substring(0, 100),
     });
   }
