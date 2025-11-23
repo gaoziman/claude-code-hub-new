@@ -61,14 +61,14 @@ export class HeaderProcessor {
       // ⭐ 关键修复：验证 header 值，过滤无效值
       // 确保值不为 null/undefined/空字符串，且转换为字符串类型
       // 这样可以避免 undici 的 InvalidArgumentError（UND_ERR_INVALID_ARG）
-      if (value != null && value !== '') {
+      if (value != null && value !== "") {
         processed.set(key, String(value));
       }
     });
 
     // 第二步：应用覆盖规则（同样需要验证）
     this.overrides.forEach((value, key) => {
-      if (value != null && value !== '') {
+      if (value != null && value !== "") {
         processed.set(key, String(value));
       }
     });

@@ -12,7 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { useZodForm } from "@/lib/hooks/use-zod-form";
 import { KeyFormSchema } from "@/lib/validation/schemas";
 import { ExpirySelector } from "@/components/ui/expiry-selector";
-import { getResetInfoForBillingPeriod } from "@/lib/rate-limit/time-utils";
+import { getResetInfo } from "@/lib/rate-limit/time-utils";
 
 interface AddKeyFormProps {
   userId?: number;
@@ -23,6 +23,24 @@ export function AddKeyForm({ userId, onSuccess }: AddKeyFormProps) {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
+  // 计算周限额和月限额的重置时间说明
+  const weeklyResetInfo = useMemo(() => {
+    const resetInfo = getResetInfo("weekly");
+    if (resetInfo.resetAt) {
+      const resetTime = format(resetInfo.resetAt, "M月d日(E) HH:mm", { locale: zhCN });
+      return `每周最大消费金额，从周一 00:00 开始计算，将于 ${resetTime} 重置`;
+    }
+    return "每周最大消费金额";
+  }, []);
+
+  const monthlyResetInfo = useMemo(() => {
+    const resetInfo = getResetInfo("monthly");
+    if (resetInfo.resetAt) {
+      const resetTime = format(resetInfo.resetAt, "M月d日 HH:mm", { locale: zhCN });
+      return `每月最大消费金额，从每月1号 00:00 开始计算，将于 ${resetTime} 重置`;
+    }
+    return "每月最大消费金额";
+  }, []);
 
   const form = useZodForm({
     schema: KeyFormSchema,
@@ -39,7 +57,6 @@ export function AddKeyForm({ userId, onSuccess }: AddKeyFormProps) {
       limitConcurrentSessions: 0,
       rpmLimit: null,
       dailyQuota: null,
-      billingCycleStart: "",
     },
     onSubmit: async (data) => {
       if (!userId) {
@@ -61,7 +78,6 @@ export function AddKeyForm({ userId, onSuccess }: AddKeyFormProps) {
           limitConcurrentSessions: data.limitConcurrentSessions,
           rpmLimit: data.rpmLimit,
           dailyQuota: data.dailyQuota,
-          billingCycleStart: data.billingCycleStart || null,
         });
 
         if (!result.ok) {
@@ -131,38 +147,32 @@ export function AddKeyForm({ userId, onSuccess }: AddKeyFormProps) {
         />
       </div>
 
-      <div className="space-y-3 rounded-xl border border-border/70 bg-muted/10 px-4 py-3">
-        <div>
-          <Label className="text-sm font-medium">Key 级别消费限额</Label>
-          <p className="text-xs text-muted-foreground mt-1">
-            控制该 Key 的消费限制。留空表示无限制。
-          </p>
-        </div>
+      <NumberField
+        label="5小时消费上限 (USD)"
+        placeholder="留空表示无限制"
+        description="5小时内最大消费金额"
+        min={0}
+        step={0.01}
+        {...form.getFieldProps("limit5hUsd")}
+      />
 
-        <TextField
-          label="账期起始日期"
-          type="datetime-local"
-          placeholder="留空=使用自然周期"
-          value={(form.values.billingCycleStart as string) || ""}
-          onChange={(val) => form.setValue("billingCycleStart", val || "")}
-        />
-        <p className="text-[10px] text-muted-foreground -mt-2">
-          设置后，周限额将从此日期开始每7天重置，月限额每30天重置。留空则使用自然周（周一）和自然月（1号）。
-        </p>
+      <NumberField
+        label="周消费上限 (USD)"
+        placeholder="留空表示无限制"
+        description={weeklyResetInfo}
+        min={0}
+        step={0.01}
+        {...form.getFieldProps("limitWeeklyUsd")}
+      />
 
-        <NumberField
-          label="5小时消费上限 (USD)"
-          placeholder="留空表示无限制"
-          description="5小时内最大消费金额"
-          min={0}
-          step={0.01}
-          {...form.getFieldProps("limit5hUsd")}
-        />
-
-        <WeeklyLimitField form={form} />
-
-        <MonthlyLimitField form={form} />
-      </div>
+      <NumberField
+        label="月消费上限 (USD)"
+        placeholder="留空表示无限制"
+        description={monthlyResetInfo}
+        min={0}
+        step={0.01}
+        {...form.getFieldProps("limitMonthlyUsd")}
+      />
 
       <NumberField
         label="总费用上限 (USD)"
@@ -200,61 +210,5 @@ export function AddKeyForm({ userId, onSuccess }: AddKeyFormProps) {
         {...form.getFieldProps("dailyQuota")}
       />
     </DialogFormLayout>
-  );
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function WeeklyLimitField({ form }: { form: any }) {
-  const billingCycleStartValue = form.values.billingCycleStart as string;
-
-  const weeklyResetInfo = useMemo(() => {
-    const billingCycleStartDate = billingCycleStartValue ? new Date(billingCycleStartValue) : null;
-    const resetInfo = getResetInfoForBillingPeriod("weekly", billingCycleStartDate);
-    if (resetInfo.type === "billing" && resetInfo.resetAt) {
-      return `从账期起始日开始每7天重置，将于 ${format(resetInfo.resetAt, "M月d日(E) HH:mm", { locale: zhCN })} 重置`;
-    }
-    if (resetInfo.type === "natural" && resetInfo.resetAt) {
-      return `从每周一 00:00 开始计算，将于 ${format(resetInfo.resetAt, "M月d日(E) HH:mm", { locale: zhCN })} 重置`;
-    }
-    return "每周最大消费金额";
-  }, [billingCycleStartValue]);
-
-  return (
-    <NumberField
-      label="周消费上限 (USD)"
-      placeholder="留空表示无限制"
-      description={weeklyResetInfo}
-      min={0}
-      step={0.01}
-      {...form.getFieldProps("limitWeeklyUsd")}
-    />
-  );
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function MonthlyLimitField({ form }: { form: any }) {
-  const billingCycleStartValue = form.values.billingCycleStart as string;
-
-  const monthlyResetInfo = useMemo(() => {
-    const billingCycleStartDate = billingCycleStartValue ? new Date(billingCycleStartValue) : null;
-    const resetInfo = getResetInfoForBillingPeriod("monthly", billingCycleStartDate);
-    if (resetInfo.type === "billing" && resetInfo.resetAt) {
-      return `从账期起始日开始每30天重置，将于 ${format(resetInfo.resetAt, "M月d日 HH:mm", { locale: zhCN })} 重置`;
-    }
-    if (resetInfo.type === "natural" && resetInfo.resetAt) {
-      return `从每月1号 00:00 开始计算，将于 ${format(resetInfo.resetAt, "M月d日 HH:mm", { locale: zhCN })} 重置`;
-    }
-    return "每月最大消费金额";
-  }, [billingCycleStartValue]);
-
-  return (
-    <NumberField
-      label="月消费上限 (USD)"
-      placeholder="留空表示无限制"
-      description={monthlyResetInfo}
-      min={0}
-      step={0.01}
-      {...form.getFieldProps("limitMonthlyUsd")}
-    />
   );
 }

@@ -264,9 +264,7 @@ export const KeyFormSchema = z.object({
         if (value === null) return true;
         // 数字必须在范围内且为整数
         return (
-          Number.isInteger(value) &&
-          value >= KEY_LIMITS.RPM.MIN &&
-          value <= KEY_LIMITS.RPM.MAX
+          Number.isInteger(value) && value >= KEY_LIMITS.RPM.MIN && value <= KEY_LIMITS.RPM.MAX
         );
       },
       {

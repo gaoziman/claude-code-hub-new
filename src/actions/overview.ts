@@ -23,7 +23,12 @@ import {
 import { findDailyLeaderboard } from "@/repository/leaderboard";
 import { getNotificationSettings } from "@/repository/notifications";
 import { sumKeyCostInTimeRange, sumUserCostInTimeRange } from "@/repository/statistics";
-import { getTimeRangeForPeriod, getResetInfo, getDailyResetTime, type TimePeriod } from "@/lib/rate-limit/time-utils";
+import {
+  getTimeRangeForPeriod,
+  getResetInfo,
+  getDailyResetTime,
+  type TimePeriod,
+} from "@/lib/rate-limit/time-utils";
 import type { ActionResult } from "./types";
 import type { ActiveSessionInfo } from "@/types/session";
 
@@ -198,26 +203,27 @@ export async function getOverviewData(): Promise<ActionResult<OverviewData>> {
       overview.topProviders = providers;
       overview.recentErrors = errors;
     } else {
-      const [preferences, recentRequests, userSpendingLimits, keySpendingLimits] = await Promise.all([
-        getUserPreferenceSnapshot(currentUserId, scopedKeyValue),
-        getRecentRequestsByUser(currentUserId, 5, scopedKeyValue),
-        // 用户级别限额（所有Key总消费）
-        buildPersonalSpendingLimits({
-          source: session.user,
-          todayCost: metricsData.todayCost,
-          scopedKeyValue: undefined,
-          userId: currentUserId,
-          enforceKeyView: false,
-        }),
-        // Key级别限额（当前Key独立消费）
-        buildPersonalSpendingLimits({
-          source: session.key,
-          todayCost: metricsData.todayCost,
-          scopedKeyValue,
-          userId: currentUserId,
-          enforceKeyView: true,
-        }),
-      ]);
+      const [preferences, recentRequests, userSpendingLimits, keySpendingLimits] =
+        await Promise.all([
+          getUserPreferenceSnapshot(currentUserId, scopedKeyValue),
+          getRecentRequestsByUser(currentUserId, 5, scopedKeyValue),
+          // 用户级别限额（所有Key总消费）
+          buildPersonalSpendingLimits({
+            source: session.user,
+            todayCost: metricsData.todayCost,
+            scopedKeyValue: undefined,
+            userId: currentUserId,
+            enforceKeyView: false,
+          }),
+          // Key级别限额（当前Key独立消费）
+          buildPersonalSpendingLimits({
+            source: session.key,
+            todayCost: metricsData.todayCost,
+            scopedKeyValue,
+            userId: currentUserId,
+            enforceKeyView: true,
+          }),
+        ]);
 
       overview.personalSummary = {
         todayRequests: metricsData.todayRequests,
@@ -272,23 +278,32 @@ async function buildPersonalSpendingLimits({
     return [];
   }
 
-  const usageCollector = enforceKeyView && scopedKeyValue
-    ? (period: TimePeriod) => {
-        const range = getTimeRangeForPeriod(period);
-        return sumKeyCostInTimeRange(parseInt(scopedKeyValue, 10), range.startTime, range.endTime);
-      }
-    : (period: TimePeriod) => {
-        const range = getTimeRangeForPeriod(period);
-        return sumUserCostInTimeRange(userId, range.startTime, range.endTime);
-      };
+  const usageCollector =
+    enforceKeyView && scopedKeyValue
+      ? (period: TimePeriod) => {
+          const range = getTimeRangeForPeriod(period);
+          return sumKeyCostInTimeRange(
+            parseInt(scopedKeyValue, 10),
+            range.startTime,
+            range.endTime
+          );
+        }
+      : (period: TimePeriod) => {
+          const range = getTimeRangeForPeriod(period);
+          return sumUserCostInTimeRange(userId, range.startTime, range.endTime);
+        };
 
-  const limitConfigs: Array<{ key: PersonalLimitType; label: string; value?: number | null; period?: TimePeriod }>
-    = [
-      { key: "5h", label: "5 小时额度", value: source.limit5hUsd, period: "5h" },
-      { key: "weekly", label: "周额度", value: source.limitWeeklyUsd, period: "weekly" },
-      { key: "monthly", label: "月额度", value: source.limitMonthlyUsd, period: "monthly" },
-      { key: "total", label: "累计额度", value: source.totalLimitUsd, period: "total" },
-    ];
+  const limitConfigs: Array<{
+    key: PersonalLimitType;
+    label: string;
+    value?: number | null;
+    period?: TimePeriod;
+  }> = [
+    { key: "5h", label: "5 小时额度", value: source.limit5hUsd, period: "5h" },
+    { key: "weekly", label: "周额度", value: source.limitWeeklyUsd, period: "weekly" },
+    { key: "monthly", label: "月额度", value: source.limitMonthlyUsd, period: "monthly" },
+    { key: "total", label: "累计额度", value: source.totalLimitUsd, period: "total" },
+  ];
 
   const limitPromises = limitConfigs
     .filter((config) => config.value != null && config.value > 0)

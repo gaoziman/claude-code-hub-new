@@ -5,20 +5,12 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import {
-  AlertTriangle,
-  ScanEye,
-  Shield,
-  TrendingUp,
-} from "lucide-react";
+import { AlertTriangle, ScanEye, Shield, TrendingUp } from "lucide-react";
 
 import { checkConsistency, getLatestCheckResult } from "../_actions/check";
 import { fixAllInconsistencies } from "../_actions/fix";
 import { getTaskConfig, updateTaskConfig } from "../_actions/config";
-import type {
-  ConsistencyCheckResult,
-  ConsistencyTaskConfig,
-} from "@/types/consistency";
+import type { ConsistencyCheckResult, ConsistencyTaskConfig } from "@/types/consistency";
 import { cn } from "@/lib/utils";
 
 export function OverviewTab() {
@@ -61,7 +53,9 @@ export function OverviewTab() {
       {
         label: "不一致项",
         value: checkResult ? checkResult.inconsistentCount.toString() : "--",
-        desc: checkResult ? `占比 ${((checkResult.inconsistentCount / Math.max(checkResult.totalKeysChecked, 1)) * 100).toFixed(1)}%` : "暂无巡检数据",
+        desc: checkResult
+          ? `占比 ${((checkResult.inconsistentCount / Math.max(checkResult.totalKeysChecked, 1)) * 100).toFixed(1)}%`
+          : "暂无巡检数据",
         progress:
           checkResult && checkResult.totalKeysChecked
             ? Math.min(
@@ -296,9 +290,7 @@ export function OverviewTab() {
           <div>
             <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Risk Watch</p>
             <h3 className="mt-2 text-xl font-semibold">高风险 Key 列表</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              按差异率降序排列，最多显示前 3 项
-            </p>
+            <p className="mt-1 text-sm text-muted-foreground">按差异率降序排列，最多显示前 3 项</p>
           </div>
           <Button
             variant="ghost"

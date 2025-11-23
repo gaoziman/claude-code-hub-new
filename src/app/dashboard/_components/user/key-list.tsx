@@ -20,7 +20,6 @@ import {
 import { copyToClipboard } from "@/lib/utils/clipboard";
 import { addDays, addMonths, addWeeks, startOfMonth, startOfWeek } from "date-fns";
 import { fromZonedTime, toZonedTime } from "date-fns-tz";
-import { getResetInfoForBillingPeriod } from "@/lib/rate-limit/time-utils";
 
 interface KeyListProps {
   keys: UserKeyDisplay[];
@@ -80,27 +79,8 @@ export function KeyList({
     return `${mins}分钟`;
   };
 
-  const getPeriodTimeMeta = (
-    period: "weekly" | "monthly",
-    billingCycleStart?: Date | null
-  ) => {
+  const getPeriodTimeMeta = (period: "weekly" | "monthly") => {
     const now = new Date();
-
-    // 使用账期周期计算（如果有设置），否则回退到自然周期
-    const resetInfo = getResetInfoForBillingPeriod(period, billingCycleStart);
-
-    if (resetInfo.type === "billing" && resetInfo.cycleStart && resetInfo.cycleEnd) {
-      // 账期周期
-      const start = resetInfo.cycleStart;
-      const end = resetInfo.cycleEnd;
-      const total = end.getTime() - start.getTime();
-      const elapsed = now.getTime() - start.getTime();
-      const percent = total > 0 ? Math.min(100, Math.max(0, (elapsed / total) * 100)) : 0;
-      const remaining = end.getTime() - now.getTime();
-      return { percent, remainingText: formatDurationText(remaining) };
-    }
-
-    // 自然周期（回退逻辑）
     const zonedNow = toZonedTime(now, TIMEZONE);
     const startZoned =
       period === "weekly" ? startOfWeek(zonedNow, { weekStartsOn: 1 }) : startOfMonth(zonedNow);
@@ -133,15 +113,14 @@ export function KeyList({
     label: string,
     usage: number,
     limit: number,
-    period: "daily" | "weekly" | "monthly" | "total",
-    billingCycleStart?: Date | null
+    period: "daily" | "weekly" | "monthly" | "total"
   ): ReactNode => {
     const percent = limit > 0 ? Math.min(100, (usage / limit) * 100) : 0;
     const timeMeta =
       period === "weekly"
-        ? getPeriodTimeMeta("weekly", billingCycleStart)
+        ? getPeriodTimeMeta("weekly")
         : period === "monthly"
-          ? getPeriodTimeMeta("monthly", billingCycleStart)
+          ? getPeriodTimeMeta("monthly")
           : period === "daily"
             ? getDailyTimeMeta()
             : null;
@@ -164,27 +143,33 @@ export function KeyList({
               : "bg-sky-500",
     };
     return (
-      <div className="space-y-0.5 w-full" key={label}>
-        <div className="flex items-center justify-between gap-1.5 w-full">
-          <span
-            className={cn(
-              "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium flex-shrink-0",
-              palette.tag
+      <div className="space-y-1 text-xs" key={label}>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5">
+            <span
+              className={cn(
+                "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium",
+                palette.tag
+              )}
+            >
+              {period === "total" ? <Wallet className="h-3 w-3" /> : <Clock4 className="h-3 w-3" />}{" "}
+              {label}
+            </span>
+            {timeMeta ? (
+              <span className="text-[11px] text-muted-foreground">
+                剩余 {timeMeta.remainingText}
+              </span>
+            ) : (
+              <span className="text-[11px] text-muted-foreground">总额度</span>
             )}
-          >
-            {period === "total" ? <Wallet className="h-2.5 w-2.5" /> : <Clock4 className="h-2.5 w-2.5" />}{" "}
-            {label}
-            {timeMeta && (
-              <span className="text-[9px] opacity-70">· {timeMeta.remainingText}</span>
-            )}
-          </span>
-          <span className="text-[11px] font-semibold text-foreground whitespace-nowrap">
+          </div>
+          <div className="text-sm font-semibold text-foreground">
             {formatCurrency(usage ?? 0, currencyCode)} / {formatCurrency(limit ?? 0, currencyCode)}
-          </span>
+          </div>
         </div>
-        <div className="h-1.5 rounded-full bg-muted w-full">
+        <div className="h-1 rounded-full bg-muted">
           <div
-            className="h-full rounded-full transition-all"
+            className="h-full rounded-full"
             style={{ width: `${percent}%`, background: palette.bar }}
           />
         </div>
@@ -199,19 +184,13 @@ export function KeyList({
     const hasUserMonthlyLimit = user.limitMonthlyUsd != null && user.limitMonthlyUsd > 0;
     const hasUserTotalLimit = user.totalLimitUsd != null && user.totalLimitUsd > 0;
 
-    // 用户账期起始日期
-    const userBillingCycleStart = user.billingCycleStart
-      ? new Date(user.billingCycleStart)
-      : null;
-
     // 优先级：用户周限额
     if (hasUserWeeklyLimit) {
       return renderLimitBlock(
         "用户周限额",
         user.userAggregateWeeklyUsage ?? 0,
         user.limitWeeklyUsd!,
-        "weekly",
-        userBillingCycleStart
+        "weekly"
       );
     }
 
@@ -221,8 +200,7 @@ export function KeyList({
         "用户月限额",
         user.userAggregateMonthlyUsage ?? 0,
         user.limitMonthlyUsd!,
-        "monthly",
-        userBillingCycleStart
+        "monthly"
       );
     }
 
@@ -232,8 +210,7 @@ export function KeyList({
         "用户总限额",
         user.userAggregateTotalUsage ?? 0,
         user.totalLimitUsd!,
-        "total",
-        userBillingCycleStart
+        "total"
       );
     }
 
@@ -249,7 +226,7 @@ export function KeyList({
 
     // 优先级：Key 日额度
     if (dailyLimit) {
-      return renderLimitBlock("Key 日额度", record.todayUsage ?? 0, dailyLimit, "daily", userBillingCycleStart);
+      return renderLimitBlock("Key 日额度", record.todayUsage ?? 0, dailyLimit, "daily");
     }
 
     // 优先级：Key 周额度
@@ -258,8 +235,7 @@ export function KeyList({
         "Key 周额度",
         record.weeklyUsageUsd ?? record.todayUsage ?? 0,
         keyWeeklyLimit,
-        "weekly",
-        userBillingCycleStart
+        "weekly"
       );
     }
 
@@ -269,8 +245,7 @@ export function KeyList({
         "Key 月额度",
         record.monthlyUsageUsd ?? record.todayUsage ?? 0,
         keyMonthlyLimit,
-        "monthly",
-        userBillingCycleStart
+        "monthly"
       );
     }
 
@@ -280,8 +255,7 @@ export function KeyList({
         "Key 总费用",
         record.totalUsageUsd ?? record.todayUsage ?? 0,
         keyTotalLimit,
-        "total",
-        userBillingCycleStart
+        "total"
       );
     }
 
@@ -343,45 +317,47 @@ export function KeyList({
 
   const columns = [
     TableColumnTypes.text<UserKeyDisplay>("name", "名称", {
-      width: "120px",
-      className: "align-middle px-3 py-2",
+      width: "17%",
+      className: "align-middle px-1.5",
       render: (value, record) => {
         return (
-          <div className="space-y-1">
+          <div className="space-y-2">
             <div className="flex items-center gap-1.5">
               <div className="truncate text-sm font-semibold text-foreground">{value}</div>
               {record.scope === "owner" && (
-                <Badge variant="outline" className="text-[10px] bg-orange-50 text-orange-700 border-orange-200 px-1.5 py-0">
+                <Badge
+                  variant="outline"
+                  className="text-[11px] bg-orange-50 text-orange-700 border-orange-200"
+                >
                   主Key
                 </Badge>
               )}
+              {record.status === "disabled" && (
+                <Badge variant="outline" className="text-[11px] text-orange-600">
+                  {record.disabledReason === "user_disabled"
+                    ? "用户禁用"
+                    : record.disabledReason === "user_expired"
+                      ? "用户过期"
+                      : "已禁用"}
+                </Badge>
+              )}
             </div>
-            {record.status === "disabled" && (
-              <Badge variant="outline" className="text-[10px] text-orange-600 px-1.5 py-0">
-                {record.disabledReason === "user_disabled"
-                  ? "用户禁用"
-                  : record.disabledReason === "user_expired"
-                    ? "用户过期"
-                    : "已禁用"}
-              </Badge>
-            )}
           </div>
         );
       },
     }),
     TableColumnTypes.text<UserKeyDisplay>("maskedKey", "Key", {
-      width: "80px",
-      className: "align-middle px-3 py-2",
-      align: "center",
+      width: "17%",
+      className: "align-middle px-1.5",
       render: (_, record: UserKeyDisplay) => (
-        <div className="group inline-flex items-center gap-2">
-          <div className="font-mono text-xs truncate">{record.maskedKey || "-"}</div>
+        <div className="group inline-flex items-center gap-1">
+          <div className="font-mono truncate">{record.maskedKey || "-"}</div>
           {record.canCopy && record.fullKey && (
             <Button
               variant="ghost"
               size="sm"
               onClick={() => handleCopyKey(record)}
-              className="h-6 w-6 p-0 hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+              className="h-5 w-5 p-0 hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
               title="复制完整密钥"
             >
               {copiedKeyId === record.id ? (
@@ -395,26 +371,23 @@ export function KeyList({
       ),
     }),
     TableColumnTypes.text<UserKeyDisplay>("todayCallCount", rangeCallLabel, {
-      width: "80px",
-      className: "align-middle px-3 py-2 text-center",
-      align: "center",
+      width: "10%",
+      className: "align-middle px-1.5",
       render: (value) => (
         <div className="text-sm">{typeof value === "number" ? value.toLocaleString() : 0} 次</div>
       ),
     }),
     TableColumnTypes.number<UserKeyDisplay>("todayUsage", rangeUsageLabel, {
-      width: "80px",
-      className: "align-middle px-3 py-2 text-right",
-      align: "center",
+      width: "10%",
+      className: "align-middle px-1.5",
       render: (value) => {
         const amount = typeof value === "number" ? value : 0;
-        return <div className="text-sm font-semibold">{formatCurrency(amount, currencyCode)}</div>;
+        return <div className="text-sm">{formatCurrency(amount, currencyCode)}</div>;
       },
     }),
     TableColumnTypes.text<UserKeyDisplay>("lastUsedAt", "最后使用", {
-      width: "80px",
-      className: "align-middle px-3 py-2",
-      align: "center",
+      width: "14%",
+      className: "align-middle px-1.5",
       render: (_, record: UserKeyDisplay) => (
         <div className="space-y-0.5">
           {record.lastUsedAt ? (
@@ -423,8 +396,8 @@ export function KeyList({
                 <RelativeTime date={record.lastUsedAt} />
               </div>
               {record.lastProviderName && (
-                <div className="text-xs text-muted-foreground truncate" title={record.lastProviderName}>
-                  {record.lastProviderName}
+                <div className="text-xs text-muted-foreground">
+                  供应商: {record.lastProviderName}
                 </div>
               )}
             </>
@@ -435,51 +408,52 @@ export function KeyList({
       ),
     }),
     TableColumnTypes.text<UserKeyDisplay>("limitProgress", "限额进度", {
-      width: "150px",
-      className: "align-middle px-3 py-2",
-      align: "center",
+      width: "22%",
+      className: "align-middle px-1.5",
       render: (_, record) => renderLimitProgress(record),
     }),
     TableColumnTypes.actions<UserKeyDisplay>(
       "操作",
       (value, record) => (
-        <div className="flex items-center justify-end gap-1.5">
+        <div className="flex items-center justify-end gap-1 whitespace-nowrap">
           {showDetailAction && onSelectKey && (
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 w-14 text-xs px-2"
+              className="h-7 text-xs shrink-0"
               title="查看详情"
               onClick={() => onSelectKey(record)}
             >
-              <Info className="mr-0.5 h-3 w-3" />
+              <Info className="mr-1 h-3.5 w-3.5" />
               详情
             </Button>
           )}
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 w-14 text-xs px-2"
+            className="h-7 text-xs shrink-0"
             title="查看模型统计"
             onClick={() => setModelStatsKey(record)}
           >
-            <BarChart3 className="h-3 w-3 mr-0.5" />
+            <BarChart3 className="h-3.5 w-3.5 mr-1" />
             模型
           </Button>
-          <KeyActions
-            keyData={record}
-            currentUser={currentUser}
-            keyOwnerUserId={keyOwnerUserId}
-            canDelete={canDeleteKeys}
-            showLabels
-            allowManage={
-              currentUser?.role === "admin" ||
-              (allowManageKeys && currentUser?.id === keyOwnerUserId)
-            }
-          />
+          <div className="shrink-0">
+            <KeyActions
+              keyData={record}
+              currentUser={currentUser}
+              keyOwnerUserId={keyOwnerUserId}
+              canDelete={canDeleteKeys}
+              showLabels
+              allowManage={
+                currentUser?.role === "admin" ||
+                (allowManageKeys && currentUser?.id === keyOwnerUserId)
+              }
+            />
+          </div>
         </div>
       ),
-      { width: "150px", className: "align-middle px-3 py-2", align: "center" }
+      { width: "10%", className: "align-middle px-1.5 text-right" }
     ),
   ];
 
@@ -495,7 +469,7 @@ export function KeyList({
         }}
         maxHeight="600px"
         stickyHeader
-        minWidth="1300px"
+        minWidth="1100px"
       />
       <Dialog
         open={Boolean(modelStatsKey)}
