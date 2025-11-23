@@ -8,6 +8,7 @@ import {
 } from "@/lib/circuit-breaker";
 import { ProxyProviderResolver } from "./provider-selector";
 import { ProxyError, categorizeError, ErrorCategory, isClientAbortError } from "./errors";
+import { ProxyResponses } from "./responses";
 import { ModelRedirector } from "./model-redirector";
 import { SessionManager } from "@/lib/session-manager";
 import { logger } from "@/lib/logger";
@@ -29,6 +30,32 @@ export class ProxyForwarder {
   static async send(session: ProxySession): Promise<Response> {
     if (!session.provider || !session.authState?.success) {
       throw new Error("代理上下文缺少供应商或鉴权信息");
+    }
+
+    // ========== 客户端限制检查 ==========
+    // 如果供应商启用了"仅限 Claude CLI"，检查客户端类型
+    if (session.provider.onlyClaudeCli) {
+      const isOfficial = isOfficialCodexClient(session.userAgent);
+
+      if (!isOfficial) {
+        logger.warn("[ProxyForwarder] Provider restricted to Claude CLI only, rejecting request", {
+          providerId: session.provider.id,
+          providerName: session.provider.name,
+          userAgent: session.userAgent || "N/A",
+        });
+
+        return ProxyResponses.buildError(
+          403,
+          "该供应商仅限官方 Claude Code 客户端调用。请使用 Claude Code 客户端，或联系管理员调整供应商配置。",
+          "forbidden"
+        );
+      }
+
+      logger.debug("[ProxyForwarder] Claude CLI client verified for restricted provider", {
+        providerId: session.provider.id,
+        providerName: session.provider.name,
+        userAgent: session.userAgent?.substring(0, 100),
+      });
     }
 
     let lastError: Error | null = null;
