@@ -637,29 +637,78 @@ async function updateRequestCostFromUsage(
   });
 
   if (cost.gt(0)) {
-    // ========== 双轨扣款：根据支付策略扣款 ==========
-    if (paymentStrategy && paymentStrategy.fromBalance > 0) {
+    const actualCost = parseFloat(cost.toString());
+
+    // ========== 修复：使用实际成本重新计算支付策略 ==========
+    // 背景：paymentStrategy 是请求前用预估成本计算的，需要用实际成本重新计算
+    // 确保数据库记录的 package_cost_usd 和 balance_cost_usd 与实际成本匹配
+    let actualPaymentStrategy = paymentStrategy;
+
+    if (paymentStrategy) {
+      try {
+        const { findUserById } = await import("@/repository/user");
+        const userConfig = await findUserById(userId);
+
+        if (userConfig) {
+          const recalculated = await RateLimitService.checkUserCostWithBalance(
+            userId,
+            {
+              limit_5h_usd: userConfig.limit5hUsd,
+              limit_weekly_usd: userConfig.limitWeeklyUsd,
+              limit_monthly_usd: userConfig.limitMonthlyUsd,
+              total_limit_usd: userConfig.totalLimitUsd,
+            },
+            userConfig.balanceUsd,
+            actualCost, // 使用实际成本重新计算
+            userConfig.billingCycleStart
+          );
+
+          if (recalculated.paymentStrategy) {
+            actualPaymentStrategy = recalculated.paymentStrategy;
+            logger.info(
+              `[CostCalculation] Recalculated payment strategy for DB: ` +
+                `actualCost=${actualCost.toFixed(4)}, ` +
+                `originalFromPackage=${paymentStrategy.fromPackage.toFixed(4)}, ` +
+                `originalFromBalance=${paymentStrategy.fromBalance.toFixed(4)}, ` +
+                `newFromPackage=${actualPaymentStrategy.fromPackage.toFixed(4)}, ` +
+                `newFromBalance=${actualPaymentStrategy.fromBalance.toFixed(4)}, ` +
+                `source=${actualPaymentStrategy.source}`
+            );
+          }
+        }
+      } catch (error) {
+        logger.error("[CostCalculation] Failed to recalculate payment strategy for DB", {
+          messageId,
+          userId,
+          error,
+        });
+        // 降级：使用原始策略
+      }
+    }
+
+    // ========== 双轨扣款：根据重新计算的支付策略扣款 ==========
+    if (actualPaymentStrategy && actualPaymentStrategy.fromBalance > 0) {
       // 从余额中扣款
       const { deductBalance } = await import("@/repository/balance");
 
       const deductionResult = await deductBalance(
         userId,
-        paymentStrategy.fromBalance,
+        actualPaymentStrategy.fromBalance,
         messageId
       );
 
       logger.info("[CostCalculation] Deducted balance successfully", {
         messageId,
         userId,
-        amount: paymentStrategy.fromBalance,
+        amount: actualPaymentStrategy.fromBalance,
         balanceBefore: deductionResult.balanceBefore,
         balanceAfter: deductionResult.balanceAfter,
         transactionId: deductionResult.transactionId,
       });
     }
 
-    // 更新 message_request 表（包含支付来源追踪）
-    await updateMessageRequestCost(messageId, cost, paymentStrategy);
+    // 更新 message_request 表（使用重新计算的支付策略）
+    await updateMessageRequestCost(messageId, cost, actualPaymentStrategy);
   } else {
     logger.warn("[CostCalculation] Calculated cost is zero or negative", {
       messageId,
@@ -701,22 +750,86 @@ async function trackCostToRedis(session: ProxySession, usage: UsageMetrics | nul
   const cost = calculateRequestCost(usage, priceData.priceData, provider.costMultiplier);
   if (cost.lte(0)) return;
 
-  // ========== 双轨计费：只追踪从套餐扣除的部分 ==========
+  const actualCost = parseFloat(cost.toString());
+
+  // ========== 修复：使用实际成本重新计算支付策略 ==========
+  // 背景：请求前使用预估成本（$0.10）计算支付策略用于限流判断
+  // 响应后使用实际成本重新计算，确保Redis追踪的金额与数据库记录一致
   let costToTrack: number;
-  if (session.paymentStrategy) {
-    // 有支付策略时，只追踪从套餐扣除的部分
-    costToTrack = session.paymentStrategy.fromPackage;
-    logger.debug(
-      `[ResponseHandler] Using dual-track billing: totalCost=${cost.toString()}, ` +
-        `trackingPackageCost=${costToTrack}, balanceCost=${session.paymentStrategy.fromBalance}`
-    );
+
+  if (session.paymentStrategy && user) {
+    try {
+      // 查询用户最新配置（可能在请求过程中被修改）
+      const { findUserById } = await import("@/repository/user");
+      const userConfig = await findUserById(user.id);
+
+      if (userConfig) {
+        // 使用实际成本重新计算支付策略
+        // 传递 billingCycleStart 以确保账期周期的限额从数据库准确查询
+        const updatedStrategy = await RateLimitService.checkUserCostWithBalance(
+          user.id,
+          {
+            limit_5h_usd: userConfig.limit5hUsd,
+            limit_weekly_usd: userConfig.limitWeeklyUsd,
+            limit_monthly_usd: userConfig.limitMonthlyUsd,
+            total_limit_usd: userConfig.totalLimitUsd,
+          },
+          userConfig.balanceUsd,
+          actualCost, // 使用实际成本而非预估成本
+          userConfig.billingCycleStart
+        );
+
+        if (updatedStrategy.paymentStrategy) {
+          // 只追踪从套餐扣除的部分
+          costToTrack = updatedStrategy.paymentStrategy.fromPackage;
+          logger.info(
+            `[ResponseHandler] Recalculated payment strategy with actual cost: ` +
+              `actualCost=${actualCost.toFixed(4)}, ` +
+              `originalEstimate=${session.paymentStrategy.fromPackage.toFixed(4)}, ` +
+              `newFromPackage=${costToTrack.toFixed(4)}, ` +
+              `newFromBalance=${updatedStrategy.paymentStrategy.fromBalance.toFixed(4)}, ` +
+              `source=${updatedStrategy.paymentStrategy.source}`
+          );
+        } else if (updatedStrategy.allowed === false) {
+          // 余额不足导致检查失败，但请求已完成，成本已从余额扣除
+          // 不追踪到 Redis（Redis 只追踪套餐消费）
+          costToTrack = 0;
+          logger.debug(
+            `[ResponseHandler] Balance insufficient during recalculation, not tracking to Redis: ${actualCost.toFixed(4)}`
+          );
+        } else {
+          // 其他情况（用户没有配置限额等），使用请求前的策略
+          costToTrack = session.paymentStrategy.fromPackage;
+          logger.debug(
+            `[ResponseHandler] No payment strategy returned, using original fromPackage: ${costToTrack.toFixed(4)}`
+          );
+        }
+      } else {
+        // 用户被删除，追踪全部成本（数据库扣款已完成）
+        logger.warn(`[ResponseHandler] User not found during cost tracking, tracking full cost`, {
+          userId: user.id,
+          actualCost,
+        });
+        costToTrack = actualCost;
+      }
+    } catch (error) {
+      // 重新计算失败（如Redis不可用），降级为追踪全部成本
+      logger.error(
+        `[ResponseHandler] Failed to recalculate payment strategy, fallback to tracking full cost`,
+        { userId: user.id, actualCost, error }
+      );
+      costToTrack = actualCost;
+    }
   } else {
-    // 没有支付策略时，追踪全部成本（向后兼容）
-    costToTrack = parseFloat(cost.toString());
+    // 没有支付策略或没有用户信息，追踪全部成本（向后兼容）
+    costToTrack = actualCost;
+    logger.debug(
+      `[ResponseHandler] No payment strategy or user info, tracking full actual cost: ${actualCost.toFixed(4)}`
+    );
   }
 
   if (costToTrack <= 0) {
-    logger.debug(`[ResponseHandler] Package cost is zero, skipping Redis tracking`);
+    logger.debug(`[ResponseHandler] Cost to track is zero or negative, skipping Redis tracking`);
     return;
   }
 

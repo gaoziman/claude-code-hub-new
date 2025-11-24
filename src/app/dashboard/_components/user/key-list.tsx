@@ -124,53 +124,33 @@ export function KeyList({
           : period === "daily"
             ? getDailyTimeMeta()
             : null;
-    const palette = {
-      tag:
-        period === "monthly"
-          ? "bg-violet-100 text-violet-700"
-          : period === "weekly"
-            ? "bg-teal-100 text-teal-700"
-            : period === "daily"
-              ? "bg-orange-100 text-orange-700"
-              : "bg-sky-100 text-sky-700",
-      bar:
-        period === "monthly"
-          ? "bg-violet-500"
-          : period === "weekly"
-            ? "bg-teal-500"
-            : period === "daily"
-              ? "bg-orange-500"
-              : "bg-sky-500",
-    };
+
+    // 简化标签
+    const shortLabel =
+      period === "monthly" ? "月" :
+      period === "weekly" ? "周" :
+      period === "daily" ? "日" : "总";
+
+    // 进度条颜色：根据使用比例变化
+    const barColor = percent >= 90 ? "bg-red-500" : percent >= 70 ? "bg-orange-500" : "bg-emerald-500";
+
+    // tooltip 内容
+    const tooltipContent = `${label}: ${formatCurrency(usage ?? 0, currencyCode)} / ${formatCurrency(limit ?? 0, currencyCode)}${timeMeta ? ` · 剩余 ${timeMeta.remainingText}` : ""}`;
+
     return (
-      <div className="space-y-1 text-xs" key={label}>
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5">
-            <span
-              className={cn(
-                "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium",
-                palette.tag
-              )}
-            >
-              {period === "total" ? <Wallet className="h-3 w-3" /> : <Clock4 className="h-3 w-3" />}{" "}
-              {label}
-            </span>
-            {timeMeta ? (
-              <span className="text-[11px] text-muted-foreground">
-                剩余 {timeMeta.remainingText}
-              </span>
-            ) : (
-              <span className="text-[11px] text-muted-foreground">总额度</span>
-            )}
-          </div>
-          <div className="text-sm font-semibold text-foreground">
+      <div className="w-full max-w-[180px]" title={tooltipContent} key={label}>
+        {/* 第一行：金额 + 百分比 */}
+        <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+          <span className="tabular-nums">
             {formatCurrency(usage ?? 0, currencyCode)} / {formatCurrency(limit ?? 0, currencyCode)}
-          </div>
+          </span>
+          <span className="text-[10px] ml-1">({shortLabel})</span>
         </div>
-        <div className="h-1 rounded-full bg-muted">
+        {/* 第二行：进度条 */}
+        <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
           <div
-            className="h-full rounded-full"
-            style={{ width: `${percent}%`, background: palette.bar }}
+            className={cn("h-full rounded-full transition-all duration-300", barColor)}
+            style={{ width: `${Math.max(percent, 2)}%` }}
           />
         </div>
       </div>
@@ -317,28 +297,30 @@ export function KeyList({
 
   const columns = [
     TableColumnTypes.text<UserKeyDisplay>("name", "名称", {
-      width: "17%",
-      className: "align-middle px-1.5",
+      width: "150px",
+      className: "align-middle px-2",
       render: (value, record) => {
         return (
-          <div className="space-y-2">
-            <div className="flex items-center gap-1.5">
-              <div className="truncate text-sm font-semibold text-foreground">{value}</div>
+          <div className="space-y-1">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="truncate text-sm font-semibold text-foreground max-w-[80px]" title={value}>
+                {value}
+              </span>
               {record.scope === "owner" && (
                 <Badge
                   variant="outline"
-                  className="text-[11px] bg-orange-50 text-orange-700 border-orange-200"
+                  className="text-[10px] px-1.5 py-0 bg-orange-50 text-orange-700 border-orange-200 shrink-0"
                 >
                   主Key
                 </Badge>
               )}
               {record.status === "disabled" && (
-                <Badge variant="outline" className="text-[11px] text-orange-600">
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-orange-600 shrink-0">
                   {record.disabledReason === "user_disabled"
-                    ? "用户禁用"
+                    ? "禁用"
                     : record.disabledReason === "user_expired"
-                      ? "用户过期"
-                      : "已禁用"}
+                      ? "过期"
+                      : "禁用"}
                 </Badge>
               )}
             </div>
@@ -347,17 +329,19 @@ export function KeyList({
       },
     }),
     TableColumnTypes.text<UserKeyDisplay>("maskedKey", "Key", {
-      width: "17%",
-      className: "align-middle px-1.5",
+      width: "130px",
+      className: "align-middle px-2",
       render: (_, record: UserKeyDisplay) => (
         <div className="group inline-flex items-center gap-1">
-          <div className="font-mono truncate">{record.maskedKey || "-"}</div>
+          <span className="font-mono text-sm truncate max-w-[100px]" title={record.maskedKey}>
+            {record.maskedKey || "-"}
+          </span>
           {record.canCopy && record.fullKey && (
             <Button
               variant="ghost"
               size="sm"
               onClick={() => handleCopyKey(record)}
-              className="h-5 w-5 p-0 hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+              className="h-5 w-5 p-0 hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
               title="复制完整密钥"
             >
               {copiedKeyId === record.id ? (
@@ -371,23 +355,23 @@ export function KeyList({
       ),
     }),
     TableColumnTypes.text<UserKeyDisplay>("todayCallCount", rangeCallLabel, {
-      width: "10%",
-      className: "align-middle px-1.5",
+      width: "80px",
+      className: "align-middle px-2 text-center",
       render: (value) => (
-        <div className="text-sm">{typeof value === "number" ? value.toLocaleString() : 0} 次</div>
+        <div className="text-sm tabular-nums">{typeof value === "number" ? value.toLocaleString() : 0} 次</div>
       ),
     }),
     TableColumnTypes.number<UserKeyDisplay>("todayUsage", rangeUsageLabel, {
-      width: "10%",
-      className: "align-middle px-1.5",
+      width: "90px",
+      className: "align-middle px-2 text-right",
       render: (value) => {
         const amount = typeof value === "number" ? value : 0;
-        return <div className="text-sm">{formatCurrency(amount, currencyCode)}</div>;
+        return <div className="text-sm font-medium tabular-nums">{formatCurrency(amount, currencyCode)}</div>;
       },
     }),
     TableColumnTypes.text<UserKeyDisplay>("lastUsedAt", "最后使用", {
-      width: "14%",
-      className: "align-middle px-1.5",
+      width: "110px",
+      className: "align-middle px-2",
       render: (_, record: UserKeyDisplay) => (
         <div className="space-y-0.5">
           {record.lastUsedAt ? (
@@ -396,64 +380,60 @@ export function KeyList({
                 <RelativeTime date={record.lastUsedAt} />
               </div>
               {record.lastProviderName && (
-                <div className="text-xs text-muted-foreground">
-                  供应商: {record.lastProviderName}
+                <div className="text-[10px] text-muted-foreground truncate" title={record.lastProviderName}>
+                  {record.lastProviderName}
                 </div>
               )}
             </>
           ) : (
-            <div className="text-sm text-muted-foreground">未使用</div>
+            <div className="text-sm text-muted-foreground">-</div>
           )}
         </div>
       ),
     }),
     TableColumnTypes.text<UserKeyDisplay>("limitProgress", "限额进度", {
-      width: "22%",
-      className: "align-middle px-1.5",
+      width: "220px",
+      className: "align-middle px-2",
       render: (_, record) => renderLimitProgress(record),
     }),
     TableColumnTypes.actions<UserKeyDisplay>(
       "操作",
       (value, record) => (
-        <div className="flex items-center justify-end gap-1 whitespace-nowrap">
+        <div className="flex items-center justify-end gap-0.5">
           {showDetailAction && onSelectKey && (
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 text-xs shrink-0"
+              className="h-7 w-7 p-0"
               title="查看详情"
               onClick={() => onSelectKey(record)}
             >
-              <Info className="mr-1 h-3.5 w-3.5" />
-              详情
+              <Info className="h-3.5 w-3.5" />
             </Button>
           )}
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 text-xs shrink-0"
-            title="查看模型统计"
+            className="h-7 w-7 p-0"
+            title="模型统计"
             onClick={() => setModelStatsKey(record)}
           >
-            <BarChart3 className="h-3.5 w-3.5 mr-1" />
-            模型
+            <BarChart3 className="h-3.5 w-3.5" />
           </Button>
-          <div className="shrink-0">
-            <KeyActions
-              keyData={record}
-              currentUser={currentUser}
-              keyOwnerUserId={keyOwnerUserId}
-              canDelete={canDeleteKeys}
-              showLabels
-              allowManage={
-                currentUser?.role === "admin" ||
-                (allowManageKeys && currentUser?.id === keyOwnerUserId)
-              }
-            />
-          </div>
+          <KeyActions
+            keyData={record}
+            currentUser={currentUser}
+            keyOwnerUserId={keyOwnerUserId}
+            canDelete={canDeleteKeys}
+            showLabels={false}
+            allowManage={
+              currentUser?.role === "admin" ||
+              (allowManageKeys && currentUser?.id === keyOwnerUserId)
+            }
+          />
         </div>
       ),
-      { width: "10%", className: "align-middle px-1.5 text-right" }
+      { width: "100px", className: "align-middle px-2 text-right" }
     ),
   ];
 
@@ -469,7 +449,7 @@ export function KeyList({
         }}
         maxHeight="600px"
         stickyHeader
-        minWidth="1100px"
+        minWidth="1200px"
       />
       <Dialog
         open={Boolean(modelStatsKey)}

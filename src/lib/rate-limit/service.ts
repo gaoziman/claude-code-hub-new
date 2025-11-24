@@ -695,7 +695,8 @@ export class RateLimitService {
       total_limit_usd?: number | null;
     },
     balanceUsd: number,
-    estimatedCost: number
+    estimatedCost: number,
+    billingCycleStart?: Date | null
   ): Promise<{
     allowed: boolean;
     reason?: string;
@@ -706,7 +707,8 @@ export class RateLimitService {
     };
   }> {
     // 1. 检查套餐限额（5h/周/月/总计）
-    const packageCheck = await this.checkCostLimits(userId, "user", limits);
+    // 传递 billingCycleStart 以确保使用账期周期计算（从数据库查询准确值）
+    const packageCheck = await this.checkCostLimits(userId, "user", limits, billingCycleStart);
 
     // 如果套餐限额检查失败，尝试使用余额支付
     if (!packageCheck.allowed) {
