@@ -256,6 +256,7 @@ export function KeyWorkspace({
 
       <KeyDetailSheet
         keyData={selectedKey}
+        user={activeUser}
         open={Boolean(selectedKey)}
         onOpenChange={(open) => !open && setSelectedKey(null)}
         currencyCode={currencyCode}
@@ -513,6 +514,7 @@ function KeyUsageInsights({ keys, currencyCode, metricLabel }: KeyUsageInsightsP
 
 interface KeyDetailSheetProps {
   keyData: UserKeyDisplay | null;
+  user: UserDisplay | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   currencyCode: CurrencyCode;
@@ -521,6 +523,7 @@ interface KeyDetailSheetProps {
 
 function KeyDetailSheet({
   keyData,
+  user,
   open,
   onOpenChange,
   currencyCode,
@@ -599,19 +602,47 @@ function KeyDetailSheet({
                 />
                 <InfoCard
                   label="5 小时上限"
-                  value={limitValueText(keyData.limit5hUsd, currencyCode)}
+                  {...(() => {
+                    const display = getLimitDisplayWithSource(
+                      user?.limit5hUsd,
+                      keyData.limit5hUsd,
+                      currencyCode
+                    );
+                    return { value: display.value, source: display.source };
+                  })()}
                 />
                 <InfoCard
                   label="周消费上限"
-                  value={limitValueText(keyData.limitWeeklyUsd, currencyCode)}
+                  {...(() => {
+                    const display = getLimitDisplayWithSource(
+                      user?.limitWeeklyUsd,
+                      keyData.limitWeeklyUsd,
+                      currencyCode
+                    );
+                    return { value: display.value, source: display.source };
+                  })()}
                 />
                 <InfoCard
                   label="月消费上限"
-                  value={limitValueText(keyData.limitMonthlyUsd, currencyCode)}
+                  {...(() => {
+                    const display = getLimitDisplayWithSource(
+                      user?.limitMonthlyUsd,
+                      keyData.limitMonthlyUsd,
+                      currencyCode
+                    );
+                    return { value: display.value, source: display.source };
+                  })()}
                 />
                 <InfoCard
                   label="总费用上限"
-                  value={limitValueText(keyData.totalLimitUsd, currencyCode)}
+                  {...(() => {
+                    const display = getLimitDisplayWithSource(
+                      user?.totalLimitUsd,
+                      keyData.totalLimitUsd,
+                      currencyCode
+                    );
+                    return { value: display.value, source: display.source };
+                  })()}
                 />
                 <InfoCard label="并发会话" value={keyData.limitConcurrentSessions || "未设置"} />
               </div>
@@ -691,10 +722,17 @@ function StatCard({ label, value, icon }: { label: string; value: ReactNode; ico
   );
 }
 
-function InfoCard({ label, value }: { label: string; value: ReactNode }) {
+function InfoCard({ label, value, source }: { label: string; value: ReactNode; source?: '用户' | 'Key' | null }) {
   return (
     <div className="rounded-lg border border-border/40 bg-muted/20 p-3">
-      <div className="text-xs text-muted-foreground mb-1">{label}</div>
+      <div className="flex items-center justify-between mb-1">
+        <div className="text-xs text-muted-foreground">{label}</div>
+        {source && (
+          <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+            {source}
+          </Badge>
+        )}
+      </div>
       <div className="text-sm font-medium text-foreground">{value ?? "--"}</div>
     </div>
   );
@@ -705,6 +743,38 @@ function limitValueText(value: number | null | undefined, currencyCode: Currency
     return "未设置";
   }
   return formatCurrency(value, currencyCode);
+}
+
+/**
+ * 获取限额显示值（用户级别优先，Key 级别降级）
+ * @param userLimit 用户级别限额
+ * @param keyLimit Key 级别限额
+ * @param currencyCode 货币代码
+ * @returns { value: 显示值, source: 来源标识 }
+ */
+function getLimitDisplayWithSource(
+  userLimit: number | null | undefined,
+  keyLimit: number | null | undefined,
+  currencyCode: CurrencyCode
+): { value: ReactNode; source: '用户' | 'Key' | null } {
+  // 优先显示用户级别限额
+  if (userLimit !== null && userLimit !== undefined && userLimit > 0) {
+    return {
+      value: formatCurrency(userLimit, currencyCode),
+      source: '用户',
+    };
+  }
+
+  // 降级到 Key 级别限额
+  if (keyLimit !== null && keyLimit !== undefined && keyLimit > 0) {
+    return {
+      value: formatCurrency(keyLimit, currencyCode),
+      source: 'Key',
+    };
+  }
+
+  // 都未设置
+  return { value: "未设置", source: null };
 }
 
 function calculatePercentage(value: number, max: number) {
