@@ -633,8 +633,11 @@ export async function sumKeyCostInTimeRange(
 
   const keyString = keyRecord[0].key;
 
+  // 双轨计费兼容：优先使用 package_cost_usd，向后兼容 cost_usd
   const result = await db
-    .select({ total: sql<number>`COALESCE(SUM(${messageRequest.costUsd}), 0)` })
+    .select({
+      total: sql<number>`COALESCE(SUM(COALESCE(${messageRequest.packageCostUsd}, ${messageRequest.costUsd})), 0)`
+    })
     .from(messageRequest)
     .where(
       and(
@@ -657,8 +660,11 @@ export async function sumProviderCostInTimeRange(
   startTime: Date,
   endTime: Date
 ): Promise<number> {
+  // 双轨计费兼容：优先使用 package_cost_usd，向后兼容 cost_usd
   const result = await db
-    .select({ total: sql<number>`COALESCE(SUM(${messageRequest.costUsd}), 0)` })
+    .select({
+      total: sql<number>`COALESCE(SUM(COALESCE(${messageRequest.packageCostUsd}, ${messageRequest.costUsd})), 0)`
+    })
     .from(messageRequest)
     .where(
       and(
@@ -681,8 +687,13 @@ export async function sumUserCostInTimeRange(
   startTime: Date,
   endTime: Date
 ): Promise<number> {
+  // ========== 双轨计费兼容：优先使用 package_cost_usd，向后兼容 cost_usd ==========
+  // Redis 限流应该追踪套餐消费（package_cost_usd），不包括余额消费（balance_cost_usd）
+  // 对于旧记录（没有 package_cost_usd），使用 cost_usd 作为 fallback
   const result = await db
-    .select({ total: sql<number>`COALESCE(SUM(${messageRequest.costUsd}), 0)` })
+    .select({
+      total: sql<number>`COALESCE(SUM(COALESCE(${messageRequest.packageCostUsd}, ${messageRequest.costUsd})), 0)`
+    })
     .from(messageRequest)
     .innerJoin(keys, eq(messageRequest.key, keys.key))
     .where(
@@ -723,9 +734,11 @@ export async function sumOwnerKeyAggregateCostInTimeRange(
 
   const keyStrings = keyRecords.map((k) => k.key);
 
-  // 查询这些 key 的总消费
+  // 查询这些 key 的总消费（双轨计费兼容：优先使用 package_cost_usd）
   const result = await db
-    .select({ total: sql<number>`COALESCE(SUM(${messageRequest.costUsd}), 0)` })
+    .select({
+      total: sql<number>`COALESCE(SUM(COALESCE(${messageRequest.packageCostUsd}, ${messageRequest.costUsd})), 0)`
+    })
     .from(messageRequest)
     .where(
       and(
