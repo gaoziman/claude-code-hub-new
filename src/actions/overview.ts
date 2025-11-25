@@ -85,7 +85,7 @@ export interface OverviewData {
   };
 }
 
-export type PersonalLimitType = "daily" | "5h" | "weekly" | "monthly" | "total";
+export type PersonalLimitType = "daily" | "5h" | "weekly" | "monthly" | "total" | "balance";
 
 export interface PersonalSpendingLimit {
   key: PersonalLimitType;
@@ -257,6 +257,7 @@ interface LimitSource {
   limitMonthlyUsd: number | null;
   totalLimitUsd: number | null;
   dailyLimitUsd?: number | null;
+  balanceUsd?: number | null;
 }
 
 interface BuildLimitOptions {
@@ -340,6 +341,20 @@ async function buildPersonalSpendingLimits({
         used: todayCost,
         resetAt: getDailyResetTime(),
         resetType: "natural" as const,
+      })
+    );
+  }
+
+  // 账户余额：仅在用户级别显示（不在 Key 级别显示）
+  if (!enforceKeyView && source.balanceUsd != null && source.balanceUsd > 0) {
+    limitPromises.push(
+      Promise.resolve({
+        key: "balance" as const,
+        label: "账户余额",
+        limit: source.balanceUsd,
+        used: todayCost, // 今日已消费
+        resetAt: undefined,
+        resetType: undefined,
       })
     );
   }
