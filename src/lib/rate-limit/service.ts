@@ -7,7 +7,12 @@ import {
   GET_COST_5H_ROLLING_WINDOW,
 } from "@/lib/redis/lua-scripts";
 import { sumKeyCostToday } from "@/repository/statistics";
-import { getTimeRangeForPeriod, getTTLForPeriod, getSecondsUntilMidnight, getTimeRangeForBillingPeriod } from "./time-utils";
+import {
+  getTimeRangeForPeriod,
+  getTTLForPeriod,
+  getSecondsUntilMidnight,
+  getTimeRangeForBillingPeriod,
+} from "./time-utils";
 
 interface CostLimit {
   amount: number | null | undefined;
@@ -703,7 +708,7 @@ export class RateLimitService {
     paymentStrategy?: {
       fromPackage: number; // 从套餐中扣除的金额
       fromBalance: number; // 从余额中扣除的金额
-      source: 'package' | 'balance' | 'mixed'; // 支付来源
+      source: "package" | "balance" | "mixed"; // 支付来源
     };
   }> {
     // 1. 检查套餐限额（5h/周/月/总计）
@@ -719,7 +724,7 @@ export class RateLimitService {
           paymentStrategy: {
             fromPackage: 0,
             fromBalance: estimatedCost,
-            source: 'balance',
+            source: "balance",
           },
         };
       } else {
@@ -781,9 +786,7 @@ export class RateLimitService {
         // Redis 不可用，从数据库查询
         logger.warn("[RateLimit] Redis unavailable for balance check, querying database");
 
-        const {
-          sumUserCostInTimeRange,
-        } = await import("@/repository/statistics");
+        const { sumUserCostInTimeRange } = await import("@/repository/statistics");
 
         for (const limit of costLimits) {
           if (!limit.amount || limit.amount <= 0) continue;
@@ -811,7 +814,7 @@ export class RateLimitService {
           paymentStrategy: {
             fromPackage: 0,
             fromBalance: estimatedCost,
-            source: 'balance',
+            source: "balance",
           },
         };
       } else {
@@ -830,7 +833,7 @@ export class RateLimitService {
           paymentStrategy: {
             fromPackage: 0,
             fromBalance: estimatedCost,
-            source: 'balance',
+            source: "balance",
           },
         };
       } else {
@@ -849,7 +852,7 @@ export class RateLimitService {
         paymentStrategy: {
           fromPackage: estimatedCost,
           fromBalance: 0,
-          source: 'package',
+          source: "package",
         },
       };
     } else {
@@ -864,7 +867,7 @@ export class RateLimitService {
           paymentStrategy: {
             fromPackage,
             fromBalance,
-            source: 'mixed',
+            source: "mixed",
           },
         };
       } else {

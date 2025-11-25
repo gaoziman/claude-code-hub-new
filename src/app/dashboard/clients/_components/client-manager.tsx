@@ -19,11 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { RelativeTime } from "@/components/ui/relative-time";
 import {
   CalendarClock,
@@ -336,7 +332,8 @@ export function ClientManager({
         <div className="flex-shrink-0">
           <h1 className="text-2xl font-semibold text-foreground">用户管理</h1>
           <p className="text-sm text-muted-foreground">
-            {summary.totalUsers} 个用户 · {summary.totalKeys} 个密钥 · {metricLabelFull}消耗 {formatCurrency(summary.todayCost, currencyCode)}
+            {summary.totalUsers} 个用户 · {summary.totalKeys} 个密钥 · {metricLabelFull}消耗{" "}
+            {formatCurrency(summary.todayCost, currencyCode)}
           </p>
         </div>
 
@@ -371,7 +368,10 @@ export function ClientManager({
               value={timeRange}
               onValueChange={(value) => handleTimeRangeChange(value as UsageTimeRangeValue)}
             >
-              <SelectTrigger disabled={isTimeChanging} className="h-9 w-[100px] rounded-lg border-slate-200 bg-white text-xs">
+              <SelectTrigger
+                disabled={isTimeChanging}
+                className="h-9 w-[100px] rounded-lg border-slate-200 bg-white text-xs"
+              >
                 <SelectValue placeholder="时间" />
               </SelectTrigger>
               <SelectContent>
@@ -393,7 +393,9 @@ export function ClientManager({
                 <SelectContent>
                   <SelectItem value="all">全部标签</SelectItem>
                   {availableTags.map((tag) => (
-                    <SelectItem key={tag} value={tag}>{tag}</SelectItem>
+                    <SelectItem key={tag} value={tag}>
+                      {tag}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -401,7 +403,9 @@ export function ClientManager({
             {combinedProviderGroups.length > 0 && (
               <Select
                 value={providerGroupFilter}
-                onValueChange={(value) => setProviderGroupFilter(value as typeof providerGroupFilter)}
+                onValueChange={(value) =>
+                  setProviderGroupFilter(value as typeof providerGroupFilter)
+                }
               >
                 <SelectTrigger className="h-9 w-[100px] rounded-lg border-slate-200 bg-white text-xs">
                   <SelectValue placeholder="分组" />
@@ -409,7 +413,9 @@ export function ClientManager({
                 <SelectContent>
                   <SelectItem value="all">全部分组</SelectItem>
                   {combinedProviderGroups.map((group) => (
-                    <SelectItem key={group} value={group}>{group}</SelectItem>
+                    <SelectItem key={group} value={group}>
+                      {group}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -491,9 +497,7 @@ export function ClientManager({
                               </span>
                             </div>
                             <span className="text-slate-400">·</span>
-                            <span className="text-muted-foreground">
-                              {metrics.todayCalls} 次
-                            </span>
+                            <span className="text-muted-foreground">{metrics.todayCalls} 次</span>
                             <span className="text-slate-400">·</span>
                             <span className="text-muted-foreground">
                               {metrics.activeKeyCount}/{metrics.totalKeys} Key
@@ -568,10 +572,14 @@ export function ClientManager({
                         {getStatusBadge(selectedUser).label}
                       </Badge>
                       {selectedUser.providerGroup && (
-                        <Badge variant="outline" className="text-xs">{selectedUser.providerGroup}</Badge>
+                        <Badge variant="outline" className="text-xs">
+                          {selectedUser.providerGroup}
+                        </Badge>
                       )}
                       {selectedUser.tags?.map((tag) => (
-                        <Badge key={tag} variant="outline" className="text-xs">{tag}</Badge>
+                        <Badge key={tag} variant="outline" className="text-xs">
+                          {tag}
+                        </Badge>
                       ))}
                     </div>
                     {selectedUser.note && (
@@ -613,7 +621,7 @@ export function ClientManager({
                       icon: Wallet,
                       gradient: "from-emerald-500/10 via-teal-500/5 to-transparent",
                       iconBg: "bg-gradient-to-br from-emerald-500 to-teal-600",
-                      iconColor: "text-white"
+                      iconColor: "text-white",
                     },
                     {
                       label: "启用密钥",
@@ -621,7 +629,7 @@ export function ClientManager({
                       icon: Key,
                       gradient: "from-blue-500/10 via-indigo-500/5 to-transparent",
                       iconBg: "bg-gradient-to-br from-blue-500 to-indigo-600",
-                      iconColor: "text-white"
+                      iconColor: "text-white",
                     },
                     {
                       label: `${metricLabel}调用`,
@@ -629,7 +637,7 @@ export function ClientManager({
                       icon: Phone,
                       gradient: "from-violet-500/10 via-purple-500/5 to-transparent",
                       iconBg: "bg-gradient-to-br from-violet-500 to-purple-600",
-                      iconColor: "text-white"
+                      iconColor: "text-white",
                     },
                     {
                       label: `${metricLabel}消耗`,
@@ -637,15 +645,19 @@ export function ClientManager({
                       icon: DollarSign,
                       gradient: "from-amber-500/10 via-orange-500/5 to-transparent",
                       iconBg: "bg-gradient-to-br from-amber-500 to-orange-600",
-                      iconColor: "text-white"
+                      iconColor: "text-white",
                     },
                     {
                       label: "最近活跃",
-                      value: selectedMetrics?.lastActivity ? <RelativeTime date={selectedMetrics.lastActivity} /> : "暂无",
+                      value: selectedMetrics?.lastActivity ? (
+                        <RelativeTime date={selectedMetrics.lastActivity} />
+                      ) : (
+                        "暂无"
+                      ),
                       icon: Clock,
                       gradient: "from-rose-500/10 via-pink-500/5 to-transparent",
                       iconBg: "bg-gradient-to-br from-rose-500 to-pink-600",
-                      iconColor: "text-white"
+                      iconColor: "text-white",
                     },
                   ].map((metric) => {
                     const Icon = metric.icon;
@@ -672,11 +684,13 @@ export function ClientManager({
                                 {metric.value}
                               </p>
                             </div>
-                            <div className={cn(
-                              "flex-shrink-0 rounded-lg p-2 shadow-sm",
-                              metric.iconBg,
-                              "transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3"
-                            )}>
+                            <div
+                              className={cn(
+                                "flex-shrink-0 rounded-lg p-2 shadow-sm",
+                                metric.iconBg,
+                                "transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3"
+                              )}
+                            >
                               <Icon className={cn("h-4 w-4", metric.iconColor)} strokeWidth={2.5} />
                             </div>
                           </div>
@@ -696,7 +710,8 @@ export function ClientManager({
                   <div>
                     <h3 className="text-base font-semibold text-foreground">密钥列表</h3>
                     <p className="text-xs text-muted-foreground">
-                      共 {selectedUser.keys.length} 个密钥 · 启用 {selectedUser.keys.filter(k => k.status === "enabled").length} 个
+                      共 {selectedUser.keys.length} 个密钥 · 启用{" "}
+                      {selectedUser.keys.filter((k) => k.status === "enabled").length} 个
                     </p>
                   </div>
                   {currentUser?.role === "admin" && (

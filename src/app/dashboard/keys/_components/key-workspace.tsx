@@ -722,7 +722,15 @@ function StatCard({ label, value, icon }: { label: string; value: ReactNode; ico
   );
 }
 
-function InfoCard({ label, value, source }: { label: string; value: ReactNode; source?: '用户' | 'Key' | null }) {
+function InfoCard({
+  label,
+  value,
+  source,
+}: {
+  label: string;
+  value: ReactNode;
+  source?: "用户" | "Key" | null;
+}) {
   return (
     <div className="rounded-lg border border-border/40 bg-muted/20 p-3">
       <div className="flex items-center justify-between mb-1">
@@ -756,12 +764,12 @@ function getLimitDisplayWithSource(
   userLimit: number | null | undefined,
   keyLimit: number | null | undefined,
   currencyCode: CurrencyCode
-): { value: ReactNode; source: '用户' | 'Key' | null } {
+): { value: ReactNode; source: "用户" | "Key" | null } {
   // 优先显示用户级别限额
   if (userLimit !== null && userLimit !== undefined && userLimit > 0) {
     return {
       value: formatCurrency(userLimit, currencyCode),
-      source: '用户',
+      source: "用户",
     };
   }
 
@@ -769,7 +777,7 @@ function getLimitDisplayWithSource(
   if (keyLimit !== null && keyLimit !== undefined && keyLimit > 0) {
     return {
       value: formatCurrency(keyLimit, currencyCode),
-      source: 'Key',
+      source: "Key",
     };
   }
 

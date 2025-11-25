@@ -96,10 +96,12 @@ export function ProviderDetailsDialog({
         className: "bg-muted text-muted-foreground border-border",
       };
     }
-    return healthStyles[health.circuitState] ?? {
-      label: "未知",
-      className: "bg-muted text-muted-foreground border-border",
-    };
+    return (
+      healthStyles[health.circuitState] ?? {
+        label: "未知",
+        className: "bg-muted text-muted-foreground border-border",
+      }
+    );
   }, [health]);
 
   const todayCost = provider.todayTotalCostUsd
@@ -180,7 +182,8 @@ export function ProviderDetailsDialog({
       <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-lg">
-            <Info className="h-4 w-4 text-primary" />供应商详情
+            <Info className="h-4 w-4 text-primary" />
+            供应商详情
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-6 py-4">
@@ -223,7 +226,9 @@ export function ProviderDetailsDialog({
                   </p>
                 </div>
                 <div className="rounded-2xl border border-border/40 bg-gradient-to-br from-orange-50 to-orange-100/50 px-5 py-3 shadow-md dark:from-orange-950/50 dark:to-orange-900/30">
-                  <p className="text-xs font-medium text-orange-700 dark:text-orange-300">今日请求</p>
+                  <p className="text-xs font-medium text-orange-700 dark:text-orange-300">
+                    今日请求
+                  </p>
                   <p className="text-2xl font-bold tracking-tight text-orange-900 dark:text-orange-100">
                     {todayCalls}
                   </p>

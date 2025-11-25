@@ -150,7 +150,7 @@ export interface MessageRequest {
   costMultiplier?: number;
 
   // ========== 支付来源追踪（双轨计费） ==========
-  paymentSource?: 'package' | 'balance' | 'mixed'; // 支付来源
+  paymentSource?: "package" | "balance" | "mixed"; // 支付来源
   packageCostUsd?: number; // 从套餐中扣除的金额
   balanceCostUsd?: number; // 从余额中扣除的金额
 
@@ -201,7 +201,7 @@ export interface CreateMessageRequestData {
   cost_multiplier?: number;
 
   // ========== 支付来源追踪（双轨计费） ==========
-  payment_source?: 'package' | 'balance' | 'mixed'; // 支付来源
+  payment_source?: "package" | "balance" | "mixed"; // 支付来源
   package_cost_usd?: Numeric; // 从套餐中扣除的金额
   balance_cost_usd?: Numeric; // 从余额中扣除的金额
 

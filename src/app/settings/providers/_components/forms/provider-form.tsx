@@ -760,9 +760,7 @@ export function ProviderForm({
         <div className="space-y-4 pt-2 border-t">
           <div className="space-y-1">
             <div className="text-sm font-medium">客户端限制</div>
-            <p className="text-xs text-muted-foreground">
-              配置供应商的客户端访问限制，提高安全性
-            </p>
+            <p className="text-xs text-muted-foreground">配置供应商的客户端访问限制，提高安全性</p>
           </div>
 
           <div className="space-y-2">
@@ -772,7 +770,8 @@ export function ProviderForm({
                   仅限官方 Claude CLI 调用
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  启用后，只有官方 Claude Code 客户端才能调用此供应商，第三方工具（如 Cursor、IDE 插件）将被拒绝访问
+                  启用后，只有官方 Claude Code 客户端才能调用此供应商，第三方工具（如 Cursor、IDE
+                  插件）将被拒绝访问
                 </p>
               </div>
               <Switch
