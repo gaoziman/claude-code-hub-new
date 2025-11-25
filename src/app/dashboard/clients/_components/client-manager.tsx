@@ -34,6 +34,11 @@ import {
   Infinity as InfinityIcon,
   ListPlus,
   Search,
+  Wallet,
+  Key,
+  Phone,
+  DollarSign,
+  Clock,
 } from "lucide-react";
 import { AddUserDialog } from "../../_components/user/add-user-dialog";
 import { KeyList } from "../../_components/user/key-list";
@@ -599,19 +604,89 @@ export function ClientManager({
                   </div>
                 </div>
 
-                {/* 统计指标 */}
-                <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {/* 统计指标 - 精致卡片设计 */}
+                <div className="mt-5 grid gap-3 grid-cols-5">
                   {[
-                    { label: "启用密钥", value: `${selectedMetrics?.activeKeyCount ?? 0}/${selectedMetrics?.totalKeys ?? 0}` },
-                    { label: `${metricLabel}调用`, value: `${(selectedMetrics?.todayCalls ?? 0).toLocaleString()} 次` },
-                    { label: `${metricLabel}消耗`, value: formatCurrency(selectedMetrics?.todayUsage ?? 0, currencyCode) },
-                    { label: "最近活跃", value: selectedMetrics?.lastActivity ? <RelativeTime date={selectedMetrics.lastActivity} /> : "暂无" },
-                  ].map((metric) => (
-                    <div key={metric.label} className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-                      <p className="text-xs text-muted-foreground">{metric.label}</p>
-                      <p className="text-base font-semibold text-foreground">{metric.value}</p>
-                    </div>
-                  ))}
+                    {
+                      label: "账户余额",
+                      value: formatCurrency(selectedUser.balanceUsd ?? 0, currencyCode),
+                      icon: Wallet,
+                      gradient: "from-emerald-500/10 via-teal-500/5 to-transparent",
+                      iconBg: "bg-gradient-to-br from-emerald-500 to-teal-600",
+                      iconColor: "text-white"
+                    },
+                    {
+                      label: "启用密钥",
+                      value: `${selectedMetrics?.activeKeyCount ?? 0}/${selectedMetrics?.totalKeys ?? 0}`,
+                      icon: Key,
+                      gradient: "from-blue-500/10 via-indigo-500/5 to-transparent",
+                      iconBg: "bg-gradient-to-br from-blue-500 to-indigo-600",
+                      iconColor: "text-white"
+                    },
+                    {
+                      label: `${metricLabel}调用`,
+                      value: `${(selectedMetrics?.todayCalls ?? 0).toLocaleString()} 次`,
+                      icon: Phone,
+                      gradient: "from-violet-500/10 via-purple-500/5 to-transparent",
+                      iconBg: "bg-gradient-to-br from-violet-500 to-purple-600",
+                      iconColor: "text-white"
+                    },
+                    {
+                      label: `${metricLabel}消耗`,
+                      value: formatCurrency(selectedMetrics?.todayUsage ?? 0, currencyCode),
+                      icon: DollarSign,
+                      gradient: "from-amber-500/10 via-orange-500/5 to-transparent",
+                      iconBg: "bg-gradient-to-br from-amber-500 to-orange-600",
+                      iconColor: "text-white"
+                    },
+                    {
+                      label: "最近活跃",
+                      value: selectedMetrics?.lastActivity ? <RelativeTime date={selectedMetrics.lastActivity} /> : "暂无",
+                      icon: Clock,
+                      gradient: "from-rose-500/10 via-pink-500/5 to-transparent",
+                      iconBg: "bg-gradient-to-br from-rose-500 to-pink-600",
+                      iconColor: "text-white"
+                    },
+                  ].map((metric) => {
+                    const Icon = metric.icon;
+                    return (
+                      <div
+                        key={metric.label}
+                        className={cn(
+                          "group relative overflow-hidden rounded-xl border border-slate-200/80 bg-gradient-to-br",
+                          metric.gradient,
+                          "backdrop-blur-sm transition-all duration-300",
+                          "hover:shadow-lg hover:shadow-slate-200/50 hover:border-slate-300/80 hover:-translate-y-0.5"
+                        )}
+                      >
+                        {/* 装饰性光晕效果 */}
+                        <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-white/30 blur-2xl transition-transform duration-500 group-hover:scale-150" />
+
+                        <div className="relative px-4 py-3.5">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[11px] font-medium text-slate-600/90 uppercase tracking-wide mb-1.5">
+                                {metric.label}
+                              </p>
+                              <p className="text-lg font-bold text-slate-900 tracking-tight truncate">
+                                {metric.value}
+                              </p>
+                            </div>
+                            <div className={cn(
+                              "flex-shrink-0 rounded-lg p-2 shadow-sm",
+                              metric.iconBg,
+                              "transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3"
+                            )}>
+                              <Icon className={cn("h-4 w-4", metric.iconColor)} strokeWidth={2.5} />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 底部装饰线 */}
+                        <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-slate-300/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
