@@ -252,7 +252,9 @@ export function ManagementTab() {
       <section className="rounded-lg border bg-white p-6 shadow-sm">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Task Monitor</p>
+            <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+              Task Monitor
+            </p>
             <h3 className="mt-2 text-xl font-semibold">定时任务状态</h3>
           </div>
           <div className="flex items-center gap-2">
@@ -294,19 +296,12 @@ export function ManagementTab() {
               {taskStatus?.nextRun ? new Date(taskStatus.nextRun).toLocaleString() : "未排程"}
             </p>
           </div>
-<<<<<<< HEAD
           <div className="rounded-md border bg-muted/10 p-4">
             <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
               上次发现异常
             </p>
-=======
-          <div className="rounded-2xl border bg-muted/10 p-4">
-            <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">上次发现异常</p>
->>>>>>> 7cccbfa83a2a734e22a0edc6fdaeb80c10bfa54b
             <p className="mt-2 text-lg font-semibold text-foreground">
-              {taskStatus?.lastRunResult
-                ? `${taskStatus.lastRunResult.inconsistenciesFound} 项`
-                : "--"}
+              {taskStatus?.lastRunResult ? `${taskStatus.lastRunResult.inconsistenciesFound} 项` : "--"}
             </p>
           </div>
         </div>
@@ -351,10 +346,7 @@ export function ManagementTab() {
               <Select
                 value={formData.intervalHours.toString()}
                 onValueChange={(value) =>
-                  setFormData({
-                    ...formData,
-                    intervalHours: parseInt(value) as 1 | 3 | 6 | 12 | 24,
-                  })
+                  setFormData({ ...formData, intervalHours: parseInt(value) as 1 | 3 | 6 | 12 | 24 })
                 }
               >
                 <SelectTrigger id="intervalHours">
@@ -466,15 +458,7 @@ export function ManagementTab() {
             <Select
               value={query.operationType || "all"}
               onValueChange={(value) =>
-<<<<<<< HEAD
                 setQuery({ ...query, page: 1, operationType: value === "all" ? undefined : value as ConsistencyHistoryQuery["operationType"] })
-=======
-                setQuery({
-                  ...query,
-                  page: 1,
-                  operationType: value === "all" ? undefined : (value as any),
-                })
->>>>>>> 7cccbfa83a2a734e22a0edc6fdaeb80c10bfa54b
               }
             >
               <SelectTrigger className="w-[160px]">
@@ -489,7 +473,12 @@ export function ManagementTab() {
                 <SelectItem value="global_rebuild">全局重建</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline" size="sm" onClick={loadHistory} disabled={isLoadingHistory}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={loadHistory}
+              disabled={isLoadingHistory}
+            >
               <RefreshCcw className={cn("mr-1 h-4 w-4", isLoadingHistory && "animate-spin")} />
               刷新
             </Button>
@@ -585,7 +574,9 @@ export function ManagementTab() {
               <AlertTriangle className="h-5 w-5 text-red-600" />
               <h3 className="text-xl font-semibold text-red-900">危险操作区</h3>
             </div>
-            <p className="mt-2 text-sm text-red-700">以下操作会对系统产生重大影响，请谨慎操作</p>
+            <p className="mt-2 text-sm text-red-700">
+              以下操作会对系统产生重大影响，请谨慎操作
+            </p>
           </div>
           <Button
             variant="destructive"
@@ -628,9 +619,7 @@ export function ManagementTab() {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">操作者</p>
-                  <p className="mt-1 text-sm">
-                    {selectedItem.operator === "admin" ? "管理员" : "系统"}
-                  </p>
+                  <p className="mt-1 text-sm">{selectedItem.operator === "admin" ? "管理员" : "系统"}</p>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">检测 Key 数</p>
