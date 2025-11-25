@@ -227,8 +227,7 @@ export function ProviderListItem({
                     variant: "ghost",
                     size: "icon",
                     "aria-label": "查看详情",
-                    className:
-                      "h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity",
+                    className: "h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity",
                     children: <Eye className="h-3.5 w-3.5" />,
                   }}
                 />

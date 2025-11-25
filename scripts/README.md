@@ -15,12 +15,12 @@
 
 ### 部署信息
 
-| 项目 | 路径/配置 |
-|------|----------|
-| **脚本目录** | `/opt/scripts/` |
+| 项目         | 路径/配置                        |
+| ------------ | -------------------------------- |
+| **脚本目录** | `/opt/scripts/`                  |
 | **日志文件** | `/var/log/redis-consistency.log` |
-| **定时任务** | 每小时执行一次监控检查 |
-| **所有者** | root |
+| **定时任务** | 每小时执行一次监控检查           |
+| **所有者**   | root                             |
 
 ### 两个核心工具
 
@@ -56,7 +56,7 @@
 1. ✅ 检查 Docker 容器状态（Redis、PostgreSQL）
 2. ✅ 测试连接（Redis PING、用户存在性验证）
 3. 📊 显示当前缓存状态（周/月消费、5h 滚动窗口记录数）
-4. 🗑️  清除 Redis 缓存（4 个 KEY）
+4. 🗑️ 清除 Redis 缓存（4 个 KEY）
 5. 📋 显示数据库真实消费数据
 
 ### 输出示例
@@ -193,6 +193,7 @@ crontab -l | grep redis-consistency
 **步骤：**
 
 1. **确认用户 ID**
+
    ```bash
    # 查看最近的限流日志
    docker logs claude-code-hub-app --tail 50 | grep -i "rate_limit"
@@ -200,6 +201,7 @@ crontab -l | grep redis-consistency
    ```
 
 2. **快速修复**
+
    ```bash
    # 先用 --dry-run 查看缓存状态
    /opt/scripts/fix-user-cache.sh 4 --dry-run
@@ -219,6 +221,7 @@ crontab -l | grep redis-consistency
 **步骤：**
 
 1. **查看日志**
+
    ```bash
    # 查看最近 50 行日志
    tail -50 /var/log/redis-consistency.log
@@ -232,6 +235,7 @@ crontab -l | grep redis-consistency
    - 如果不一致用户 > 20%：考虑批量修复或检查系统问题
 
 3. **执行修复**
+
    ```bash
    # 方式 1：逐个修复
    /opt/scripts/fix-user-cache.sh 4
@@ -315,6 +319,7 @@ logrotate -f /etc/logrotate.d/redis-consistency
 **错误**：`Permission denied`
 
 **解决**：
+
 ```bash
 chmod +x /opt/scripts/fix-user-cache.sh
 chmod +x /opt/scripts/check-redis-consistency.sh
@@ -327,6 +332,7 @@ chmod +x /opt/scripts/check-redis-consistency.sh
 **错误**：`AUTH failed` 或 `Connection refused`
 
 **解决**：
+
 ```bash
 # 1. 检查 Redis 容器状态
 docker ps | grep redis
@@ -344,6 +350,7 @@ docker exec claude-code-hub-redis redis-cli -a claudecoder --no-auth-warning PIN
 **错误**：`could not connect to server`
 
 **解决**：
+
 ```bash
 # 1. 检查 PostgreSQL 容器状态
 docker ps | grep postgres

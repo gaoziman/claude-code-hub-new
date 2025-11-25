@@ -232,9 +232,7 @@ export function KeyListHeader({
             {proxyStatusContent && (
               <div className="space-y-0.5 rounded-md border border-border/50 bg-background px-2.5 py-1.5 shadow-sm text-xs text-muted-foreground">
                 <p className="text-[10px]">代理状态</p>
-                <div className="text-[10px]">
-                  {proxyStatusContent}
-                </div>
+                <div className="text-[10px]">{proxyStatusContent}</div>
               </div>
             )}
           </div>

@@ -636,7 +636,7 @@ export async function sumKeyCostInTimeRange(
   // 双轨计费兼容：优先使用 package_cost_usd，向后兼容 cost_usd
   const result = await db
     .select({
-      total: sql<number>`COALESCE(SUM(COALESCE(${messageRequest.packageCostUsd}, ${messageRequest.costUsd})), 0)`
+      total: sql<number>`COALESCE(SUM(COALESCE(${messageRequest.packageCostUsd}, ${messageRequest.costUsd})), 0)`,
     })
     .from(messageRequest)
     .where(
@@ -663,7 +663,7 @@ export async function sumProviderCostInTimeRange(
   // 双轨计费兼容：优先使用 package_cost_usd，向后兼容 cost_usd
   const result = await db
     .select({
-      total: sql<number>`COALESCE(SUM(COALESCE(${messageRequest.packageCostUsd}, ${messageRequest.costUsd})), 0)`
+      total: sql<number>`COALESCE(SUM(COALESCE(${messageRequest.packageCostUsd}, ${messageRequest.costUsd})), 0)`,
     })
     .from(messageRequest)
     .where(
@@ -692,7 +692,7 @@ export async function sumUserCostInTimeRange(
   // 对于旧记录（没有 package_cost_usd），使用 cost_usd 作为 fallback
   const result = await db
     .select({
-      total: sql<number>`COALESCE(SUM(COALESCE(${messageRequest.packageCostUsd}, ${messageRequest.costUsd})), 0)`
+      total: sql<number>`COALESCE(SUM(COALESCE(${messageRequest.packageCostUsd}, ${messageRequest.costUsd})), 0)`,
     })
     .from(messageRequest)
     .innerJoin(keys, eq(messageRequest.key, keys.key))
@@ -737,7 +737,7 @@ export async function sumOwnerKeyAggregateCostInTimeRange(
   // 查询这些 key 的总消费（双轨计费兼容：优先使用 package_cost_usd）
   const result = await db
     .select({
-      total: sql<number>`COALESCE(SUM(COALESCE(${messageRequest.packageCostUsd}, ${messageRequest.costUsd})), 0)`
+      total: sql<number>`COALESCE(SUM(COALESCE(${messageRequest.packageCostUsd}, ${messageRequest.costUsd})), 0)`,
     })
     .from(messageRequest)
     .where(

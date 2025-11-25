@@ -127,12 +127,11 @@ export function KeyList({
 
     // 简化标签
     const shortLabel =
-      period === "monthly" ? "月" :
-      period === "weekly" ? "周" :
-      period === "daily" ? "日" : "总";
+      period === "monthly" ? "月" : period === "weekly" ? "周" : period === "daily" ? "日" : "总";
 
     // 进度条颜色：根据使用比例变化
-    const barColor = percent >= 90 ? "bg-red-500" : percent >= 70 ? "bg-orange-500" : "bg-emerald-500";
+    const barColor =
+      percent >= 90 ? "bg-red-500" : percent >= 70 ? "bg-orange-500" : "bg-emerald-500";
 
     // tooltip 内容
     const tooltipContent = `${label}: ${formatCurrency(usage ?? 0, currencyCode)} / ${formatCurrency(limit ?? 0, currencyCode)}${timeMeta ? ` · 剩余 ${timeMeta.remainingText}` : ""}`;
@@ -303,7 +302,10 @@ export function KeyList({
         return (
           <div className="space-y-1">
             <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="truncate text-sm font-semibold text-foreground max-w-[80px]" title={value}>
+              <span
+                className="truncate text-sm font-semibold text-foreground max-w-[80px]"
+                title={value}
+              >
                 {value}
               </span>
               {record.scope === "owner" && (
@@ -315,7 +317,10 @@ export function KeyList({
                 </Badge>
               )}
               {record.status === "disabled" && (
-                <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-orange-600 shrink-0">
+                <Badge
+                  variant="outline"
+                  className="text-[10px] px-1.5 py-0 text-orange-600 shrink-0"
+                >
                   {record.disabledReason === "user_disabled"
                     ? "禁用"
                     : record.disabledReason === "user_expired"
@@ -358,7 +363,9 @@ export function KeyList({
       width: "80px",
       className: "align-middle px-2 text-center",
       render: (value) => (
-        <div className="text-sm tabular-nums">{typeof value === "number" ? value.toLocaleString() : 0} 次</div>
+        <div className="text-sm tabular-nums">
+          {typeof value === "number" ? value.toLocaleString() : 0} 次
+        </div>
       ),
     }),
     TableColumnTypes.number<UserKeyDisplay>("todayUsage", rangeUsageLabel, {
@@ -366,7 +373,11 @@ export function KeyList({
       className: "align-middle px-2 text-right",
       render: (value) => {
         const amount = typeof value === "number" ? value : 0;
-        return <div className="text-sm font-medium tabular-nums">{formatCurrency(amount, currencyCode)}</div>;
+        return (
+          <div className="text-sm font-medium tabular-nums">
+            {formatCurrency(amount, currencyCode)}
+          </div>
+        );
       },
     }),
     TableColumnTypes.text<UserKeyDisplay>("lastUsedAt", "最后使用", {
@@ -380,7 +391,10 @@ export function KeyList({
                 <RelativeTime date={record.lastUsedAt} />
               </div>
               {record.lastProviderName && (
-                <div className="text-[10px] text-muted-foreground truncate" title={record.lastProviderName}>
+                <div
+                  className="text-[10px] text-muted-foreground truncate"
+                  title={record.lastProviderName}
+                >
                   {record.lastProviderName}
                 </div>
               )}

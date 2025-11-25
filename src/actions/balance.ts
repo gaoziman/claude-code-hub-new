@@ -8,10 +8,7 @@ import {
   getBalanceTransactions,
   getBalanceStats,
 } from "@/repository/balance";
-import type {
-  BalanceTransaction,
-  BalanceTransactionQueryOptions,
-} from "@/repository/balance";
+import type { BalanceTransaction, BalanceTransactionQueryOptions } from "@/repository/balance";
 import { findUserById } from "@/repository/user";
 import { getSession } from "@/lib/auth";
 import { logger } from "@/lib/logger";
@@ -82,13 +79,7 @@ export async function rechargeUserBalanceAction(
     }
 
     // ========== 执行充值 ==========
-    const result = await rechargeBalance(
-      userId,
-      amount,
-      currentUser.id,
-      currentUser.name,
-      note
-    );
+    const result = await rechargeBalance(userId, amount, currentUser.id, currentUser.name, note);
 
     logger.info("[BalanceAction] Recharge successful", {
       userId,
@@ -250,9 +241,7 @@ export async function adjustUserBalanceAction(
  * @param userId - 用户ID
  * @returns 用户余额
  */
-export async function getUserBalanceAction(
-  userId: number
-): Promise<BalanceActionResult<number>> {
+export async function getUserBalanceAction(userId: number): Promise<BalanceActionResult<number>> {
   try {
     // ========== 权限检查：仅管理员可查询他人余额 ==========
     const session = await getSession();
@@ -358,9 +347,7 @@ export async function getBalanceTransactionsAction(
  * @param userId - 用户ID
  * @returns 余额统计信息
  */
-export async function getBalanceStatsAction(
-  userId: number
-): Promise<
+export async function getBalanceStatsAction(userId: number): Promise<
   BalanceActionResult<{
     totalRecharge: number;
     totalDeduction: number;

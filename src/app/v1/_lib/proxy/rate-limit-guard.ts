@@ -87,12 +87,17 @@ export class ProxyRateLimitGuard {
     // 3. 检查 Key 金额限制
     // Key 的 billingCycleStart：优先使用 Key 自己的，为空则继承用户的
     const keyBillingCycleStart = key.billingCycleStart ?? userConfig?.billingCycleStart;
-    const costCheck = await RateLimitService.checkCostLimits(key.id, "key", {
-      limit_5h_usd: key.limit5hUsd,
-      limit_weekly_usd: key.limitWeeklyUsd,
-      limit_monthly_usd: key.limitMonthlyUsd,
-      total_limit_usd: key.totalLimitUsd,
-    }, keyBillingCycleStart);
+    const costCheck = await RateLimitService.checkCostLimits(
+      key.id,
+      "key",
+      {
+        limit_5h_usd: key.limit5hUsd,
+        limit_weekly_usd: key.limitWeeklyUsd,
+        limit_monthly_usd: key.limitMonthlyUsd,
+        total_limit_usd: key.totalLimitUsd,
+      },
+      keyBillingCycleStart
+    );
 
     if (!costCheck.allowed) {
       logger.warn(`[RateLimit] Key cost limit exceeded: key=${key.id}, ${costCheck.reason}`);

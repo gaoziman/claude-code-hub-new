@@ -132,8 +132,7 @@ export function AdjustBalanceForm({
       <div className="space-y-1">
         <h2 className="text-xl font-semibold">余额管理</h2>
         <p className="text-sm text-muted-foreground">
-          为用户 <span className="font-medium text-foreground">{userName}</span>{" "}
-          充值或调整账户余额
+          为用户 <span className="font-medium text-foreground">{userName}</span> 充值或调整账户余额
         </p>
       </div>
 
@@ -259,9 +258,7 @@ export function AdjustBalanceForm({
         <Textarea
           id="note"
           placeholder={
-            operationType === "decrease"
-              ? "请详细说明减少余额的原因..."
-              : "充值说明或备注信息..."
+            operationType === "decrease" ? "请详细说明减少余额的原因..." : "充值说明或备注信息..."
           }
           rows={3}
           {...register("note")}

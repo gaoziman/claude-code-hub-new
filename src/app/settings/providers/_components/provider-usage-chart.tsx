@@ -131,7 +131,9 @@ export function ProviderUsageChart({ data, currencyCode, loading }: ProviderUsag
             tick={{ fontSize: 12, fill: "hsl(27, 96%, 55%)", fontWeight: 500 }}
           />
           <ChartTooltip
-            content={<ChartTooltipContent className="w-[220px] rounded-xl border-border/40 bg-white/95 backdrop-blur-sm dark:bg-slate-900/95" />}
+            content={
+              <ChartTooltipContent className="w-[220px] rounded-xl border-border/40 bg-white/95 backdrop-blur-sm dark:bg-slate-900/95" />
+            }
             formatter={(value: number, name: string) => {
               if (name === "cost") {
                 return [formatCurrency(value, currencyCode, value < 1 ? 4 : 2), "费用"];

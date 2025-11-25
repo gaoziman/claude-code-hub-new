@@ -145,12 +145,8 @@ export function RechargeBalanceForm({
             disabled={isPending}
           />
         </div>
-        {errors.amount && (
-          <p className="text-sm text-red-500">{errors.amount.message}</p>
-        )}
-        <p className="text-xs text-muted-foreground">
-          单次充值金额范围：$0.01 ~ $10,000.00
-        </p>
+        {errors.amount && <p className="text-sm text-red-500">{errors.amount.message}</p>}
+        <p className="text-xs text-muted-foreground">单次充值金额范围：$0.01 ~ $10,000.00</p>
       </div>
 
       {/* 快捷金额按钮 */}
@@ -189,9 +185,7 @@ export function RechargeBalanceForm({
           {...register("note")}
           disabled={isPending}
         />
-        {errors.note && (
-          <p className="text-sm text-red-500">{errors.note.message}</p>
-        )}
+        {errors.note && <p className="text-sm text-red-500">{errors.note.message}</p>}
       </div>
 
       {/* 提交按钮 */}

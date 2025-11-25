@@ -13,7 +13,7 @@ export interface BalanceTransaction {
   amount: number;
   balanceBefore: number;
   balanceAfter: number;
-  type: 'recharge' | 'deduction' | 'refund' | 'adjustment';
+  type: "recharge" | "deduction" | "refund" | "adjustment";
   operatorId: number | null;
   operatorName: string | null;
   note: string | null;
@@ -26,7 +26,7 @@ export interface BalanceTransaction {
  */
 export interface BalanceTransactionQueryOptions {
   userId: number;
-  type?: 'recharge' | 'deduction' | 'refund' | 'adjustment';
+  type?: "recharge" | "deduction" | "refund" | "adjustment";
   limit?: number;
   offset?: number;
 }
@@ -65,11 +65,11 @@ export interface AdjustmentResult {
  * @param forUpdate - 是否加行锁（默认 false）
  * @returns 用户余额（USD），如果用户不存在返回 null
  */
-export async function getUserBalance(userId: number, forUpdate: boolean = false): Promise<number | null> {
-  const query = db
-    .select({ balanceUsd: users.balanceUsd })
-    .from(users)
-    .where(eq(users.id, userId));
+export async function getUserBalance(
+  userId: number,
+  forUpdate: boolean = false
+): Promise<number | null> {
+  const query = db.select({ balanceUsd: users.balanceUsd }).from(users).where(eq(users.id, userId));
 
   // 如果需要行锁，使用 FOR UPDATE
   if (forUpdate) {
@@ -190,7 +190,9 @@ export async function deductBalance(
 
     // 2. 检查余额是否足够
     if (balanceAfter < 0) {
-      throw new Error(`余额不足: 当前余额 $${balanceBefore.toFixed(4)}, 需要扣除 $${amount.toFixed(4)}`);
+      throw new Error(
+        `余额不足: 当前余额 $${balanceBefore.toFixed(4)}, 需要扣除 $${amount.toFixed(4)}`
+      );
     }
 
     // 3. 更新余额
@@ -354,7 +356,7 @@ export async function getBalanceTransactions(
     amount: parseFloat(row.amount || "0"),
     balanceBefore: parseFloat(row.balanceBefore || "0"),
     balanceAfter: parseFloat(row.balanceAfter || "0"),
-    type: row.type as 'recharge' | 'deduction' | 'refund' | 'adjustment',
+    type: row.type as "recharge" | "deduction" | "refund" | "adjustment",
     operatorId: row.operatorId,
     operatorName: row.operatorName,
     note: row.note,
