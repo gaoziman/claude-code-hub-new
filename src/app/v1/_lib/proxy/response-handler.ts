@@ -10,6 +10,7 @@ import { calculateRequestCost } from "@/lib/utils/cost-calculation";
 import { RateLimitService } from "@/lib/rate-limit";
 import { SessionManager } from "@/lib/session-manager";
 import { SessionTracker } from "@/lib/session-tracker";
+import { getRedisClient } from "@/lib/redis";
 import type { ProxySession } from "./session";
 import { ProxyStatusTracker } from "@/lib/proxy-status-tracker";
 import { defaultRegistry } from "../converters";
@@ -660,7 +661,9 @@ async function updateRequestCostFromUsage(
             },
             userConfig.balanceUsd,
             actualCost, // 使用实际成本重新计算
-            userConfig.billingCycleStart
+            userConfig.billingCycleStart,
+            userConfig.inheritParentLimits,  // ⭐ 传入继承标志
+            userConfig.parentUserId           // ⭐ 传入父用户ID
           );
 
           if (recalculated.paymentStrategy) {
@@ -709,6 +712,68 @@ async function updateRequestCostFromUsage(
 
     // 更新 message_request 表（使用重新计算的支付策略）
     await updateMessageRequestCost(messageId, cost, actualPaymentStrategy);
+
+    // ========== 计算并记录剩余额度快照 ==========
+    try {
+      const { findUserById } = await import("@/repository/user");
+      const { updateMessageRequestQuota } = await import("@/repository/message");
+
+      const userConfig = await findUserById(userId);
+
+      if (userConfig) {
+        // 1. 计算套餐剩余额度
+        let packageRemaining = 0;
+        const totalLimit = userConfig.totalLimitUsd;
+
+        if (totalLimit && totalLimit > 0) {
+          // 查询当前已使用额度（从 Redis 或数据库）
+          const redis = getRedisClient();
+          let currentUsed = 0;
+
+          if (redis && redis.status === "ready") {
+            // 优先从 Redis 读取
+            const cached = await redis.get(`user:${userId}:total_cost`);
+            if (cached !== null) {
+              currentUsed = parseFloat(cached);
+            }
+          }
+
+          // 如果 Redis 没有数据，从数据库查询
+          if (currentUsed === 0) {
+            const { sumUserCostInTimeRange } = await import("@/repository/statistics");
+            currentUsed = await sumUserCostInTimeRange(userId, new Date(0), new Date());
+          }
+
+          // 套餐剩余 = 总限额 - 已使用
+          packageRemaining = Math.max(0, totalLimit - currentUsed);
+        }
+
+        // 2. 获取账户余额
+        const balanceAvailable = userConfig.balanceUsd;
+
+        // 3. 计算总剩余额度 = 套餐剩余 + 账户余额
+        const remainingQuota = packageRemaining + balanceAvailable;
+
+        logger.debug("[QuotaSnapshot] Calculated remaining quota", {
+          messageId,
+          userId,
+          totalLimit,
+          packageRemaining: packageRemaining.toFixed(4),
+          balanceAvailable: balanceAvailable.toFixed(4),
+          remainingQuota: remainingQuota.toFixed(4),
+        });
+
+        // 4. 更新数据库记录
+        await updateMessageRequestQuota(messageId, remainingQuota);
+      }
+    } catch (error) {
+      // 剩余额度计算失败不应该影响主流程
+      logger.error("[QuotaSnapshot] Failed to calculate remaining quota", {
+        messageId,
+        userId,
+        error,
+      });
+    }
   } else {
     logger.warn("[CostCalculation] Calculated cost is zero or negative", {
       messageId,
@@ -766,6 +831,7 @@ async function trackCostToRedis(session: ProxySession, usage: UsageMetrics | nul
       if (userConfig) {
         // 使用实际成本重新计算支付策略
         // 传递 billingCycleStart 以确保账期周期的限额从数据库准确查询
+        // 传递 inheritParentLimits 和 parentUserId 用于子用户限额继承判断
         const updatedStrategy = await RateLimitService.checkUserCostWithBalance(
           user.id,
           {
@@ -776,7 +842,9 @@ async function trackCostToRedis(session: ProxySession, usage: UsageMetrics | nul
           },
           userConfig.balanceUsd,
           actualCost, // 使用实际成本而非预估成本
-          userConfig.billingCycleStart
+          userConfig.billingCycleStart,
+          userConfig.inheritParentLimits,  //  传入继承标志
+          userConfig.parentUserId           //  传入父用户ID
         );
 
         if (updatedStrategy.paymentStrategy) {
@@ -837,25 +905,7 @@ async function trackCostToRedis(session: ProxySession, usage: UsageMetrics | nul
   await RateLimitService.trackCost(key.id, provider.id, session.sessionId, costToTrack, "key");
   logger.debug(`[ResponseHandler] Tracked cost for key=${key.id}, cost=${costToTrack}`);
 
-  // ========== ② 追踪主 Key 聚合成本 ==========
-  // 确定 ownerKeyId：如果当前 key 是主 key（scope=owner），则 ownerKeyId = key.id
-  // 否则 ownerKeyId = key.ownerKeyId
-  const ownerKeyId = key.scope === "owner" ? key.id : key.ownerKeyId;
-
-  if (ownerKeyId) {
-    await RateLimitService.trackCost(
-      ownerKeyId,
-      provider.id,
-      session.sessionId,
-      costToTrack,
-      "owner_key_aggregate"
-    );
-    logger.debug(
-      `[ResponseHandler] Tracked aggregate cost for ownerKeyId=${ownerKeyId}, cost=${costToTrack}`
-    );
-  }
-
-  // ========== ③ 追踪用户级别成本（仅追踪套餐消费） ==========
+  // ========== ② 追踪用户级别成本（仅追踪套餐消费） ==========
   await RateLimitService.trackCost(user.id, provider.id, session.sessionId, costToTrack, "user");
   logger.debug(`[ResponseHandler] Tracked cost for user=${user.id}, cost=${costToTrack}`);
 

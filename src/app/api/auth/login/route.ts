@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 设置认证 cookie
-    await setAuthCookie(key);
+    await setAuthCookie("key", key);
 
     return NextResponse.json({
       ok: true,

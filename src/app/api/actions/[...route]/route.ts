@@ -58,6 +58,20 @@ const { route: getUsersRoute, handler: getUsersHandler } = createActionRoute(
 );
 app.openapi(getUsersRoute, getUsersHandler);
 
+//  获取当前用户的完整数据（包含 usage）- 用于 API 密钥页面
+const { route: getCurrentUserRoute, handler: getCurrentUserHandler } = createActionRoute(
+  "users",
+  "getCurrentUserWithUsage",
+  userActions.getCurrentUserWithUsage,
+  {
+    description: "获取当前登录用户的完整数据（包含使用统计）",
+    summary: "获取当前用户信息和密钥使用情况",
+    tags: ["用户管理"],
+    // ⚠️ 不需要 requiredRole，所有登录用户都可以查看自己的数据
+  }
+);
+app.openapi(getCurrentUserRoute, getCurrentUserHandler);
+
 const { route: addUserRoute, handler: addUserHandler } = createActionRoute(
   "users",
   "addUser",

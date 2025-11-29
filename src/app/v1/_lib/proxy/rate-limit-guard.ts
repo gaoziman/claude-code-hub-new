@@ -30,6 +30,7 @@ export class ProxyRateLimitGuard {
 
       // 调用双轨检查方法（套餐 + 余额）
       // 传递 billingCycleStart 以确保账期周期的限额从数据库准确查询
+      // 传递 inheritParentLimits 和 parentUserId 用于子用户限额继承判断
       const userCostCheck = await RateLimitService.checkUserCostWithBalance(
         user.id,
         {
@@ -40,7 +41,10 @@ export class ProxyRateLimitGuard {
         },
         userConfig.balanceUsd,
         estimatedCost,
-        userConfig.billingCycleStart
+        userConfig.billingCycleStart,
+        userConfig.inheritParentLimits,  // ⭐ 传入继承标志
+        userConfig.parentUserId,          // ⭐ 传入父用户ID
+        userConfig.balanceUsagePolicy     // ⭐ 传入余额使用策略
       );
 
       if (!userCostCheck.allowed) {
@@ -116,8 +120,20 @@ export class ProxyRateLimitGuard {
       return this.buildRateLimitResponse(key.id, "key", sessionCheck.reason!);
     }
 
-    logger.info(`[RateLimit] ✅ All two layers passed for key=${key.id}`);
-    return null; // ✅ 通过所有两层检查
+    // ========== 第三层：父用户额度检查（递归检查父用户链） ==========
+    logger.info(`[RateLimit] Layer 3: Checking parent user limits for user=${user.id}`);
+
+    const parentCheck = await RateLimitService.checkParentUserLimits(user.id, 0.1);
+
+    if (!parentCheck.allowed) {
+      logger.warn(
+        `[RateLimit] Parent user limit exceeded: user=${user.id}, ${parentCheck.reason}`
+      );
+      return this.buildRateLimitResponse(user.id, "user", parentCheck.reason!);
+    }
+
+    logger.info(`[RateLimit] ✅ All three layers passed for key=${key.id}`);
+    return null; // ✅ 通过所有三层检查
   }
 
   /**

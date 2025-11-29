@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
 import { isDevelopment } from "@/lib/config/env.schema";
-import { validateKey } from "@/lib/auth";
+import { validateKey, validatePassword } from "@/lib/auth";
+import { findUserById } from "@/repository/user";
 
 // 使用 Node.js runtime 以支持数据库连接（postgres-js 需要 net 模块）
 export const runtime = "nodejs";
@@ -10,6 +11,7 @@ const PUBLIC_PATHS = [
   "/login",
   "/usage-doc",
   "/api/auth/login",
+  "/api/auth/login-password",
   "/api/auth/logout",
   "/_next",
   "/favicon.ico",
@@ -47,10 +49,80 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // 验证 key 的完整权限（包括 canLoginWebUi、isEnabled、expiresAt 等）
-  const session = await validateKey(authToken.value);
+  // 解析 Cookie 并验证 session
+  let session = null;
+
+  try {
+    // 尝试解析 JSON 格式的 Cookie（新格式）
+    const { type, value } = JSON.parse(authToken.value);
+    logger.debug(`[Middleware] Parsed cookie - type=${type}, value=${value.substring(0, 10)}...`);
+
+    if (type === 'key') {
+      // Key 登录方式
+      session = await validateKey(value);
+      logger.debug(`[Middleware] Key validation result - ${session ? 'success' : 'failed'}`);
+    } else if (type === 'admin-token') {
+      // Admin Token 登录方式：返回虚拟 admin user
+      const now = new Date();
+      session = {
+        user: {
+          id: -1,
+          name: "Admin Token",
+          description: "Environment admin session",
+          role: "admin",
+          providerGroup: null,
+          tags: [],
+          isEnabled: true,
+          expiresAt: null,
+          createdAt: now,
+          updatedAt: now,
+          parentUserId: null,
+          passwordHash: null,
+          passwordUpdatedAt: null,
+          forcePasswordChange: false,
+          maxKeysCount: 999,
+          limit5hUsd: null,
+          limitWeeklyUsd: null,
+          limitMonthlyUsd: null,
+          totalLimitUsd: null,
+          inheritParentLimits: false,
+          billingCycleStart: null,
+          balanceUsd: null,
+          balanceUpdatedAt: null,
+          deletedAt: null,
+        },
+        key: null,
+        viewMode: "user",
+      };
+      logger.debug(`[Middleware] Admin Token session validated`);
+    } else if (type === 'password') {
+      // 密码登录方式：从用户 ID 获取用户
+      const userId = parseInt(value);
+      const user = await findUserById(userId);
+
+      if (user && user.isEnabled) {
+        // 检查用户是否过期
+        if (!user.expiresAt || user.expiresAt.getTime() > Date.now()) {
+          session = { user, key: null, viewMode: "user" };
+          logger.debug(`[Middleware] Password session validated - userId=${userId}, name=${user.name}`);
+        } else {
+          logger.debug(`[Middleware] User expired - userId=${userId}`);
+        }
+      } else {
+        logger.debug(`[Middleware] User not found or disabled - userId=${userId}`);
+      }
+    } else {
+      logger.debug(`[Middleware] Unknown cookie type - ${type}`);
+    }
+  } catch (error) {
+    logger.debug(`[Middleware] JSON parse failed, trying legacy format - ${error}`);
+    session = await validateKey(authToken.value);
+    logger.debug(`[Middleware] Legacy validation result - ${session ? 'success' : 'failed'}`);
+  }
+
   if (!session) {
-    // Key 无效或权限不足，清除 cookie 并重定向到登录页
+    // Session 无效，清除 cookie 并重定向到登录页
+    logger.debug(`[Middleware] Session validation failed, redirecting to login`);
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("from", pathname);
@@ -59,6 +131,7 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
+  logger.debug(`[Middleware] Session validated successfully - user=${session.user.name}`);
   return NextResponse.next();
 }
 
