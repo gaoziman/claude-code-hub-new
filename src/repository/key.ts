@@ -72,7 +72,10 @@ export async function findKeyListForMultipleUsers(userIds: number[]): Promise<Ke
     .from(keys)
     .where(
       and(
-        sql`${keys.userId} IN (${sql.join(userIds.map(id => sql`${id}`), sql`, `)})`,
+        sql`${keys.userId} IN (${sql.join(
+          userIds.map((id) => sql`${id}`),
+          sql`, `
+        )})`,
         isNull(keys.deletedAt)
       )
     )
@@ -336,7 +339,10 @@ export async function findKeyUsageForMultipleUsers(
     .leftJoin(messageRequest, and(...joinConditions))
     .where(
       and(
-        sql`${keys.userId} IN (${sql.join(userIds.map(id => sql`${id}`), sql`, `)})`,
+        sql`${keys.userId} IN (${sql.join(
+          userIds.map((id) => sql`${id}`),
+          sql`, `
+        )})`,
         isNull(keys.deletedAt)
       )
     )

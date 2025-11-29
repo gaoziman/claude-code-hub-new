@@ -26,7 +26,7 @@ export default async function UserKeysPage({
   if (!session) {
     redirect("/login?from=/dashboard/keys");
   }
-  
+
   if (session.user.role === "admin") {
     redirect("/dashboard/clients");
   }

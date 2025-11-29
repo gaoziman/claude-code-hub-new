@@ -33,7 +33,7 @@ interface UserFormProps {
     name: string;
     note?: string;
     providerGroup?: string | null;
-    tags?: string[]
+    tags?: string[];
     expiresAt?: string | null;
     isEnabled?: boolean;
     // 用户级别限额
@@ -46,13 +46,14 @@ interface UserFormProps {
     // 账期周期配置
     billingCycleStart?: Date | null;
     // 余额使用策略
-    balanceUsagePolicy?: 'disabled' | 'after_quota' | 'priority';
+    balanceUsagePolicy?: "disabled" | "after_quota" | "priority";
   };
   onSuccess?: () => void;
   providerGroupOptions?: string[];
   availableTagOptions?: string[];
   currentUserRole?: "admin" | "reseller" | "user"; // 新增：当前用户角色
-  currentUserLimits?: { // 新增：当前用户的限额信息（用于 Reseller 校验）
+  currentUserLimits?: {
+    // 新增：当前用户的限额信息（用于 Reseller 校验）
     // 总可用额度 = (套餐限额 - 已使用) + 余额
     // 后端校验逻辑：子用户限额 ≤ 父用户总可用额度
     limit5hUsd?: number | null;
@@ -273,7 +274,9 @@ export function UserForm({
               </Label>
               <Select
                 value={form.values.role as string}
-                onValueChange={(value) => form.setValue("role", value as "admin" | "reseller" | "user")}
+                onValueChange={(value) =>
+                  form.setValue("role", value as "admin" | "reseller" | "user")
+                }
               >
                 <SelectTrigger>
                   <SelectValue placeholder="选择用户角色" />
@@ -285,8 +288,7 @@ export function UserForm({
               </Select>
               <p className="text-xs text-muted-foreground">
                 • 普通用户：可创建自己的密钥，查看自己的数据
-                <br />
-                • 代理用户：可创建子用户，管理子用户的密钥和数据
+                <br />• 代理用户：可创建子用户，管理子用户的密钥和数据
               </p>
             </div>
           ) : (
@@ -450,12 +452,18 @@ export function UserForm({
               <p
                 className={cn(
                   "text-[10px]",
-                  checkLimitExceeded(form.values.limitWeeklyUsd as number, currentUserLimits.limitWeeklyUsd)
+                  checkLimitExceeded(
+                    form.values.limitWeeklyUsd as number,
+                    currentUserLimits.limitWeeklyUsd
+                  )
                     ? "text-destructive font-medium"
                     : "text-muted-foreground"
                 )}
               >
-                {checkLimitExceeded(form.values.limitWeeklyUsd as number, currentUserLimits.limitWeeklyUsd)
+                {checkLimitExceeded(
+                  form.values.limitWeeklyUsd as number,
+                  currentUserLimits.limitWeeklyUsd
+                )
                   ? `⚠️ 超过您的总可用额度 $${currentUserLimits.limitWeeklyUsd.toFixed(2)}`
                   : `您的总可用额度：$${currentUserLimits.limitWeeklyUsd.toFixed(2)}（套餐剩余 + 余额）`}
               </p>
@@ -483,12 +491,18 @@ export function UserForm({
               <p
                 className={cn(
                   "text-[10px]",
-                  checkLimitExceeded(form.values.limitMonthlyUsd as number, currentUserLimits.limitMonthlyUsd)
+                  checkLimitExceeded(
+                    form.values.limitMonthlyUsd as number,
+                    currentUserLimits.limitMonthlyUsd
+                  )
                     ? "text-destructive font-medium"
                     : "text-muted-foreground"
                 )}
               >
-                {checkLimitExceeded(form.values.limitMonthlyUsd as number, currentUserLimits.limitMonthlyUsd)
+                {checkLimitExceeded(
+                  form.values.limitMonthlyUsd as number,
+                  currentUserLimits.limitMonthlyUsd
+                )
                   ? `⚠️ 超过您的总可用额度 $${currentUserLimits.limitMonthlyUsd.toFixed(2)}`
                   : `您的总可用额度：$${currentUserLimits.limitMonthlyUsd.toFixed(2)}（套餐剩余 + 余额）`}
               </p>
@@ -516,12 +530,18 @@ export function UserForm({
               <p
                 className={cn(
                   "text-[10px]",
-                  checkLimitExceeded(form.values.totalLimitUsd as number, currentUserLimits.totalLimitUsd)
+                  checkLimitExceeded(
+                    form.values.totalLimitUsd as number,
+                    currentUserLimits.totalLimitUsd
+                  )
                     ? "text-destructive font-medium"
                     : "text-muted-foreground"
                 )}
               >
-                {checkLimitExceeded(form.values.totalLimitUsd as number, currentUserLimits.totalLimitUsd)
+                {checkLimitExceeded(
+                  form.values.totalLimitUsd as number,
+                  currentUserLimits.totalLimitUsd
+                )
                   ? `⚠️ 超过您的总可用额度 $${currentUserLimits.totalLimitUsd.toFixed(2)}`
                   : `您的总可用额度：$${currentUserLimits.totalLimitUsd.toFixed(2)}（套餐剩余 + 余额）`}
               </p>
@@ -542,7 +562,9 @@ export function UserForm({
         <div className="space-y-2">
           <Select
             value={(form.values.balanceUsagePolicy as string) || "after_quota"}
-            onValueChange={(value) => form.setValue("balanceUsagePolicy", value as 'disabled' | 'after_quota' | 'priority')}
+            onValueChange={(value) =>
+              form.setValue("balanceUsagePolicy", value as "disabled" | "after_quota" | "priority")
+            }
           >
             <SelectTrigger>
               <SelectValue placeholder="选择余额使用策略" />
@@ -551,27 +573,36 @@ export function UserForm({
               <SelectItem value="disabled">
                 <div className="flex flex-col items-start py-1">
                   <span className="font-medium">禁止使用余额</span>
-                  <span className="text-xs text-muted-foreground">套餐用完即停止，无法使用余额</span>
+                  <span className="text-xs text-muted-foreground">
+                    套餐用完即停止，无法使用余额
+                  </span>
                 </div>
               </SelectItem>
               <SelectItem value="after_quota">
                 <div className="flex flex-col items-start py-1">
                   <span className="font-medium">配额用完后可用余额（推荐）</span>
-                  <span className="text-xs text-muted-foreground">套餐优先，用完后可用余额继续服务</span>
+                  <span className="text-xs text-muted-foreground">
+                    套餐优先，用完后可用余额继续服务
+                  </span>
                 </div>
               </SelectItem>
               <SelectItem value="priority">
                 <div className="flex flex-col items-start py-1">
                   <span className="font-medium">优先使用余额</span>
-                  <span className="text-xs text-muted-foreground">余额优先扣款，余额不足才使用套餐</span>
+                  <span className="text-xs text-muted-foreground">
+                    余额优先扣款，余额不足才使用套餐
+                  </span>
                 </div>
               </SelectItem>
             </SelectContent>
           </Select>
           <p className="text-[10px] text-muted-foreground">
-            {form.values.balanceUsagePolicy === 'disabled' && '子用户无法使用账户余额，仅能使用分配的套餐配额'}
-            {form.values.balanceUsagePolicy === 'after_quota' && '子用户套餐用完后可以使用余额继续服务，适合灵活充值场景'}
-            {form.values.balanceUsagePolicy === 'priority' && '子用户优先使用余额，余额不足才使用套餐配额，适合按量付费场景'}
+            {form.values.balanceUsagePolicy === "disabled" &&
+              "子用户无法使用账户余额，仅能使用分配的套餐配额"}
+            {form.values.balanceUsagePolicy === "after_quota" &&
+              "子用户套餐用完后可以使用余额继续服务，适合灵活充值场景"}
+            {form.values.balanceUsagePolicy === "priority" &&
+              "子用户优先使用余额，余额不足才使用套餐配额，适合按量付费场景"}
           </p>
         </div>
       </div>

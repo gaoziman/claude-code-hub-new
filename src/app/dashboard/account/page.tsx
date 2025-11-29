@@ -20,9 +20,7 @@ export default async function AccountPage() {
       <Card>
         <CardHeader>
           <CardTitle>修改密码</CardTitle>
-          <CardDescription>
-            定期更换密码可以提高账户安全性
-          </CardDescription>
+          <CardDescription>定期更换密码可以提高账户安全性</CardDescription>
         </CardHeader>
         <CardContent>
           <ChangePasswordForm />
@@ -32,9 +30,7 @@ export default async function AccountPage() {
       <Card>
         <CardHeader>
           <CardTitle>账户信息</CardTitle>
-          <CardDescription>
-            你的基本账户信息
-          </CardDescription>
+          <CardDescription>你的基本账户信息</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -45,8 +41,11 @@ export default async function AccountPage() {
             <div>
               <p className="text-sm font-medium text-muted-foreground">角色</p>
               <p className="mt-1 font-medium">
-                {session.user.role === "admin" ? "管理员" :
-                 session.user.role === "reseller" ? "代理" : "用户"}
+                {session.user.role === "admin"
+                  ? "管理员"
+                  : session.user.role === "reseller"
+                    ? "代理"
+                    : "用户"}
               </p>
             </div>
           </div>

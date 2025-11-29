@@ -9,7 +9,12 @@ interface DashboardHeaderProps {
   session: AuthSession | null;
 }
 
-const NAV_ITEMS: (DashboardNavItem & { adminOnly?: boolean; userOnly?: boolean; adminOrReseller?: boolean; nonAdmin?: boolean })[] = [
+const NAV_ITEMS: (DashboardNavItem & {
+  adminOnly?: boolean;
+  userOnly?: boolean;
+  adminOrReseller?: boolean;
+  nonAdmin?: boolean;
+})[] = [
   { href: "/dashboard", label: "仪表盘", icon: "dashboard" },
   { href: "/dashboard/logs", label: "使用记录", icon: "logs" },
   { href: "/dashboard/keys", label: "API 密钥", icon: "keys", nonAdmin: true }, // 普通用户和代理用户可见，管理员不可见

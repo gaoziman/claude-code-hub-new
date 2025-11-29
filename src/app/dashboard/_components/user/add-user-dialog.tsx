@@ -41,20 +41,26 @@ export function AddUserDialog({
           // 周限额：套餐剩余 + 余额
           limitWeeklyUsd:
             currentUser.limitWeeklyUsd != null
-              ? Math.max(0, currentUser.limitWeeklyUsd - (currentUserDisplay.userAggregateWeeklyUsage ?? 0)) +
-                (currentUserDisplay.balanceUsd ?? 0)
+              ? Math.max(
+                  0,
+                  currentUser.limitWeeklyUsd - (currentUserDisplay.userAggregateWeeklyUsage ?? 0)
+                ) + (currentUserDisplay.balanceUsd ?? 0)
               : (currentUserDisplay.balanceUsd ?? 0) || null,
           // 月限额：套餐剩余 + 余额
           limitMonthlyUsd:
             currentUser.limitMonthlyUsd != null
-              ? Math.max(0, currentUser.limitMonthlyUsd - (currentUserDisplay.userAggregateMonthlyUsage ?? 0)) +
-                (currentUserDisplay.balanceUsd ?? 0)
+              ? Math.max(
+                  0,
+                  currentUser.limitMonthlyUsd - (currentUserDisplay.userAggregateMonthlyUsage ?? 0)
+                ) + (currentUserDisplay.balanceUsd ?? 0)
               : (currentUserDisplay.balanceUsd ?? 0) || null,
           // 总限额：套餐剩余 + 余额
           totalLimitUsd:
             currentUser.totalLimitUsd != null
-              ? Math.max(0, currentUser.totalLimitUsd - (currentUserDisplay.userAggregateTotalUsage ?? 0)) +
-                (currentUserDisplay.balanceUsd ?? 0)
+              ? Math.max(
+                  0,
+                  currentUser.totalLimitUsd - (currentUserDisplay.userAggregateTotalUsage ?? 0)
+                ) + (currentUserDisplay.balanceUsd ?? 0)
               : (currentUserDisplay.balanceUsd ?? 0) || null,
         }
       : undefined;

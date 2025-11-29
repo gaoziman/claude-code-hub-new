@@ -28,14 +28,15 @@ export default async function ClientsPage({
   const defaultRange: UsageTimeRangeValue = "today";
 
   //  并行查询：用户列表 + 当前用户完整数据（包含 usage）
-  const [users, systemSettings, providerGroupOptions, resolvedSearchParams, currentUserWithUsage] = await Promise.all([
-    getUsers(defaultRange),
-    getSystemSettings(),
-    getProviderGroupOptions(),
-    searchParams,
-    // 单独查询当前用户的完整数据（Reseller 创建子用户时需要显示可用额度）
-    getCurrentUserWithUsage(defaultRange),
-  ]);
+  const [users, systemSettings, providerGroupOptions, resolvedSearchParams, currentUserWithUsage] =
+    await Promise.all([
+      getUsers(defaultRange),
+      getSystemSettings(),
+      getProviderGroupOptions(),
+      searchParams,
+      // 单独查询当前用户的完整数据（Reseller 创建子用户时需要显示可用额度）
+      getCurrentUserWithUsage(defaultRange),
+    ]);
 
   return (
     <ClientManager

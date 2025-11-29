@@ -49,10 +49,12 @@ export async function getCurrentUserWithUsage(params?: GetUsersParam): Promise<U
       let allUserIds = [currentUser.id];
       if (currentUser.role === "reseller") {
         const children = await findChildrenByParentId(currentUser.id);
-        allUserIds = [currentUser.id, ...children.map(c => c.id)];
-        logger.info(`[getCurrentUserWithUsage] Reseller ${currentUser.id} has ${children.length} children, querying usage for all users: ${allUserIds.join(", ")}`);
+        allUserIds = [currentUser.id, ...children.map((c) => c.id)];
+        logger.info(
+          `[getCurrentUserWithUsage] Reseller ${currentUser.id} has ${children.length} children, querying usage for all users: ${allUserIds.join(", ")}`
+        );
       }
-      
+
       // 1. keys：只查询当前用户自己的密钥（用于显示在 API 密钥页面）
       // 2. usage：查询所有用户的消费（用于计算可用额度）
       const { findKeyUsageForMultipleUsers } = await import("@/repository/key");
@@ -114,11 +116,11 @@ export async function getCurrentUserWithUsage(params?: GetUsersParam): Promise<U
 
       logger.info(
         `[getCurrentUserWithUsage] User ${currentUser.id} (${currentUser.role}): ` +
-        `weekly=${userAggregateWeeklyUsage.toFixed(4)}, ` +
-        `monthly=${userAggregateMonthlyUsage.toFixed(4)}, ` +
-        `total=${userAggregateTotalUsage.toFixed(4)}, ` +
-        `ownKeys=${keys.length}, ` +
-        `allUsersCount=${allUserIds.length}`
+          `weekly=${userAggregateWeeklyUsage.toFixed(4)}, ` +
+          `monthly=${userAggregateMonthlyUsage.toFixed(4)}, ` +
+          `total=${userAggregateTotalUsage.toFixed(4)}, ` +
+          `ownKeys=${keys.length}, ` +
+          `allUsersCount=${allUserIds.length}`
       );
 
       const expiresAtIso = currentUser.expiresAt ? currentUser.expiresAt.toISOString() : null;
@@ -229,13 +231,13 @@ export async function getUsers(params?: GetUsersParam): Promise<UserDisplay[]> {
     if (session.user.role === "user") {
       // 普通用户只能看到自己，从数据库获取完整数据
       const allUsers = await findUserList();
-      const self = allUsers.find(u => u.id === session.user.id);
+      const self = allUsers.find((u) => u.id === session.user.id);
       users = self ? [self] : [];
     } else if (session.user.role === "reseller") {
       // ⭐ 代理用户在用户管理页面只能看到自己创建的子用户，不能看到自己
       // 代理用户管理自己的账户应该通过"账户设置"等其他页面
       const allUsers = await findUserList();
-      const children = allUsers.filter(u => u.parentUserId === session.user.id);
+      const children = allUsers.filter((u) => u.parentUserId === session.user.id);
       users = children; // 只返回子用户，不包含自己
     } else {
       users = await findUserList(); // 管理员可以看到所有用户
@@ -345,7 +347,7 @@ export async function getUsers(params?: GetUsersParam): Promise<UserDisplay[]> {
             // 余额字段
             balanceUsd: user.balanceUsd,
             balanceUpdatedAt: user.balanceUpdatedAt,
-            balanceUsagePolicy: user.balanceUsagePolicy, // 
+            balanceUsagePolicy: user.balanceUsagePolicy, //
             // 余额使用策略
             // 用户聚合消费数据
             userAggregateWeeklyUsage,
@@ -451,7 +453,7 @@ export async function addUser(data: {
   // 账期周期配置
   billingCycleStart?: string | null;
   // 余额使用策略
-  balanceUsagePolicy?: 'disabled' | 'after_quota' | 'priority';
+  balanceUsagePolicy?: "disabled" | "after_quota" | "priority";
 }): Promise<ActionResult<{ password: string }>> {
   try {
     // ========== 权限检查：Admin 和 Reseller 可以创建用户 ==========
@@ -501,20 +503,29 @@ export async function addUser(data: {
           // 周限额：套餐剩余 + 余额
           limitWeeklyUsd:
             resellerUserWithUsage.limitWeeklyUsd != null
-              ? Math.max(0, resellerUserWithUsage.limitWeeklyUsd - (resellerUserWithUsage.userAggregateWeeklyUsage ?? 0)) +
-                (resellerUserWithUsage.balanceUsd ?? 0)
+              ? Math.max(
+                  0,
+                  resellerUserWithUsage.limitWeeklyUsd -
+                    (resellerUserWithUsage.userAggregateWeeklyUsage ?? 0)
+                ) + (resellerUserWithUsage.balanceUsd ?? 0)
               : (resellerUserWithUsage.balanceUsd ?? 0) || null,
           // 月限额：套餐剩余 + 余额
           limitMonthlyUsd:
             resellerUserWithUsage.limitMonthlyUsd != null
-              ? Math.max(0, resellerUserWithUsage.limitMonthlyUsd - (resellerUserWithUsage.userAggregateMonthlyUsage ?? 0)) +
-                (resellerUserWithUsage.balanceUsd ?? 0)
+              ? Math.max(
+                  0,
+                  resellerUserWithUsage.limitMonthlyUsd -
+                    (resellerUserWithUsage.userAggregateMonthlyUsage ?? 0)
+                ) + (resellerUserWithUsage.balanceUsd ?? 0)
               : (resellerUserWithUsage.balanceUsd ?? 0) || null,
           // 总限额：套餐剩余 + 余额
           totalLimitUsd:
             resellerUserWithUsage.totalLimitUsd != null
-              ? Math.max(0, resellerUserWithUsage.totalLimitUsd - (resellerUserWithUsage.userAggregateTotalUsage ?? 0)) +
-                (resellerUserWithUsage.balanceUsd ?? 0)
+              ? Math.max(
+                  0,
+                  resellerUserWithUsage.totalLimitUsd -
+                    (resellerUserWithUsage.userAggregateTotalUsage ?? 0)
+                ) + (resellerUserWithUsage.balanceUsd ?? 0)
               : (resellerUserWithUsage.balanceUsd ?? 0) || null,
         };
 
@@ -633,7 +644,7 @@ export async function addUser(data: {
       // 账期周期配置
       billingCycleStart: billingCycleStartDate,
       // 余额使用策略
-      balanceUsagePolicy: validatedData.balanceUsagePolicy, 
+      balanceUsagePolicy: validatedData.balanceUsagePolicy,
     });
 
     logger.info(
@@ -673,7 +684,7 @@ export async function editUser(
     // 账期周期配置
     billingCycleStart?: string | null;
     // 余额使用策略
-    balanceUsagePolicy?: 'disabled' | 'after_quota' | 'priority';
+    balanceUsagePolicy?: "disabled" | "after_quota" | "priority";
   }
 ): Promise<ActionResult> {
   try {
@@ -725,20 +736,29 @@ export async function editUser(
           // 周限额：套餐剩余 + 余额
           limitWeeklyUsd:
             resellerUserWithUsage.limitWeeklyUsd != null
-              ? Math.max(0, resellerUserWithUsage.limitWeeklyUsd - (resellerUserWithUsage.userAggregateWeeklyUsage ?? 0)) +
-                (resellerUserWithUsage.balanceUsd ?? 0)
+              ? Math.max(
+                  0,
+                  resellerUserWithUsage.limitWeeklyUsd -
+                    (resellerUserWithUsage.userAggregateWeeklyUsage ?? 0)
+                ) + (resellerUserWithUsage.balanceUsd ?? 0)
               : (resellerUserWithUsage.balanceUsd ?? 0) || null,
           // 月限额：套餐剩余 + 余额
           limitMonthlyUsd:
             resellerUserWithUsage.limitMonthlyUsd != null
-              ? Math.max(0, resellerUserWithUsage.limitMonthlyUsd - (resellerUserWithUsage.userAggregateMonthlyUsage ?? 0)) +
-                (resellerUserWithUsage.balanceUsd ?? 0)
+              ? Math.max(
+                  0,
+                  resellerUserWithUsage.limitMonthlyUsd -
+                    (resellerUserWithUsage.userAggregateMonthlyUsage ?? 0)
+                ) + (resellerUserWithUsage.balanceUsd ?? 0)
               : (resellerUserWithUsage.balanceUsd ?? 0) || null,
           // 总限额：套餐剩余 + 余额
           totalLimitUsd:
             resellerUserWithUsage.totalLimitUsd != null
-              ? Math.max(0, resellerUserWithUsage.totalLimitUsd - (resellerUserWithUsage.userAggregateTotalUsage ?? 0)) +
-                (resellerUserWithUsage.balanceUsd ?? 0)
+              ? Math.max(
+                  0,
+                  resellerUserWithUsage.totalLimitUsd -
+                    (resellerUserWithUsage.userAggregateTotalUsage ?? 0)
+                ) + (resellerUserWithUsage.balanceUsd ?? 0)
               : (resellerUserWithUsage.balanceUsd ?? 0) || null,
         };
 
@@ -1010,7 +1030,9 @@ export async function changePassword(data: {
 }
 
 // 重置用户密码（管理员/代理）
-export async function resetUserPassword(userId: number): Promise<ActionResult<{ password: string }>> {
+export async function resetUserPassword(
+  userId: number
+): Promise<ActionResult<{ password: string }>> {
   try {
     // 1. 权限检查
     const session = await getSession();
@@ -1063,7 +1085,7 @@ export async function resetUserPassword(userId: number): Promise<ActionResult<{ 
     await updateUser(userId, {
       passwordHash,
       passwordUpdatedAt: new Date(),
-      forcePasswordChange: false, 
+      forcePasswordChange: false,
     });
 
     logger.info(
