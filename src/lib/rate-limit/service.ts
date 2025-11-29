@@ -33,7 +33,7 @@ export class RateLimitService {
    */
   static async checkCostLimits(
     id: number,
-    type: "user" | "owner_key_aggregate" | "key" | "provider",
+    type: "user" | "key" | "provider",
     limits: {
       limit_5h_usd?: number | null;
       limit_weekly_usd?: number | null;
@@ -156,7 +156,7 @@ export class RateLimitService {
    */
   private static async checkCostLimitsFromDatabase(
     id: number,
-    type: "user" | "owner_key_aggregate" | "key" | "provider",
+    type: "user" | "key" | "provider",
     costLimits: CostLimit[],
     billingCycleStart?: Date | null
   ): Promise<{ allowed: boolean; reason?: string }> {
@@ -164,7 +164,6 @@ export class RateLimitService {
       sumKeyCostInTimeRange,
       sumProviderCostInTimeRange,
       sumUserCostInTimeRange,
-      sumOwnerKeyAggregateCostInTimeRange,
     } = await import("@/repository/statistics");
 
     for (const limit of costLimits) {
@@ -186,8 +185,6 @@ export class RateLimitService {
         current = await sumProviderCostInTimeRange(id, startTime, endTime);
       } else if (type === "user") {
         current = await sumUserCostInTimeRange(id, startTime, endTime);
-      } else if (type === "owner_key_aggregate") {
-        current = await sumOwnerKeyAggregateCostInTimeRange(id, startTime, endTime);
       } else {
         // 不应该走到这里，TypeScript 类型检查会保证
         throw new Error(`Unsupported type: ${type}`);
@@ -346,18 +343,18 @@ export class RateLimitService {
    * 累加消费（请求结束后调用）
    * 5h 使用滚动窗口（ZSET），周/月使用固定窗口（STRING）
    *
-   * @param id - 实体 ID（keyId/providerId/userId/ownerKeyId，取决于 type）
+   * @param id - 实体 ID（keyId/providerId/userId，取决于 type）
    * @param providerId - 供应商 ID（仅用于日志记录，不参与 Redis key 生成）
    * @param sessionId - Session ID（仅用于日志记录）
    * @param cost - 成本金额
-   * @param type - 追踪类型：user/owner_key_aggregate/key/provider
+   * @param type - 追踪类型：user/key/provider
    */
   static async trackCost(
     id: number,
     providerId: number,
     sessionId: string,
     cost: number,
-    type: "user" | "owner_key_aggregate" | "key" | "provider" = "key"
+    type: "user" | "key" | "provider" = "key"
   ): Promise<void> {
     if (!this.redis || cost <= 0) return;
 
@@ -689,6 +686,9 @@ export class RateLimitService {
    * @param limits - 用户套餐限额配置
    * @param balanceUsd - 用户当前余额（美元）
    * @param estimatedCost - 预估本次请求成本
+   * @param billingCycleStart - 账期起始日期（可选）
+   * @param inheritParentLimits - 是否继承父用户限额（可选）
+   * @param parentUserId - 父用户ID（可选）
    * @returns 检查结果 + 支付策略
    */
   static async checkUserCostWithBalance(
@@ -701,7 +701,10 @@ export class RateLimitService {
     },
     balanceUsd: number,
     estimatedCost: number,
-    billingCycleStart?: Date | null
+    billingCycleStart?: Date | null,
+    inheritParentLimits?: boolean,
+    parentUserId?: number | null,
+    balanceUsagePolicy?: 'disabled' | 'after_quota' | 'priority' // ⭐ 新增：余额使用策略
   ): Promise<{
     allowed: boolean;
     reason?: string;
@@ -711,13 +714,62 @@ export class RateLimitService {
       source: "package" | "balance" | "mixed"; // 支付来源
     };
   }> {
+    // 默认策略：after_quota（配额用完后可用余额）
+    const policy = balanceUsagePolicy || 'after_quota';
+
+    // ========== 策略1: priority - 优先使用余额 ==========
+    if (policy === 'priority') {
+      // 优先使用余额，余额不足才使用套餐
+      if (balanceUsd >= estimatedCost) {
+        return {
+          allowed: true,
+          paymentStrategy: {
+            fromPackage: 0,
+            fromBalance: estimatedCost,
+            source: 'balance',
+          },
+        };
+      }
+
+      // 余额不足，检查套餐是否够用
+      const packageCheck = await this.checkCostLimits(userId, "user", limits, billingCycleStart);
+      if (!packageCheck.allowed) {
+        return {
+          allowed: false,
+          reason: `余额不足且套餐已用尽（余额: $${balanceUsd.toFixed(4)}, 需要: $${estimatedCost.toFixed(4)}, ${packageCheck.reason || ""})`,
+        };
+      }
+
+      // 余额不足但套餐够用，使用套餐支付
+      return {
+        allowed: true,
+        paymentStrategy: {
+          fromPackage: estimatedCost,
+          fromBalance: 0,
+          source: 'package',
+        },
+      };
+    }
+
+    // ========== 策略2 & 3: disabled / after_quota - 先检查套餐 ==========
     // 1. 检查套餐限额（5h/周/月/总计）
-    // 传递 billingCycleStart 以确保使用账期周期计算（从数据库查询准确值）
     const packageCheck = await this.checkCostLimits(userId, "user", limits, billingCycleStart);
 
     // 如果套餐限额检查失败，尝试使用余额支付
     if (!packageCheck.allowed) {
-      // 套餐已用尽，检查余额是否足够
+      // ⭐ 策略: disabled - 禁止使用余额
+      if (policy === 'disabled') {
+        logger.warn(
+          `[RateLimit] User ${userId} balance usage policy is 'disabled', ` +
+          `cannot use balance when package is exhausted. Reason: ${packageCheck.reason}`
+        );
+        return {
+          allowed: false,
+          reason: `套餐已用尽且禁止使用余额。${packageCheck.reason || ""}`,
+        };
+      }
+
+      // ⭐ 策略: after_quota - 配额用完后可用余额（默认）
       if (balanceUsd >= estimatedCost) {
         return {
           allowed: true,
@@ -825,8 +877,9 @@ export class RateLimitService {
       }
     }
 
-    // 3. 如果没有设置任何套餐限额，纯余额支付
+    // 3. 如果没有设置任何套餐限额，根据余额和继承设置决定支付策略
     if (!hasAnyLimit) {
+      // ⭐ 优先使用子用户余额支付（如果有）
       if (balanceUsd >= estimatedCost) {
         return {
           allowed: true,
@@ -836,12 +889,30 @@ export class RateLimitService {
             source: "balance",
           },
         };
-      } else {
+      }
+
+      // ⭐ 余额不足，检查是否可以使用父用户套餐
+      // 如果用户设置了 inheritParentLimits = true 且有父用户，允许使用父用户套餐
+      if (inheritParentLimits && parentUserId) {
+        logger.info(
+          `[RateLimit] User ${userId} has insufficient balance ($${balanceUsd.toFixed(4)}), ` +
+          `inherits parent limits, using parent package`
+        );
         return {
-          allowed: false,
-          reason: `余额不足（余额: $${balanceUsd.toFixed(4)}, 需要: $${estimatedCost.toFixed(4)}）`,
+          allowed: true,
+          paymentStrategy: {
+            fromPackage: 0,  // 不从子用户套餐扣（子用户没有套餐）
+            fromBalance: 0,  // 不从子用户余额扣（余额不足）
+            source: 'package', // 标记为从父用户套餐扣除（实际由父用户限额控制）
+          },
         };
       }
+
+      // 余额不足且不能继承父用户限额，拒绝请求
+      return {
+        allowed: false,
+        reason: `余额不足（余额: $${balanceUsd.toFixed(4)}, 需要: $${estimatedCost.toFixed(4)}）`,
+      };
     }
 
     // 4. 计算支付策略
@@ -860,7 +931,20 @@ export class RateLimitService {
       const fromPackage = Math.max(0, minRemaining); // 套餐中可用的部分
       const fromBalance = estimatedCost - fromPackage; // 余额中需要支付的部分
 
-      // 检查余额是否足够
+      // ⭐ 策略: disabled - 禁止使用余额，即使是混合支付也不允许
+      if (policy === 'disabled') {
+        logger.warn(
+          `[RateLimit] User ${userId} balance usage policy is 'disabled', ` +
+          `package remaining $${fromPackage.toFixed(4)}, needs $${fromBalance.toFixed(4)} from balance, ` +
+          `but balance usage is disabled`
+        );
+        return {
+          allowed: false,
+          reason: `套餐剩余 $${fromPackage.toFixed(4)}，需要 $${estimatedCost.toFixed(4)}，禁止使用余额`,
+        };
+      }
+
+      // ⭐ 策略: after_quota / priority - 检查余额是否足够
       if (balanceUsd >= fromBalance) {
         return {
           allowed: true,
@@ -876,6 +960,162 @@ export class RateLimitService {
           reason: `套餐剩余 $${fromPackage.toFixed(4)}，余额不足（需要 $${fromBalance.toFixed(4)}, 当前 $${balanceUsd.toFixed(4)}）`,
         };
       }
+    }
+  }
+
+  /**
+   * 递归检查父用户额度限制（父子额度共享）
+   *
+   * 核心逻辑：
+   * 1. 查询当前用户的 parentUserId 和 inheritParentLimits
+   * 2. 如果 inheritParentLimits = false，直接返回 allowed
+   * 3. 如果有父用户且 inheritParentLimits = true：
+   *    - 查询父用户的所有子用户（包括当前用户）
+   *    - 统计所有子用户的消费总和
+   *    - 检查是否超过父用户的限额配置
+   *    - 递归检查父用户的父用户
+   *
+   * @param userId 当前用户ID
+   * @param estimatedCost 本次请求预估成本
+   * @returns 检查结果
+   */
+  static async checkParentUserLimits(
+    userId: number,
+    estimatedCost: number = 0.1
+  ): Promise<{ allowed: boolean; reason?: string }> {
+    try {
+      // 1. 查询当前用户信息
+      const { findUserById, findChildrenByParentId } = await import("@/repository/user");
+      const currentUser = await findUserById(userId);
+
+      if (!currentUser) {
+        logger.warn(`[RateLimit] Parent check: User ${userId} not found`);
+        return { allowed: true }; // 用户不存在，不应该发生，但允许通过
+      }
+
+      // 2. 检查是否需要继承父用户限额
+      if (!currentUser.inheritParentLimits || !currentUser.parentUserId) {
+        logger.debug(
+          `[RateLimit] Parent check: User ${userId} does not inherit parent limits (inheritParentLimits=${currentUser.inheritParentLimits}, parentUserId=${currentUser.parentUserId})`
+        );
+        return { allowed: true }; // 不继承父用户限额，直接通过
+      }
+
+      // 3. 查询父用户信息
+      const parentUser = await findUserById(currentUser.parentUserId);
+      if (!parentUser) {
+        logger.warn(
+          `[RateLimit] Parent check: Parent user ${currentUser.parentUserId} not found for user ${userId}`
+        );
+        return { allowed: true }; // 父用户不存在，允许通过（数据一致性问题）
+      }
+
+      logger.info(
+        `[RateLimit] Parent check: Checking limits for parent user ${parentUser.id} (${parentUser.name})`
+      );
+
+      // 4. 查询父用户的所有子用户（包括当前用户）
+      const children = await findChildrenByParentId(parentUser.id);
+      const childUserIds = children.map(c => c.id);
+
+      logger.debug(
+        `[RateLimit] Parent check: Found ${childUserIds.length} children for parent ${parentUser.id}`
+      );
+
+      if (childUserIds.length === 0) {
+        logger.warn(
+          `[RateLimit] Parent check: Parent ${parentUser.id} has no children, skipping check`
+        );
+        return { allowed: true }; // 没有子用户，允许通过
+      }
+
+      // 5. 检查父用户的各项限额
+      const { sumChildrenCostInTimeRange } = await import("@/repository/statistics");
+      const { getTimeRangeForPeriod, getTimeRangeForBillingPeriod } = await import(
+        "./time-utils"
+      );
+
+      const costLimits: CostLimit[] = [
+        { amount: parentUser.limit5hUsd, period: "5h", name: "5小时" },
+        { amount: parentUser.limitWeeklyUsd, period: "weekly", name: "周" },
+        { amount: parentUser.limitMonthlyUsd, period: "monthly", name: "月" },
+        { amount: parentUser.totalLimitUsd, period: "total", name: "总计" },
+      ];
+
+      // 6. 逐项检查限额
+      for (const limit of costLimits) {
+        if (!limit.amount || limit.amount <= 0) continue;
+
+        let startTime: Date;
+        let endTime: Date;
+
+        // 根据周期类型获取时间范围
+        if (limit.period === "5h") {
+          // 5小时滚动窗口
+          endTime = new Date();
+          startTime = new Date(endTime.getTime() - 5 * 60 * 60 * 1000);
+        } else if (
+          (limit.period === "weekly" || limit.period === "monthly") &&
+          parentUser.billingCycleStart
+        ) {
+          // 使用账期周期
+          const range = getTimeRangeForBillingPeriod(
+            limit.period,
+            parentUser.billingCycleStart
+          );
+          startTime = range.startTime;
+          endTime = range.endTime;
+        } else {
+          // 使用自然周期
+          const range = getTimeRangeForPeriod(limit.period);
+          startTime = range.startTime;
+          endTime = range.endTime;
+        }
+
+        // 查询所有子用户的消费总和
+        const currentCost = await sumChildrenCostInTimeRange(
+          parentUser.id,
+          childUserIds,
+          startTime,
+          endTime
+        );
+
+        const projectedCost = currentCost + estimatedCost;
+
+        logger.debug(
+          `[RateLimit] Parent check: Period=${limit.period}, current=${currentCost.toFixed(4)}, ` +
+            `projected=${projectedCost.toFixed(4)}, limit=${limit.amount}`
+        );
+
+        // 检查是否超限
+        if (projectedCost > limit.amount) {
+          const reason = `${limit.name}限额已达上限`;
+          logger.warn(
+            `[RateLimit] Parent check FAILED: userId=${userId}, parentUserId=${parentUser.id}, ` +
+              `period=${limit.period}, current=${currentCost.toFixed(4)}, limit=${limit.amount}`
+          );
+          return { allowed: false, reason };
+        }
+      }
+
+      logger.info(
+        `[RateLimit] Parent check PASSED for userId=${userId}, parentUserId=${parentUser.id}`
+      );
+
+      // 7. 递归检查父用户的父用户（如果存在）
+      if (parentUser.inheritParentLimits && parentUser.parentUserId) {
+        logger.debug(
+          `[RateLimit] Parent check: Recursively checking grandparent ${parentUser.parentUserId}`
+        );
+        return await this.checkParentUserLimits(parentUser.id, estimatedCost);
+      }
+
+      // 所有检查通过
+      return { allowed: true };
+    } catch (error) {
+      logger.error("[RateLimit] Parent check error:", error);
+      // Fail Open：出错时允许通过，避免阻塞正常请求
+      return { allowed: true };
     }
   }
 }

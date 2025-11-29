@@ -1,6 +1,6 @@
 {
   "name": "claude-code-hub",
-  "version": "1.0.2",
+  "version": "1.0.17",
   "private": true,
   "scripts": {
     "dev": "next dev --port 13500 --turbo",
@@ -42,6 +42,7 @@
     "@scalar/hono-api-reference": "^0.9.22",
     "@tanstack/react-query": "^5.90.5",
     "antd": "^5.27.6",
+    "bcryptjs": "^3.0.3",
     "bull": "^4.16.5",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -76,6 +77,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
     "@tailwindcss/postcss": "^4.1.16",
+    "@types/bcryptjs": "^3.0.0",
     "@types/ioredis": "^5.0.0",
     "@types/node": "^20.19.13",
     "@types/pg": "^8.15.5",

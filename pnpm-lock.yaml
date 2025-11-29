@@ -80,6 +80,9 @@ importers:
       antd:
         specifier: ^5.27.6
         version: 5.27.6(date-fns@4.1.0)(luxon@3.7.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      bcryptjs:
+        specifier: ^3.0.3
+        version: 3.0.3
       bull:
         specifier: ^4.16.5
         version: 4.16.5
@@ -177,6 +180,9 @@ importers:
       '@tailwindcss/postcss':
         specifier: ^4.1.16
         version: 4.1.16
+      '@types/bcryptjs':
+        specifier: ^3.0.0
+        version: 3.0.0
       '@types/ioredis':
         specifier: ^5.0.0
         version: 5.0.0
@@ -1986,6 +1992,10 @@ packages:
   '@tybys/wasm-util@0.10.0':
     resolution: {integrity: sha512-VyyPYFlOMNylG45GoAe0xDoLwWuowvf92F9kySqzYh8vmYm7D2u4iUJKa1tOUpS70Ku13ASrOkS4ScXFsTaCNQ==}
 
+  '@types/bcryptjs@3.0.0':
+    resolution: {integrity: sha512-WRZOuCuaz8UcZZE4R5HXTco2goQSI2XxjGY3hbM/xDvwmqFWd4ivooImsMx65OKM6CtNKbnZ5YL+YwAwK7c1dg==}
+    deprecated: This is a stub types definition. bcryptjs provides its own type definitions, so you do not need this installed.
+
   '@types/d3-array@3.2.2':
     resolution: {integrity: sha512-hOLWVbm7uRza0BYXpIIW5pxfrKe0W+D5lrFiAEYR+pb6w3N2SwSMaJbXdUfSEv+dT4MfHBLtn5js0LAWaO6otw==}
 
@@ -2471,6 +2481,10 @@ packages:
 
   baseline-browser-mapping@2.8.21:
     resolution: {integrity: sha512-JU0h5APyQNsHOlAM7HnQnPToSDQoEBZqzu/YBlqDnEeymPnZDREeXJA3KBMQee+dKteAxZ2AtvQEvVYdZf241Q==}
+    hasBin: true
+
+  bcryptjs@3.0.3:
+    resolution: {integrity: sha512-GlF5wPWnSa/X5LKM1o0wz0suXIINz1iHRLvTS+sLyi7XPbe5ycmYI3DlZqVGZZtDgl4DmasFg7gOB3JYbphV5g==}
     hasBin: true
 
   body-parser@2.2.0:
@@ -7669,6 +7683,10 @@ snapshots:
       tslib: 2.8.1
     optional: true
 
+  '@types/bcryptjs@3.0.0':
+    dependencies:
+      bcryptjs: 3.0.3
+
   '@types/d3-array@3.2.2': {}
 
   '@types/d3-axis@3.0.6':
@@ -8264,6 +8282,8 @@ snapshots:
   base64-arraybuffer@1.0.2: {}
 
   baseline-browser-mapping@2.8.21: {}
+
+  bcryptjs@3.0.3: {}
 
   body-parser@2.2.0:
     dependencies:

@@ -282,6 +282,80 @@ if (proxyConfig) {
 - 企业内网环境，需要通过公司代理访问外网
 - IP 限制场景，通过代理绕过 IP 封锁
 
+### API 密钥加密
+
+API 密钥在数据库中使用混合加密方案存储，确保即使数据库泄露也能保护密钥安全。
+
+**加密方案**：
+
+- **SHA-256 哈希** - 用于快速查询和验证（单向，不可逆）
+- **AES-256-GCM 加密** - 用于存储和保护原始密钥（可逆，需要时解密）
+- **存储格式** - `hash:iv:authTag:encryptedData`（4 部分用冒号分隔）
+
+**安全特性**：
+
+1. **哈希前缀匹配** - 数据库查询使用 `LIKE 'hash:%'` 快速定位
+2. **内存验证** - 查询后在内存中验证完整密钥，防止哈希碰撞
+3. **认证加密 (AEAD)** - GCM 模式提供完整性保护，防止篡改
+4. **随机 IV** - 每次加密生成随机初始化向量，相同密钥加密结果不同
+
+**密钥生命周期**：
+
+```typescript
+// 1. 创建密钥（src/actions/keys.ts:96-107）
+const generatedKey = "sk-" + randomBytes(16).toString("hex");  // 生成明文
+const encryptedKey = encryptKey(generatedKey);                  // 加密存储
+await createKey({ key: encryptedKey, ... });                    // 存入数据库
+return { generatedKey };                                        // 仅此一次返回明文
+
+// 2. API 验证（src/repository/key.ts:263-310）
+const inputHash = hashKey(userProvidedKey);                     // 计算哈希
+const results = await db.select().where(
+  like(keys.key, `${inputHash}:%`)                              // 哈希前缀匹配
+);
+for (const result of results) {
+  if (verifyKey(userProvidedKey, result.key)) {                 // 内存验证
+    return toKey(result);                                       // 验证成功
+  }
+}
+
+// 3. 管理员查看（client-manager.tsx:710）
+<KeyList
+  hideKeyColumn={currentUser.id !== selectedUser.id}           // 管理员隐藏 Key 列
+/>
+```
+
+**权限控制**：
+
+- ✅ **用户创建密钥** - 明文密钥仅在创建时返回一次（`addKey` 返回 `generatedKey`）
+- ✅ **用户查看自己的密钥** - 可以看到脱敏的 `maskedKey`（如 `sk-abc...xyz`）
+- ❌ **管理员查看其他用户密钥** - 完全隐藏 Key 列，无法看到任何密钥信息
+- ✅ **API 请求验证** - 使用哈希+验证方式，无需解密即可验证
+
+**环境变量配置**：
+
+```bash
+# 生成加密密钥
+openssl rand -hex 32
+
+# 添加到 .env.local
+ENCRYPTION_KEY=34670a7f3160b4469edadcd5212b80b727455a0221de63fda2cfd08d751315ff
+```
+
+**关键文件**：
+
+- `src/lib/crypto.ts` - 加密/解密核心实现（`encryptKey`, `decryptKey`, `verifyKey`, `hashKey`）
+- `src/actions/keys.ts:96-107` - 密钥创建时加密
+- `src/repository/key.ts:263-310` - 哈希查找和验证逻辑
+- `src/lib/config/env.schema.ts:27-34` - ENCRYPTION_KEY 格式验证
+
+**注意事项**：
+
+1. ⚠️ **ENCRYPTION_KEY 不可更改** - 一旦设置，更改后现有密钥将无法解密
+2. ⚠️ **密钥轮转** - 如需更换加密密钥，必须强制所有用户重新生成 API 密钥
+3. ⚠️ **备份策略** - 备份数据库时，ENCRYPTION_KEY 必须同步备份并妥善保管
+4. ✅ **生产环境** - 建议使用 Kubernetes Secrets 或 Docker Secrets 管理 ENCRYPTION_KEY
+
 ### 数据库 Schema
 
 核心表结构 (`src/drizzle/schema.ts`):
@@ -396,6 +470,15 @@ Claude Code 客户端请求: claude-sonnet-4-5-20250929
 ```bash
 # 管理员认证
 ADMIN_TOKEN=change-me              # 管理后台登录令牌（必须修改）
+
+# 密钥加密配置（⭐ 必填项）
+ENCRYPTION_KEY=                     # API 密钥加密密钥（64 位十六进制字符串）
+                                    # 生成命令：openssl rand -hex 32
+                                    # 示例：34670a7f3160b4469edadcd5212b80b727455a0221de63fda2cfd08d751315ff
+                                    # ⚠️ 警告：
+                                    # - 一旦设置不可更改，否则现有密钥将无法解密
+                                    # - 请妥善保管，数据库泄露时仍能保护密钥安全
+                                    # - 生产环境建议使用 Secrets 管理
 
 # 数据库配置
 DSN="postgres://..."               # PostgreSQL 连接字符串

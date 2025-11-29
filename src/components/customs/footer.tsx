@@ -22,14 +22,14 @@ export async function Footer() {
         <p className="text-center sm:text-left">
           © {year} Claude Code Hub · v{version}
         </p>
-        <Link
-          href="https://github.com/gaoziman/claude-code-hub-new"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="transition-colors hover:text-primary"
-        >
-          GitHub
-        </Link>
+        {/*<Link*/}
+        {/*  href="https://github.com/gaoziman/claude-code-hub-new"*/}
+        {/*  target="_blank"*/}
+        {/*  rel="noopener noreferrer"*/}
+        {/*  className="transition-colors hover:text-primary"*/}
+        {/*>*/}
+        {/*  GitHub*/}
+        {/*</Link>*/}
       </div>
     </footer>
   );
