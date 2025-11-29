@@ -14,6 +14,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Info } from "lucide-react";
 import type { UsageLogRow } from "@/repository/usage-logs";
 import { ProviderChainPopover } from "./provider-chain-popover";
 import { ErrorDetailsDialog } from "./error-details-dialog";
@@ -94,14 +95,35 @@ export function UsageLogsTable({
           <TableHeader>
             <TableRow>
               <TableHead>时间</TableHead>
+              <TableHead>用户</TableHead>
               <TableHead>密钥</TableHead>
-              <TableHead>供应商</TableHead>
+              {/* ⭐ 供应商列仅管理员可见 */}
+              {isAdmin && <TableHead>供应商</TableHead>}
               <TableHead>模型</TableHead>
               <TableHead className="text-right">输入</TableHead>
               <TableHead className="text-right">输出</TableHead>
               <TableHead className="text-right">缓存读取</TableHead>
               <TableHead className="text-right">缓存写入</TableHead>
               <TableHead className="text-right">成本</TableHead>
+              <TableHead className="text-right">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="flex items-center justify-end gap-1 cursor-help">
+                        剩余额度
+                        <Info className="h-3 w-3 text-muted-foreground" />
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="text-xs">
+                        请求完成后的剩余可用额度
+                        <br />
+                        （套餐剩余 + 账户余额）
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </TableHead>
               <TableHead className="text-right">耗时</TableHead>
               <TableHead>状态</TableHead>
             </TableRow>
@@ -109,7 +131,7 @@ export function UsageLogsTable({
           <TableBody>
             {logs.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={11} className="text-center text-muted-foreground">
+                <TableCell colSpan={isAdmin ? 13 : 12} className="text-center text-muted-foreground">
                   暂无数据
                 </TableCell>
               </TableRow>
@@ -122,54 +144,58 @@ export function UsageLogsTable({
                   <TableCell className="font-mono text-xs">
                     {formatDateTime(log.createdAt)}
                   </TableCell>
+                  <TableCell className="font-mono text-xs">{log.userName}</TableCell>
                   <TableCell className="font-mono text-xs">{log.keyName}</TableCell>
-                  <TableCell className="text-left">
-                    {log.blockedBy ? (
-                      // 被拦截的请求显示拦截标记
-                      <span className="inline-flex items-center gap-1 rounded-md bg-orange-100 dark:bg-orange-950 px-2 py-1 text-xs font-medium text-orange-700 dark:text-orange-300">
-                        <span className="h-1.5 w-1.5 rounded-full bg-orange-600 dark:bg-orange-400" />
-                        被拦截
-                      </span>
-                    ) : (
-                      <div className="flex items-start gap-2">
-                        <div className="flex flex-col items-start gap-0.5 min-w-0 flex-1">
-                          {log.providerChain && log.providerChain.length > 0 ? (
-                            <>
-                              <div className="w-full">
-                                <ProviderChainPopover
-                                  chain={log.providerChain}
-                                  finalProvider={
-                                    log.providerChain[log.providerChain.length - 1].name || log.providerName || "未知"
-                                  }
-                                />
-                              </div>
-                              {/* 摘要文字（第二行显示，左对齐） */}
-                              {formatProviderSummary(log.providerChain) && (
+                  {/* ⭐ 供应商列仅管理员可见 */}
+                  {isAdmin && (
+                    <TableCell className="text-left">
+                      {log.blockedBy ? (
+                        // 被拦截的请求显示拦截标记
+                        <span className="inline-flex items-center gap-1 rounded-md bg-orange-100 dark:bg-orange-950 px-2 py-1 text-xs font-medium text-orange-700 dark:text-orange-300">
+                          <span className="h-1.5 w-1.5 rounded-full bg-orange-600 dark:bg-orange-400" />
+                          被拦截
+                        </span>
+                      ) : (
+                        <div className="flex items-start gap-2">
+                          <div className="flex flex-col items-start gap-0.5 min-w-0 flex-1">
+                            {log.providerChain && log.providerChain.length > 0 ? (
+                              <>
                                 <div className="w-full">
-                                  <TooltipProvider>
-                                    <Tooltip delayDuration={300}>
-                                      <TooltipTrigger asChild>
-                                        <span className="text-xs text-muted-foreground cursor-help truncate max-w-[200px] block text-left">
-                                          {formatProviderSummary(log.providerChain)}
-                                        </span>
-                                      </TooltipTrigger>
-                                      <TooltipContent side="bottom" align="start" className="max-w-[500px]">
-                                        <p className="text-xs whitespace-normal break-words font-mono">
-                                          {formatProviderSummary(log.providerChain)}
-                                        </p>
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
+                                  <ProviderChainPopover
+                                    chain={log.providerChain}
+                                    finalProvider={
+                                      log.providerChain[log.providerChain.length - 1].name || log.providerName || "未知"
+                                    }
+                                  />
                                 </div>
-                              )}
-                            </>
-                          ) : (
-                            <span>{log.providerName || "-"}</span>
-                          )}
+                                {/* 摘要文字（第二行显示，左对齐） */}
+                                {formatProviderSummary(log.providerChain) && (
+                                  <div className="w-full">
+                                    <TooltipProvider>
+                                      <Tooltip delayDuration={300}>
+                                        <TooltipTrigger asChild>
+                                          <span className="text-xs text-muted-foreground cursor-help truncate max-w-[200px] block text-left">
+                                            {formatProviderSummary(log.providerChain)}
+                                          </span>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="bottom" align="start" className="max-w-[500px]">
+                                          <p className="text-xs whitespace-normal break-words font-mono">
+                                            {formatProviderSummary(log.providerChain)}
+                                          </p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  </div>
+                                )}
+                              </>
+                            ) : (
+                              <span>{log.providerName || "-"}</span>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    )}
-                  </TableCell>
+                      )}
+                    </TableCell>
+                  )}
                   <TableCell className="font-mono text-xs">
                     <ModelDisplayWithRedirect
                       originalModel={log.originalModel}
@@ -190,6 +216,15 @@ export function UsageLogsTable({
                   </TableCell>
                   <TableCell className="text-right font-mono text-xs">
                     {log.costUsd ? formatCurrency(log.costUsd, currencyCode, 6) : "-"}
+                  </TableCell>
+                  <TableCell className="text-right font-mono text-xs">
+                    {log.remainingQuotaUsd !== null && log.remainingQuotaUsd !== undefined ? (
+                      <span className="text-amber-600 dark:text-amber-400 font-semibold">
+                        {formatCurrency(log.remainingQuotaUsd, currencyCode, 4)}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">-</span>
+                    )}
                   </TableCell>
                   <TableCell className="text-right font-mono text-xs">
                     {formatDuration(log.durationMs)}

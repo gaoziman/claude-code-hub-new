@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Key, Loader2, AlertTriangle, Book } from "lucide-react";
+import { Loader2, AlertTriangle, Book, User } from "lucide-react";
 
 export default function LoginPage() {
   return (
@@ -22,10 +22,13 @@ function LoginPageContent() {
   const searchParams = useSearchParams();
   const from = searchParams.get("from") || "/dashboard";
 
-  const [apiKey, setApiKey] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
   const [showHttpWarning, setShowHttpWarning] = useState(false);
+
+  // 密码登录状态
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [passwordError, setPasswordError] = useState("");
 
   // 检测是否为 HTTP（非 localhost）
   useEffect(() => {
@@ -37,22 +40,23 @@ function LoginPageContent() {
     }
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // 密码登录处理
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
-    setLoading(true);
+    setPasswordError("");
+    setPasswordLoading(true);
 
     try {
-      const response = await fetch("/api/auth/login", {
+      const response = await fetch("/api/auth/login-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ key: apiKey }),
+        body: JSON.stringify({ username, password }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.error || "登录失败");
+        setPasswordError(data.error || "登录失败");
         return;
       }
 
@@ -60,9 +64,9 @@ function LoginPageContent() {
       router.push(from);
       router.refresh();
     } catch {
-      setError("网络错误，请稍后重试");
+      setPasswordError("网络错误，请稍后重试");
     } finally {
-      setLoading(false);
+      setPasswordLoading(false);
     }
   };
 
@@ -78,11 +82,11 @@ function LoginPageContent() {
           <CardHeader className="space-y-4">
             <div className="flex items-center gap-3">
               <div className="flex h-11 w-11 items-center justify-center rounded-full bg-orange-500/15 text-orange-500">
-                <Key className="h-5 w-5" />
+                <User className="h-5 w-5" />
               </div>
               <div>
                 <CardTitle className="text-2xl font-semibold">登录面板</CardTitle>
-                <CardDescription>使用您的 API Key 进入统一控制台</CardDescription>
+                <CardDescription>使用密码进入统一控制台</CardDescription>
               </div>
             </div>
           </CardHeader>
@@ -109,28 +113,45 @@ function LoginPageContent() {
                 </AlertDescription>
               </Alert>
             ) : null}
-            <form onSubmit={handleSubmit} className="space-y-6">
+
+            {/* 密码登录表单 */}
+            <form onSubmit={handlePasswordSubmit} className="space-y-6">
               <div className="space-y-3">
                 <div className="space-y-2">
-                  <Label htmlFor="apiKey">API Key</Label>
+                  <Label htmlFor="username">用户名</Label>
                   <div className="relative">
-                    <Key className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
-                      id="apiKey"
-                      type="password"
-                      placeholder="例如 sk-xxxxxxxx"
-                      value={apiKey}
-                      onChange={(e) => setApiKey(e.target.value)}
+                      id="username"
+                      type="text"
+                      placeholder="请输入用户名"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
                       className="pl-9"
                       required
-                      disabled={loading}
+                      disabled={passwordLoading}
+                      autoComplete="username"
                     />
                   </div>
                 </div>
 
-                {error ? (
+                <div className="space-y-2">
+                  <Label htmlFor="password">密码</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="请输入密码"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    disabled={passwordLoading}
+                    autoComplete="current-password"
+                  />
+                </div>
+
+                {passwordError ? (
                   <Alert variant="destructive">
-                    <AlertDescription>{error}</AlertDescription>
+                    <AlertDescription>{passwordError}</AlertDescription>
                   </Alert>
                 ) : null}
               </div>
@@ -139,9 +160,9 @@ function LoginPageContent() {
                 <Button
                   type="submit"
                   className="w-full max-w-full"
-                  disabled={loading || !apiKey.trim()}
+                  disabled={passwordLoading || !username.trim() || !password.trim()}
                 >
-                  {loading ? (
+                  {passwordLoading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       登录中...
@@ -151,7 +172,7 @@ function LoginPageContent() {
                   )}
                 </Button>
                 <p className="text-center text-xs text-muted-foreground">
-                  我们仅使用此 Key 作登录校验，绝不会保留原文。
+                  首次登录请使用管理员分配的密码
                 </p>
               </div>
             </form>

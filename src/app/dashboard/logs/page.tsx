@@ -20,13 +20,30 @@ export default async function UsageLogsPage({
   }
 
   const isAdmin = session.user.role === "admin";
+  const isReseller = session.user.role === "reseller";
   const isChildKeyView = session.viewMode === "key";
 
-  const usersPromise = isAdmin ? getUsers() : Promise.resolve([]);
+  //  管理员：加载所有用户；代理用户：加载自己+子用户；普通用户：不加载
+  const usersPromise = isAdmin
+    ? getUsers()
+    : isReseller
+      ? (async () => {
+          // 代理用户：需要同时加载自己和子用户
+          const { getCurrentUserWithUsage } = await import("@/actions/users");
+          const [childUsers, selfUser] = await Promise.all([
+            getUsers(), // 获取子用户
+            getCurrentUserWithUsage("today"), // 获取代理用户自己
+          ]);
+
+          // 将代理用户自己添加到列表开头
+          return selfUser ? [selfUser, ...childUsers] : childUsers;
+        })()
+      : Promise.resolve([]);
+
   const providersPromise = isAdmin ? getProviders() : Promise.resolve([]);
   const keysPromise = isAdmin
     ? Promise.resolve({ ok: true, data: [] })
-    : isChildKeyView
+    : isChildKeyView && session.key
       ? Promise.resolve({ ok: true, data: [session.key] })
       : getKeys(session.user.id);
 

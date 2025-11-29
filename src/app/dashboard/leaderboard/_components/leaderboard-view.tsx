@@ -19,7 +19,7 @@ type LimitMode = "top10" | "top25" | "all";
 interface LeaderboardViewProps {
   viewer: {
     id: number;
-    role: "admin" | "user";
+    role: "admin" | "reseller" | "user";
     name?: string | null;
   } | null;
   currencyCode: CurrencyCode;

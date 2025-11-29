@@ -3,18 +3,18 @@ import { getSession } from "@/lib/auth";
 import {
   getUserStatistics,
   getProviderUsageTrends,
-  getTopKeysUsageTrends,
+  getTopUsersUsageTrends,
 } from "@/actions/statistics";
 import { hasPriceTable } from "@/actions/model-prices";
 import { getSystemSettings } from "@/repository/system-config";
 import { StatisticsWrapper } from "./_components/statistics";
 import { OverviewPanel } from "@/components/customs/overview-panel";
 import { DEFAULT_TIME_RANGE } from "@/types/statistics";
-import type { ProviderTrendData, KeyTrendData } from "@/types/statistics";
+import type { ProviderTrendData, UserTrendData } from "@/types/statistics";
 import { getActiveProviderTypes } from "@/repository/provider";
 import type { ProviderType } from "@/types/provider";
 import { ProviderTrendPanel } from "./_components/provider-trends";
-import { KeyTrendPanel } from "./_components/key-trends/key-trend-panel";
+import { UserTrendPanel } from "./_components/user-trends/user-trend-panel";
 
 const DEFAULT_PROVIDER_TREND_TYPE: ProviderType = "claude-auth";
 
@@ -38,7 +38,7 @@ export default async function DashboardPage() {
   let providerTypes: ProviderType[] = [];
   let initialProviderType: ProviderType = DEFAULT_PROVIDER_TREND_TYPE;
   let providerTrendInitialData: ProviderTrendData | undefined;
-  let keyTrendInitialData: KeyTrendData | undefined;
+  let userTrendInitialData: UserTrendData | undefined;
 
   if (isAdmin) {
     providerTypes = await getActiveProviderTypes();
@@ -48,13 +48,13 @@ export default async function DashboardPage() {
       ? DEFAULT_PROVIDER_TREND_TYPE
       : normalizedTypes[0];
 
-    const [providerTrendResult, keyTrendResult] = await Promise.all([
+    const [providerTrendResult, userTrendResult] = await Promise.all([
       getProviderUsageTrends(initialProviderType),
-      getTopKeysUsageTrends(),
+      getTopUsersUsageTrends(),
     ]);
 
     providerTrendInitialData = providerTrendResult.ok ? providerTrendResult.data : undefined;
-    keyTrendInitialData = keyTrendResult.ok ? keyTrendResult.data : undefined;
+    userTrendInitialData = userTrendResult.ok ? userTrendResult.data : undefined;
   }
 
   return (
@@ -70,10 +70,10 @@ export default async function DashboardPage() {
 
       {isAdmin && (
         <div className="space-y-6">
-          <KeyTrendPanel
-            title="API Keys 使用趋势"
-            description="近 7 天内使用量前 7 的 API Keys 趋势"
-            initialData={keyTrendInitialData}
+          <UserTrendPanel
+            title="用户使用趋势"
+            description="近 7 天内使用量前 7 的用户趋势"
+            initialData={userTrendInitialData}
             currencyCode={systemSettings.currencyDisplay}
           />
 

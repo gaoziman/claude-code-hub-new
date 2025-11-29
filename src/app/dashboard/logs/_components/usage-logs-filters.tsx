@@ -156,16 +156,18 @@ export function UsageLogsFilters({
           />
         </div>
 
-        {/* 用户选择（仅 Admin） */}
-        {isAdmin && (
+        {/* 用户选择（Admin 显示所有用户，Reseller 显示子用户） */}
+        {(isAdmin || users.length > 0) && (
           <div className="flex flex-col gap-1.5">
-            <Label className="text-xs text-muted-foreground">用户</Label>
+            <Label className="text-xs text-muted-foreground">
+              {isAdmin ? "用户" : "子用户"}
+            </Label>
             <Select
               value={localFilters.userId?.toString() || ""}
               onValueChange={handleUserChange}
             >
               <SelectTrigger className="h-9 w-40 rounded-lg">
-                <SelectValue placeholder="全部用户" />
+                <SelectValue placeholder={isAdmin ? "全部用户" : "全部子用户"} />
               </SelectTrigger>
               <SelectContent>
                 {users.map((user) => (

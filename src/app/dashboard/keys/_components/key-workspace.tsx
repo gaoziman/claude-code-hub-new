@@ -30,7 +30,7 @@ import { RelativeTime } from "@/components/ui/relative-time";
 import { toast } from "sonner";
 import { AlertTriangle, ShieldCheck, RefreshCw, BarChart3 } from "lucide-react";
 import { USAGE_TIME_RANGE_META, type UsageTimeRangeValue } from "@/lib/time-range";
-import { fetchUsersByTimeRange, getUserMetrics } from "../../_lib/user-data";
+import { fetchCurrentUserByTimeRange, getUserMetrics } from "../../_lib/user-data";
 
 type StatusFilter = "all" | "enabled" | "disabled" | "expiring";
 type LoginFilter = "all" | "login" | "api";
@@ -124,14 +124,15 @@ export function KeyWorkspace({
     if (value === timeRange) return;
     startTransition(async () => {
       try {
-        const nextUsers = await fetchUsersByTimeRange(value);
+        // ⭐ API 密钥页面：只获取当前用户自己的数据
+        const currentUserData = await fetchCurrentUserByTimeRange(value);
+        if (!currentUserData) {
+          toast.error("无法加载用户数据");
+          return;
+        }
+        const nextUsers = [currentUserData]; // 包装成数组
         setUsers(nextUsers);
-        const nextActive =
-          nextUsers.find((user) => user.id === selectedUserId) ??
-          nextUsers.find((user) => user.id === preferredUserId) ??
-          nextUsers[0] ??
-          null;
-        setSelectedUserId(nextActive?.id ?? null);
+        setSelectedUserId(currentUserData.id); // 固定选中当前用户
         setTimeRange(value);
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "加载用户数据失败");
@@ -142,14 +143,15 @@ export function KeyWorkspace({
   const handleManualRefresh = () => {
     startTransition(async () => {
       try {
-        const nextUsers = await fetchUsersByTimeRange(timeRange);
+        // ⭐ API 密钥页面：只获取当前用户自己的数据
+        const currentUserData = await fetchCurrentUserByTimeRange(timeRange);
+        if (!currentUserData) {
+          toast.error("无法加载用户数据");
+          return;
+        }
+        const nextUsers = [currentUserData]; // 包装成数组
         setUsers(nextUsers);
-        const nextActive =
-          nextUsers.find((user) => user.id === selectedUserId) ??
-          nextUsers.find((user) => user.id === preferredUserId) ??
-          nextUsers[0] ??
-          null;
-        setSelectedUserId(nextActive?.id ?? null);
+        setSelectedUserId(currentUserData.id); // 固定选中当前用户
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "刷新失败，请稍后重试");
       }

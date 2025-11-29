@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
-import { getUsers } from "@/actions/users";
+import { getCurrentUserWithUsage } from "@/actions/users";
 import { getSystemSettings } from "@/repository/system-config";
 import type { UsageTimeRangeValue } from "@/lib/time-range";
 import { KeyWorkspace } from "./_components/key-workspace";
@@ -26,7 +26,7 @@ export default async function UserKeysPage({
   if (!session) {
     redirect("/login?from=/dashboard/keys");
   }
-
+  
   if (session.user.role === "admin") {
     redirect("/dashboard/clients");
   }
@@ -34,9 +34,14 @@ export default async function UserKeysPage({
   const resolvedSearchParams = await searchParams;
   const range = resolveRange(resolvedSearchParams?.range);
 
-  const [users, systemSettings] = await Promise.all([getUsers(range), getSystemSettings()]);
+  // API 密钥页面：所有角色（User、Reseller）都只显示自己的密钥
+  // 使用 getCurrentUserWithUsage() 获取当前用户的完整数据（包含 keys 和 usage）
+  const [currentUserWithUsage, systemSettings] = await Promise.all([
+    getCurrentUserWithUsage(range),
+    getSystemSettings(),
+  ]);
 
-  if (!users || users.length === 0) {
+  if (!currentUserWithUsage) {
     return (
       <div className="mx-auto max-w-2xl py-16 text-center">
         <p className="text-lg font-semibold text-foreground">暂未找到可用的用户信息</p>
@@ -47,7 +52,7 @@ export default async function UserKeysPage({
 
   return (
     <KeyWorkspace
-      initialUsers={users}
+      initialUsers={[currentUserWithUsage]} // ⭐ 只传递当前用户自己，数组长度固定为 1
       currentUser={session.user}
       viewMode={session.viewMode}
       currencyCode={systemSettings.currencyDisplay}
