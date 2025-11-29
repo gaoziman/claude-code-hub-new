@@ -15,7 +15,7 @@ interface KeyActionsProps {
   canDelete: boolean;
   showLabels?: boolean;
   allowEdit?: boolean; // 是否允许编辑（仅管理员）
-  allowManage?: boolean; 
+  allowManage?: boolean;
 }
 
 export function KeyActions({

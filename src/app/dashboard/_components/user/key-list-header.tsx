@@ -197,8 +197,7 @@ export function KeyListHeader({
   };
 
   // 严格权限控制，只允许用户为自己创建 key
-  const canAddKey =
-    currentUser && activeUser && currentUser.id === activeUser.id;
+  const canAddKey = currentUser && activeUser && currentUser.id === activeUser.id;
 
   // 计算当前 Key 数量和最大限制
   const currentKeyCount = activeUser?.keys.length ?? 0;

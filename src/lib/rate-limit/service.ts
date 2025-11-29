@@ -160,11 +160,8 @@ export class RateLimitService {
     costLimits: CostLimit[],
     billingCycleStart?: Date | null
   ): Promise<{ allowed: boolean; reason?: string }> {
-    const {
-      sumKeyCostInTimeRange,
-      sumProviderCostInTimeRange,
-      sumUserCostInTimeRange,
-    } = await import("@/repository/statistics");
+    const { sumKeyCostInTimeRange, sumProviderCostInTimeRange, sumUserCostInTimeRange } =
+      await import("@/repository/statistics");
 
     for (const limit of costLimits) {
       if (!limit.amount || limit.amount <= 0) continue;
@@ -704,7 +701,7 @@ export class RateLimitService {
     billingCycleStart?: Date | null,
     inheritParentLimits?: boolean,
     parentUserId?: number | null,
-    balanceUsagePolicy?: 'disabled' | 'after_quota' | 'priority' // ⭐ 新增：余额使用策略
+    balanceUsagePolicy?: "disabled" | "after_quota" | "priority" // ⭐ 新增：余额使用策略
   ): Promise<{
     allowed: boolean;
     reason?: string;
@@ -715,10 +712,10 @@ export class RateLimitService {
     };
   }> {
     // 默认策略：after_quota（配额用完后可用余额）
-    const policy = balanceUsagePolicy || 'after_quota';
+    const policy = balanceUsagePolicy || "after_quota";
 
     // ========== 策略1: priority - 优先使用余额 ==========
-    if (policy === 'priority') {
+    if (policy === "priority") {
       // 优先使用余额，余额不足才使用套餐
       if (balanceUsd >= estimatedCost) {
         return {
@@ -726,7 +723,7 @@ export class RateLimitService {
           paymentStrategy: {
             fromPackage: 0,
             fromBalance: estimatedCost,
-            source: 'balance',
+            source: "balance",
           },
         };
       }
@@ -746,7 +743,7 @@ export class RateLimitService {
         paymentStrategy: {
           fromPackage: estimatedCost,
           fromBalance: 0,
-          source: 'package',
+          source: "package",
         },
       };
     }
@@ -758,10 +755,10 @@ export class RateLimitService {
     // 如果套餐限额检查失败，尝试使用余额支付
     if (!packageCheck.allowed) {
       // ⭐ 策略: disabled - 禁止使用余额
-      if (policy === 'disabled') {
+      if (policy === "disabled") {
         logger.warn(
           `[RateLimit] User ${userId} balance usage policy is 'disabled', ` +
-          `cannot use balance when package is exhausted. Reason: ${packageCheck.reason}`
+            `cannot use balance when package is exhausted. Reason: ${packageCheck.reason}`
         );
         return {
           allowed: false,
@@ -896,14 +893,14 @@ export class RateLimitService {
       if (inheritParentLimits && parentUserId) {
         logger.info(
           `[RateLimit] User ${userId} has insufficient balance ($${balanceUsd.toFixed(4)}), ` +
-          `inherits parent limits, using parent package`
+            `inherits parent limits, using parent package`
         );
         return {
           allowed: true,
           paymentStrategy: {
-            fromPackage: 0,  // 不从子用户套餐扣（子用户没有套餐）
-            fromBalance: 0,  // 不从子用户余额扣（余额不足）
-            source: 'package', // 标记为从父用户套餐扣除（实际由父用户限额控制）
+            fromPackage: 0, // 不从子用户套餐扣（子用户没有套餐）
+            fromBalance: 0, // 不从子用户余额扣（余额不足）
+            source: "package", // 标记为从父用户套餐扣除（实际由父用户限额控制）
           },
         };
       }
@@ -932,11 +929,11 @@ export class RateLimitService {
       const fromBalance = estimatedCost - fromPackage; // 余额中需要支付的部分
 
       // ⭐ 策略: disabled - 禁止使用余额，即使是混合支付也不允许
-      if (policy === 'disabled') {
+      if (policy === "disabled") {
         logger.warn(
           `[RateLimit] User ${userId} balance usage policy is 'disabled', ` +
-          `package remaining $${fromPackage.toFixed(4)}, needs $${fromBalance.toFixed(4)} from balance, ` +
-          `but balance usage is disabled`
+            `package remaining $${fromPackage.toFixed(4)}, needs $${fromBalance.toFixed(4)} from balance, ` +
+            `but balance usage is disabled`
         );
         return {
           allowed: false,
@@ -1016,7 +1013,7 @@ export class RateLimitService {
 
       // 4. 查询父用户的所有子用户（包括当前用户）
       const children = await findChildrenByParentId(parentUser.id);
-      const childUserIds = children.map(c => c.id);
+      const childUserIds = children.map((c) => c.id);
 
       logger.debug(
         `[RateLimit] Parent check: Found ${childUserIds.length} children for parent ${parentUser.id}`
@@ -1031,9 +1028,7 @@ export class RateLimitService {
 
       // 5. 检查父用户的各项限额
       const { sumChildrenCostInTimeRange } = await import("@/repository/statistics");
-      const { getTimeRangeForPeriod, getTimeRangeForBillingPeriod } = await import(
-        "./time-utils"
-      );
+      const { getTimeRangeForPeriod, getTimeRangeForBillingPeriod } = await import("./time-utils");
 
       const costLimits: CostLimit[] = [
         { amount: parentUser.limit5hUsd, period: "5h", name: "5小时" },
@@ -1059,10 +1054,7 @@ export class RateLimitService {
           parentUser.billingCycleStart
         ) {
           // 使用账期周期
-          const range = getTimeRangeForBillingPeriod(
-            limit.period,
-            parentUser.billingCycleStart
-          );
+          const range = getTimeRangeForBillingPeriod(limit.period, parentUser.billingCycleStart);
           startTime = range.startTime;
           endTime = range.endTime;
         } else {

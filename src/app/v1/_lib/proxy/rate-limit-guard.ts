@@ -42,9 +42,9 @@ export class ProxyRateLimitGuard {
         userConfig.balanceUsd,
         estimatedCost,
         userConfig.billingCycleStart,
-        userConfig.inheritParentLimits,  // ⭐ 传入继承标志
-        userConfig.parentUserId,          // ⭐ 传入父用户ID
-        userConfig.balanceUsagePolicy     // ⭐ 传入余额使用策略
+        userConfig.inheritParentLimits, // ⭐ 传入继承标志
+        userConfig.parentUserId, // ⭐ 传入父用户ID
+        userConfig.balanceUsagePolicy // ⭐ 传入余额使用策略
       );
 
       if (!userCostCheck.allowed) {
@@ -126,9 +126,7 @@ export class ProxyRateLimitGuard {
     const parentCheck = await RateLimitService.checkParentUserLimits(user.id, 0.1);
 
     if (!parentCheck.allowed) {
-      logger.warn(
-        `[RateLimit] Parent user limit exceeded: user=${user.id}, ${parentCheck.reason}`
-      );
+      logger.warn(`[RateLimit] Parent user limit exceeded: user=${user.id}, ${parentCheck.reason}`);
       return this.buildRateLimitResponse(user.id, "user", parentCheck.reason!);
     }
 

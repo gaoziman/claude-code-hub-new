@@ -30,7 +30,9 @@ export async function fetchUsersByTimeRange(range: UsageTimeRangeValue): Promise
 }
 
 // 获取当前用户的完整数据（用于 API 密钥页面）
-export async function fetchCurrentUserByTimeRange(range: UsageTimeRangeValue): Promise<UserDisplay | null> {
+export async function fetchCurrentUserByTimeRange(
+  range: UsageTimeRangeValue
+): Promise<UserDisplay | null> {
   const response = await fetch("/api/actions/users/getCurrentUserWithUsage", {
     method: "POST",
     headers: {

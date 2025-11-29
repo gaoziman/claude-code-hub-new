@@ -57,7 +57,7 @@ export async function validatePassword(
         billingCycleStart: null,
         balanceUsd: 0,
         balanceUpdatedAt: null,
-        balanceUsagePolicy: 'after_quota',
+        balanceUsagePolicy: "after_quota",
       };
 
       return {
@@ -115,8 +115,8 @@ export async function validatePassword(
  */
 export function generateRandomPassword(): string {
   // 移除易混淆字符：0 O I l 1
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
-  let password = '';
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+  let password = "";
   const array = new Uint8Array(8);
   crypto.getRandomValues(array);
   for (let i = 0; i < 8; i++) {
@@ -135,7 +135,9 @@ export async function hashPassword(password: string): Promise<string> {
 
 export async function validateKey(keyString: string): Promise<AuthSession | null> {
   const adminToken = config.auth.adminToken;
-  logger.debug(`[Auth] validateKey: Checking key - keyString=${keyString.substring(0, 10)}..., adminToken=${adminToken?.substring(0, 10)}...`);
+  logger.debug(
+    `[Auth] validateKey: Checking key - keyString=${keyString.substring(0, 10)}..., adminToken=${adminToken?.substring(0, 10)}...`
+  );
 
   if (adminToken && keyString === adminToken) {
     logger.info(`[Auth] validateKey: ADMIN_TOKEN matched!`);
@@ -165,7 +167,7 @@ export async function validateKey(keyString: string): Promise<AuthSession | null
       billingCycleStart: null,
       balanceUsd: 0,
       balanceUpdatedAt: null,
-      balanceUsagePolicy: 'after_quota',
+      balanceUsagePolicy: "after_quota",
       createdAt: now,
       updatedAt: now,
     };
@@ -264,13 +266,15 @@ export async function getSession(): Promise<AuthSession | null> {
   try {
     // 尝试解析 JSON 格式（新格式）
     const { type, value } = JSON.parse(cookieValue);
-    logger.debug(`[Auth] getSession: Parsed cookie - type=${type}, value=${value.substring(0, 10)}...`);
+    logger.debug(
+      `[Auth] getSession: Parsed cookie - type=${type}, value=${value.substring(0, 10)}...`
+    );
 
-    if (type === 'key') {
+    if (type === "key") {
       const session = await validateKey(value);
-      logger.debug(`[Auth] getSession: Key validation result - ${session ? 'success' : 'failed'}`);
+      logger.debug(`[Auth] getSession: Key validation result - ${session ? "success" : "failed"}`);
       return session;
-    } else if (type === 'admin-token') {
+    } else if (type === "admin-token") {
       // Admin Token 登录：返回虚拟 admin user
       const now = new Date();
       const adminUser: User = {
@@ -297,11 +301,11 @@ export async function getSession(): Promise<AuthSession | null> {
         billingCycleStart: null,
         balanceUsd: 0,
         balanceUpdatedAt: null,
-        balanceUsagePolicy: 'after_quota',
+        balanceUsagePolicy: "after_quota",
       };
       logger.debug(`[Auth] getSession: Admin Token login - returning virtual admin user`);
       return { user: adminUser, key: null, viewMode: "user" };
-    } else if (type === 'password') {
+    } else if (type === "password") {
       // 密码登录：直接从用户 ID 获取用户
       const userId = parseInt(value);
       const user = await findUserById(userId);
@@ -309,7 +313,9 @@ export async function getSession(): Promise<AuthSession | null> {
         logger.debug(`[Auth] getSession: Password user not found or disabled - userId=${userId}`);
         return null;
       }
-      logger.debug(`[Auth] getSession: Password login success - userId=${userId}, name=${user.name}`);
+      logger.debug(
+        `[Auth] getSession: Password login success - userId=${userId}, name=${user.name}`
+      );
       return { user, key: null, viewMode: "user" };
     }
 
@@ -319,7 +325,7 @@ export async function getSession(): Promise<AuthSession | null> {
     // 向后兼容：旧格式（直接是 key 字符串）
     logger.debug(`[Auth] getSession: JSON parse failed, trying legacy format - ${error}`);
     const session = await validateKey(cookieValue);
-    logger.debug(`[Auth] getSession: Legacy validation result - ${session ? 'success' : 'failed'}`);
+    logger.debug(`[Auth] getSession: Legacy validation result - ${session ? "success" : "failed"}`);
     return session;
   }
 }

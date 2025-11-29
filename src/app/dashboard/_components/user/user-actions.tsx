@@ -36,10 +36,9 @@ export function UserActions({
   // 2. 代理用户可以编辑自己和自己创建的子用户（user.parentUserId === currentUser.id）
   const canEditUser =
     currentUser?.role === "admin" ||
-    (currentUser?.role === "reseller" && (
-      user.id === currentUser.id || // 编辑自己
-      user.parentUserId === currentUser.id // 编辑子用户
-    ));
+    (currentUser?.role === "reseller" &&
+      (user.id === currentUser.id || // 编辑自己
+        user.parentUserId === currentUser.id)); // 编辑子用户
 
   // 如果没有权限，不显示任何按钮
   if (!canEditUser) {
@@ -56,20 +55,26 @@ export function UserActions({
           // 周限额：套餐剩余 + 余额
           limitWeeklyUsd:
             currentUser.limitWeeklyUsd != null
-              ? Math.max(0, currentUser.limitWeeklyUsd - (currentUserDisplay.userAggregateWeeklyUsage ?? 0)) +
-                (currentUserDisplay.balanceUsd ?? 0)
+              ? Math.max(
+                  0,
+                  currentUser.limitWeeklyUsd - (currentUserDisplay.userAggregateWeeklyUsage ?? 0)
+                ) + (currentUserDisplay.balanceUsd ?? 0)
               : (currentUserDisplay.balanceUsd ?? 0) || null,
           // 月限额：套餐剩余 + 余额
           limitMonthlyUsd:
             currentUser.limitMonthlyUsd != null
-              ? Math.max(0, currentUser.limitMonthlyUsd - (currentUserDisplay.userAggregateMonthlyUsage ?? 0)) +
-                (currentUserDisplay.balanceUsd ?? 0)
+              ? Math.max(
+                  0,
+                  currentUser.limitMonthlyUsd - (currentUserDisplay.userAggregateMonthlyUsage ?? 0)
+                ) + (currentUserDisplay.balanceUsd ?? 0)
               : (currentUserDisplay.balanceUsd ?? 0) || null,
           // 总限额：套餐剩余 + 余额
           totalLimitUsd:
             currentUser.totalLimitUsd != null
-              ? Math.max(0, currentUser.totalLimitUsd - (currentUserDisplay.userAggregateTotalUsage ?? 0)) +
-                (currentUserDisplay.balanceUsd ?? 0)
+              ? Math.max(
+                  0,
+                  currentUser.totalLimitUsd - (currentUserDisplay.userAggregateTotalUsage ?? 0)
+                ) + (currentUserDisplay.balanceUsd ?? 0)
               : (currentUserDisplay.balanceUsd ?? 0) || null,
         }
       : undefined;

@@ -39,7 +39,7 @@ export interface User {
   balanceUpdatedAt: Date | null; // 余额最后更新时间
 
   // ========== 余额使用策略（子用户专用） ==========
-  balanceUsagePolicy: 'disabled' | 'after_quota' | 'priority'; // 余额使用策略
+  balanceUsagePolicy: "disabled" | "after_quota" | "priority"; // 余额使用策略
 
   createdAt: Date;
   updatedAt: Date;
@@ -82,7 +82,7 @@ export interface CreateUserData {
   billingCycleStart?: Date | null;
 
   // 余额使用策略
-  balanceUsagePolicy?: 'disabled' | 'after_quota' | 'priority'; // 余额使用策略
+  balanceUsagePolicy?: "disabled" | "after_quota" | "priority"; // 余额使用策略
 }
 
 /**
@@ -121,7 +121,7 @@ export interface UpdateUserData {
   billingCycleStart?: Date | null;
 
   // 余额使用策略
-  balanceUsagePolicy?: 'disabled' | 'after_quota' | 'priority'; // 余额使用策略
+  balanceUsagePolicy?: "disabled" | "after_quota" | "priority"; // 余额使用策略
 }
 
 /**
@@ -197,7 +197,7 @@ export interface UserDisplay {
   balanceUpdatedAt?: Date | null; // 余额最后更新时间
 
   // ========== 余额使用策略 ==========
-  balanceUsagePolicy?: 'disabled' | 'after_quota' | 'priority'; // 余额使用策略
+  balanceUsagePolicy?: "disabled" | "after_quota" | "priority"; // 余额使用策略
 
   // ========== 用户聚合消费数据（所有 Key 的消费总和） ==========
   userAggregateWeeklyUsage?: number; // 用户所有 Key 的周消费总和

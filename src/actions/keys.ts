@@ -184,7 +184,9 @@ export async function editKey(
       daily_limit_usd: validatedData.dailyQuota,
     });
 
-    logger.info(`[Key] Key updated: userId=${session.user.id}, keyId=${keyId}, name=${validatedData.name}`);
+    logger.info(
+      `[Key] Key updated: userId=${session.user.id}, keyId=${keyId}, name=${validatedData.name}`
+    );
 
     revalidatePath("/dashboard");
     return { ok: true };

@@ -125,7 +125,12 @@ export function UserTrendPanel({
     }
 
     return (
-      <UserTrendChart data={data} currencyCode={currencyCode} metric={metric} loading={isFetching} />
+      <UserTrendChart
+        data={data}
+        currencyCode={currencyCode}
+        metric={metric}
+        loading={isFetching}
+      />
     );
   }, [currencyCode, data, isFetching, metric]);
 

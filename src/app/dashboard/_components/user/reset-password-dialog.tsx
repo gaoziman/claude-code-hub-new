@@ -24,12 +24,7 @@ interface ResetPasswordDialogProps {
   username: string;
 }
 
-export function ResetPasswordDialog({
-  open,
-  onClose,
-  userId,
-  username,
-}: ResetPasswordDialogProps) {
+export function ResetPasswordDialog({ open, onClose, userId, username }: ResetPasswordDialogProps) {
   const [isPending, startTransition] = useTransition();
   const [copied, setCopied] = useState(false);
   const [password, setPassword] = useState("");
@@ -176,12 +171,7 @@ export function ResetPasswordDialog({
             </div>
 
             <DialogFooter className="flex flex-row gap-2 sm:justify-between mt-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleDownload}
-                className="gap-2"
-              >
+              <Button type="button" variant="outline" onClick={handleDownload} className="gap-2">
                 <Download className="h-4 w-4" />
                 下载为文本
               </Button>

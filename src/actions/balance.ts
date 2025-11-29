@@ -111,8 +111,11 @@ export async function rechargeUserBalanceAction(
         if (resellerUserWithUsage.totalLimitUsd != null) {
           // 有总限额：套餐剩余 + 余额
           availableQuota =
-            Math.max(0, resellerUserWithUsage.totalLimitUsd - (resellerUserWithUsage.userAggregateTotalUsage ?? 0)) +
-            (resellerUserWithUsage.balanceUsd ?? 0);
+            Math.max(
+              0,
+              resellerUserWithUsage.totalLimitUsd -
+                (resellerUserWithUsage.userAggregateTotalUsage ?? 0)
+            ) + (resellerUserWithUsage.balanceUsd ?? 0);
         } else {
           // 无总限额：仅余额
           availableQuota = resellerUserWithUsage.balanceUsd ?? 0;
@@ -290,8 +293,11 @@ export async function adjustUserBalanceAction(
           if (resellerUserWithUsage.totalLimitUsd != null) {
             // 有总限额：套餐剩余 + 余额
             availableQuota =
-              Math.max(0, resellerUserWithUsage.totalLimitUsd - (resellerUserWithUsage.userAggregateTotalUsage ?? 0)) +
-              (resellerUserWithUsage.balanceUsd ?? 0);
+              Math.max(
+                0,
+                resellerUserWithUsage.totalLimitUsd -
+                  (resellerUserWithUsage.userAggregateTotalUsage ?? 0)
+              ) + (resellerUserWithUsage.balanceUsd ?? 0);
           } else {
             // 无总限额：仅余额
             availableQuota = resellerUserWithUsage.balanceUsd ?? 0;

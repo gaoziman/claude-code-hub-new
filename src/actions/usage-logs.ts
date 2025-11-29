@@ -37,7 +37,7 @@ export async function getUsageLogs(
       //  代理用户：可以查询自己 + 所有子用户的日志
       const { findChildrenByParentId } = await import("@/repository/user");
       const children = await findChildrenByParentId(session.user.id);
-      const allUserIds = [session.user.id, ...children.map(c => c.id)];
+      const allUserIds = [session.user.id, ...children.map((c) => c.id)];
 
       logger.info(
         `[UsageLogs] Reseller ${session.user.id} querying usage logs for ${allUserIds.length} users: ${allUserIds.join(", ")}`

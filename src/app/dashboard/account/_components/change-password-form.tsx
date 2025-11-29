@@ -177,8 +177,8 @@ export function ChangePasswordForm() {
                       ? strength.level === 1
                         ? "bg-destructive"
                         : strength.level === 2
-                        ? "bg-yellow-600"
-                        : "bg-green-600"
+                          ? "bg-yellow-600"
+                          : "bg-green-600"
                       : "bg-muted"
                   }`}
                 />

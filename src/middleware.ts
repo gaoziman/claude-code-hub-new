@@ -57,11 +57,11 @@ export async function middleware(request: NextRequest) {
     const { type, value } = JSON.parse(authToken.value);
     logger.debug(`[Middleware] Parsed cookie - type=${type}, value=${value.substring(0, 10)}...`);
 
-    if (type === 'key') {
+    if (type === "key") {
       // Key 登录方式
       session = await validateKey(value);
-      logger.debug(`[Middleware] Key validation result - ${session ? 'success' : 'failed'}`);
-    } else if (type === 'admin-token') {
+      logger.debug(`[Middleware] Key validation result - ${session ? "success" : "failed"}`);
+    } else if (type === "admin-token") {
       // Admin Token 登录方式：返回虚拟 admin user
       const now = new Date();
       session = {
@@ -95,7 +95,7 @@ export async function middleware(request: NextRequest) {
         viewMode: "user",
       };
       logger.debug(`[Middleware] Admin Token session validated`);
-    } else if (type === 'password') {
+    } else if (type === "password") {
       // 密码登录方式：从用户 ID 获取用户
       const userId = parseInt(value);
       const user = await findUserById(userId);
@@ -104,7 +104,9 @@ export async function middleware(request: NextRequest) {
         // 检查用户是否过期
         if (!user.expiresAt || user.expiresAt.getTime() > Date.now()) {
           session = { user, key: null, viewMode: "user" };
-          logger.debug(`[Middleware] Password session validated - userId=${userId}, name=${user.name}`);
+          logger.debug(
+            `[Middleware] Password session validated - userId=${userId}, name=${user.name}`
+          );
         } else {
           logger.debug(`[Middleware] User expired - userId=${userId}`);
         }
@@ -117,7 +119,7 @@ export async function middleware(request: NextRequest) {
   } catch (error) {
     logger.debug(`[Middleware] JSON parse failed, trying legacy format - ${error}`);
     session = await validateKey(authToken.value);
-    logger.debug(`[Middleware] Legacy validation result - ${session ? 'success' : 'failed'}`);
+    logger.debug(`[Middleware] Legacy validation result - ${session ? "success" : "failed"}`);
   }
 
   if (!session) {

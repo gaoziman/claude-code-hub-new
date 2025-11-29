@@ -42,8 +42,7 @@ function getEncryptionKey(): Buffer {
 
   if (!envKey) {
     throw new Error(
-      "ENCRYPTION_KEY 环境变量未设置。请使用以下命令生成密钥：\n" +
-      "openssl rand -hex 32"
+      "ENCRYPTION_KEY 环境变量未设置。请使用以下命令生成密钥：\n" + "openssl rand -hex 32"
     );
   }
 
@@ -51,7 +50,7 @@ function getEncryptionKey(): Buffer {
   if (!/^[0-9a-fA-F]{64}$/.test(envKey)) {
     throw new Error(
       "ENCRYPTION_KEY 格式错误。必须是 64 位十六进制字符串（32 字节）。\n" +
-      "使用以下命令生成：openssl rand -hex 32"
+        "使用以下命令生成：openssl rand -hex 32"
     );
   }
 

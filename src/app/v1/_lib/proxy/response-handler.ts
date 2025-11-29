@@ -662,8 +662,8 @@ async function updateRequestCostFromUsage(
             userConfig.balanceUsd,
             actualCost, // 使用实际成本重新计算
             userConfig.billingCycleStart,
-            userConfig.inheritParentLimits,  // ⭐ 传入继承标志
-            userConfig.parentUserId           // ⭐ 传入父用户ID
+            userConfig.inheritParentLimits, // ⭐ 传入继承标志
+            userConfig.parentUserId // ⭐ 传入父用户ID
           );
 
           if (recalculated.paymentStrategy) {
@@ -843,8 +843,8 @@ async function trackCostToRedis(session: ProxySession, usage: UsageMetrics | nul
           userConfig.balanceUsd,
           actualCost, // 使用实际成本而非预估成本
           userConfig.billingCycleStart,
-          userConfig.inheritParentLimits,  //  传入继承标志
-          userConfig.parentUserId           //  传入父用户ID
+          userConfig.inheritParentLimits, //  传入继承标志
+          userConfig.parentUserId //  传入父用户ID
         );
 
         if (updatedStrategy.paymentStrategy) {

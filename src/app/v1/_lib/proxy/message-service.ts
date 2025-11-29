@@ -21,7 +21,7 @@ export class ProxyMessageService {
     const messageRequest = await createMessageRequest({
       provider_id: provider.id,
       user_id: authState.user.id,
-      key: authState.key.key, 
+      key: authState.key.key,
       model: session.request.model ?? undefined,
       session_id: session.sessionId ?? undefined, // 传入 session_id
       cost_multiplier: provider.costMultiplier, // 传入 cost_multiplier

@@ -27,7 +27,7 @@ import {
   getTimeRangeForPeriod,
   getResetInfo,
   getDailyResetTime,
-  getTimeRangeForBillingPeriod, 
+  getTimeRangeForBillingPeriod,
   type TimePeriod,
 } from "@/lib/rate-limit/time-utils";
 import type { ActionResult } from "./types";
@@ -328,9 +328,9 @@ async function buildPersonalSpendingLimits({
           // ⭐ 调试日志
           logger.info(
             `[Overview] 计算用户 ${userId} ${period} 消费 - ` +
-              `账期起始=${billingCycleStart?.toISOString() ?? 'null'}, ` +
+              `账期起始=${billingCycleStart?.toISOString() ?? "null"}, ` +
               `时间范围=${range.startTime.toISOString()} ~ ${range.endTime.toISOString()}, ` +
-              `角色=${isReseller ? 'reseller' : 'user'}, ` +
+              `角色=${isReseller ? "reseller" : "user"}, ` +
               `子用户数=${childUserIds.length}`
           );
 

@@ -50,7 +50,7 @@ export function toUser(dbUser: any): User {
     balanceUsd: dbUser?.balanceUsd ? parseFloat(dbUser.balanceUsd) : 0,
     balanceUpdatedAt: dbUser?.balanceUpdatedAt ? new Date(dbUser.balanceUpdatedAt) : null,
     // 余额使用策略
-    balanceUsagePolicy: (dbUser?.balanceUsagePolicy as User["balanceUsagePolicy"]) || 'after_quota',
+    balanceUsagePolicy: (dbUser?.balanceUsagePolicy as User["balanceUsagePolicy"]) || "after_quota",
     createdAt: dbUser?.createdAt ? new Date(dbUser.createdAt) : new Date(),
     updatedAt: dbUser?.updatedAt ? new Date(dbUser.updatedAt) : new Date(),
   };

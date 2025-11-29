@@ -7,7 +7,7 @@ import type { ProviderChainItem } from "@/types/message";
 import { getEnvConfig } from "@/lib/config";
 
 export interface UsageLogFilters {
-  userId?: number; 
+  userId?: number;
   userIds?: number[]; // 支持多个用户ID查询（用于 Reseller 查询自己 + 子用户）
   keyId?: number;
   providerId?: number;
@@ -108,7 +108,17 @@ export interface MonthlyUsageStatsResult {
  * 查询使用日志（支持多种筛选条件和分页）
  */
 export async function findUsageLogsWithDetails(filters: UsageLogFilters): Promise<UsageLogsResult> {
-  const { userId, userIds, keyId, providerId, date, statusCode, model, page = 1, pageSize = 20 } = filters;
+  const {
+    userId,
+    userIds,
+    keyId,
+    providerId,
+    date,
+    statusCode,
+    model,
+    page = 1,
+    pageSize = 20,
+  } = filters;
 
   // 将单个日期转换为时间范围（当天 00:00:00 到 23:59:59.999）
   let startDate: Date | undefined;
@@ -131,7 +141,10 @@ export async function findUsageLogsWithDetails(filters: UsageLogFilters): Promis
   // ⭐ 支持多用户ID查询（优先级：userIds > userId）
   if (userIds !== undefined && userIds.length > 0) {
     conditions.push(
-      sql`${messageRequest.userId} IN (${sql.join(userIds.map(id => sql`${id}`), sql`, `)})`
+      sql`${messageRequest.userId} IN (${sql.join(
+        userIds.map((id) => sql`${id}`),
+        sql`, `
+      )})`
     );
   } else if (userId !== undefined) {
     conditions.push(eq(messageRequest.userId, userId));
@@ -258,7 +271,7 @@ export async function findUsageLogsWithDetails(filters: UsageLogFilters): Promis
       cacheReadInputTokens: messageRequest.cacheReadInputTokens,
       costUsd: messageRequest.costUsd,
       costMultiplier: messageRequest.costMultiplier, // 供应商倍率
-      remainingQuotaUsd: messageRequest.remainingQuotaUsd, 
+      remainingQuotaUsd: messageRequest.remainingQuotaUsd,
       durationMs: messageRequest.durationMs,
       errorMessage: messageRequest.errorMessage,
       providerChain: messageRequest.providerChain,
@@ -287,7 +300,7 @@ export async function findUsageLogsWithDetails(filters: UsageLogFilters): Promis
       ...row,
       totalTokens: totalRowTokens,
       costUsd: row.costUsd?.toString() ?? null,
-      remainingQuotaUsd: row.remainingQuotaUsd?.toString() ?? null, 
+      remainingQuotaUsd: row.remainingQuotaUsd?.toString() ?? null,
       providerChain: row.providerChain as ProviderChainItem[] | null,
     };
   });
