@@ -8,6 +8,7 @@ import { CURRENCY_CONFIG } from "@/lib/utils/currency";
  */
 export const CreateUserSchema = z.object({
   name: z.string().min(1, "用户名不能为空").max(64, "用户名不能超过64个字符"),
+  role: z.enum(["admin", "reseller", "user"]).optional().default("user"),
   note: z.string().max(200, "备注不能超过200个字符").optional().default(""),
   providerGroup: z.string().max(50, "供应商分组不能超过50个字符").optional().default(""),
   tags: z
@@ -74,6 +75,19 @@ export const CreateUserSchema = z.object({
     .refine((value) => value === null || (value >= 0 && value <= 1000000), {
       message: "总消费上限必须在 0 到 1000000 美元之间，或留空表示无限制",
     }),
+  // Key 管理配置
+  maxKeysCount: z
+    .union([z.string(), z.number(), z.null()])
+    .optional()
+    .default(3)
+    .transform((value) => {
+      if (value === "" || value === null || value === undefined) return 3;
+      const num = typeof value === "string" ? parseInt(value, 10) : value;
+      return isNaN(num) ? 3 : num;
+    })
+    .refine((value) => value >= 1 && value <= 999, {
+      message: "Key 数量限制必须在 1 到 999 之间",
+    }),
   // 账期周期配置
   billingCycleStart: z
     .union([z.string(), z.null()])
@@ -84,6 +98,11 @@ export const CreateUserSchema = z.object({
       }
       return null;
     }),
+  // 余额使用策略（子用户专用）
+  balanceUsagePolicy: z
+    .enum(["disabled", "after_quota", "priority"])
+    .optional()
+    .default("after_quota"),
 });
 
 /**
@@ -156,6 +175,18 @@ export const UpdateUserSchema = z.object({
     .refine((value) => value === null || (value >= 0 && value <= 1000000), {
       message: "总消费上限必须在 0 到 1000000 美元之间，或留空表示无限制",
     }),
+  // Key 管理配置
+  maxKeysCount: z
+    .union([z.string(), z.number(), z.null()])
+    .optional()
+    .transform((value) => {
+      if (value === "" || value === null || value === undefined) return undefined;
+      const num = typeof value === "string" ? parseInt(value, 10) : value;
+      return isNaN(num) ? undefined : num;
+    })
+    .refine((value) => value === undefined || (value >= 1 && value <= 999), {
+      message: "Key 数量限制必须在 1 到 999 之间",
+    }),
   // 账期周期配置
   billingCycleStart: z
     .union([z.string(), z.null()])
@@ -166,6 +197,8 @@ export const UpdateUserSchema = z.object({
       }
       return null;
     }),
+  // 余额使用策略（子用户专用）
+  balanceUsagePolicy: z.enum(["disabled", "after_quota", "priority"]).optional(),
 });
 
 /**
@@ -180,7 +213,6 @@ export const KeyFormSchema = z.object({
     .transform((val) => (val === "" ? undefined : val)),
   // Web UI 登录权限控制
   canLoginWebUi: z.boolean().optional().default(true),
-  scope: z.enum(["owner", "child"]).optional().default("child"),
   // 金额限流配置
   limit5hUsd: z
     .union([z.string(), z.number(), z.null()])

@@ -5,11 +5,22 @@ export interface User {
   id: number;
   name: string;
   description: string;
-  role: "admin" | "user";
+  role: "admin" | "reseller" | "user";
   providerGroup: string | null; // 供应商分组
   tags: string[];
   isEnabled: boolean;
   expiresAt: Date | null;
+
+  // ========== 父子关系配置 ==========
+  parentUserId: number | null; // 父用户 ID
+
+  // ========== 密码认证配置 ==========
+  passwordHash: string | null; // bcrypt 密码哈希
+  passwordUpdatedAt: Date | null; // 密码最后修改时间
+  forcePasswordChange: boolean; // 强制修改密码标记
+
+  // ========== Key 管理配置 ==========
+  maxKeysCount: number; // 最多可创建的 Key 数量
 
   // ========== 用户级别限额配置（管理员设置） ==========
   limit5hUsd: number | null; // 5小时消费上限（美元）
@@ -17,12 +28,18 @@ export interface User {
   limitMonthlyUsd: number | null; // 月消费上限（美元）
   totalLimitUsd: number | null; // 总费用上限（美元）
 
+  // ========== 额度共享配置 ==========
+  inheritParentLimits: boolean; // 是否继承父用户的额度限制
+
   // ========== 账期周期配置 ==========
   billingCycleStart: Date | null; // 账期起始日期
 
   // ========== 余额系统（按量付费） ==========
   balanceUsd: number; // 用户余额（美元），默认 0
   balanceUpdatedAt: Date | null; // 余额最后更新时间
+
+  // ========== 余额使用策略（子用户专用） ==========
+  balanceUsagePolicy: 'disabled' | 'after_quota' | 'priority'; // 余额使用策略
 
   createdAt: Date;
   updatedAt: Date;
@@ -35,10 +52,22 @@ export interface User {
 export interface CreateUserData {
   name: string;
   description: string;
+  role?: "admin" | "reseller" | "user"; // ⭐ 新增：角色
   providerGroup?: string | null; // 可选，供应商分组
   tags?: string[];
   isEnabled?: boolean;
   expiresAt?: Date | null;
+
+  // 父子关系配置
+  parentUserId?: number | null; // 父用户 ID
+
+  // 密码认证配置
+  passwordHash?: string | null; // 密码哈希
+  passwordUpdatedAt?: Date | null; // 密码更新时间
+  forcePasswordChange?: boolean; // 强制修改密码
+
+  // Key 管理配置
+  maxKeysCount?: number; // 最大 Key 数量
 
   // 用户级别限额配置
   limit5hUsd?: number | null;
@@ -46,8 +75,14 @@ export interface CreateUserData {
   limitMonthlyUsd?: number | null;
   totalLimitUsd?: number | null;
 
+  // 额度共享配置
+  inheritParentLimits?: boolean; // 是否继承父用户额度
+
   // 账期周期配置
   billingCycleStart?: Date | null;
+
+  // 余额使用策略
+  balanceUsagePolicy?: 'disabled' | 'after_quota' | 'priority'; // 余额使用策略
 }
 
 /**
@@ -56,10 +91,22 @@ export interface CreateUserData {
 export interface UpdateUserData {
   name?: string;
   description?: string;
+  role?: "admin" | "reseller" | "user"; // 角色
   providerGroup?: string | null; // 可选，供应商分组
   tags?: string[];
   isEnabled?: boolean;
   expiresAt?: Date | null;
+
+  // 父子关系配置
+  parentUserId?: number | null; // 父用户 ID
+
+  // 密码认证配置
+  passwordHash?: string | null; // 密码哈希
+  passwordUpdatedAt?: Date | null; // 密码更新时间
+  forcePasswordChange?: boolean; // 强制修改密码
+
+  // Key 管理配置
+  maxKeysCount?: number; // 最大 Key 数量
 
   // 用户级别限额配置
   limit5hUsd?: number | null;
@@ -67,8 +114,14 @@ export interface UpdateUserData {
   limitMonthlyUsd?: number | null;
   totalLimitUsd?: number | null;
 
+  // 额度共享配置
+  inheritParentLimits?: boolean; // 是否继承父用户额度
+
   // 账期周期配置
   billingCycleStart?: Date | null;
+
+  // 余额使用策略
+  balanceUsagePolicy?: 'disabled' | 'after_quota' | 'priority'; // 余额使用策略
 }
 
 /**
@@ -101,13 +154,8 @@ export interface UserKeyDisplay {
   dailyQuota: number | null; // Key 每日额度限制
   // Web UI 登录权限控制
   canLoginWebUi: boolean; // 是否允许使用该 Key 登录 Web UI
-  scope: "owner" | "child";
-  canManage?: boolean; // 当前登录视角是否允许管理该 Key
 
-  // ========== 主子关系配置 ==========
-  ownerKeyId: number | null; // 主 Key ID（仅子 Key 填写）
-
-  // ========== 子 Key 独立限额配置 ==========
+  // ========== 独立限额配置 ==========
   limit5hUsd: number | null; // 5小时消费上限（美元）
   limitWeeklyUsd: number | null; // 周消费上限（美元）
   limitMonthlyUsd: number | null; // 月消费上限（美元）
@@ -122,14 +170,18 @@ export interface UserDisplay {
   id: number;
   name: string;
   note?: string;
-  role: "admin" | "user";
+  role: "admin" | "reseller" | "user";
   providerGroup?: string | null;
   tags: string[];
   isEnabled: boolean;
   expiresAt?: string | null;
   isExpired: boolean;
   status: "active" | "disabled" | "expired";
+  parentUserId?: number | null; // 父用户ID，用于权限判断
   keys: UserKeyDisplay[];
+
+  // ========== Key 管理配置 ==========
+  maxKeysCount: number; // 最多可创建的 Key 数量
 
   // ========== 用户级别限额配置 ==========
   limit5hUsd?: number | null;
@@ -143,6 +195,9 @@ export interface UserDisplay {
   // ========== 余额系统（按量付费） ==========
   balanceUsd?: number; // 用户余额（美元）
   balanceUpdatedAt?: Date | null; // 余额最后更新时间
+
+  // ========== 余额使用策略 ==========
+  balanceUsagePolicy?: 'disabled' | 'after_quota' | 'priority'; // 余额使用策略
 
   // ========== 用户聚合消费数据（所有 Key 的消费总和） ==========
   userAggregateWeeklyUsage?: number; // 用户所有 Key 的周消费总和
