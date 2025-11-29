@@ -128,3 +128,32 @@ export interface KeyTrendData {
   keys: KeyTrendSeries[];
   days: number;
 }
+
+/**
+ * 用户趋势相关类型
+ */
+
+// 用户级别的趋势数据行（从数据库查询返回）
+export interface UserTrendRow {
+  user_id: number;
+  user_name: string;
+  date: string;
+  api_calls: number;
+  total_cost: string | number | null;
+}
+
+// 用户趋势系列（用于图表）
+export interface UserTrendSeries {
+  id: number;
+  name: string;
+  dataKey: string;
+  totalCost: number;
+  totalCalls: number;
+}
+
+// 用户趋势数据（完整数据结构）
+export interface UserTrendData {
+  chartData: ChartDataItem[];
+  users: UserTrendSeries[];
+  days: number;
+}
