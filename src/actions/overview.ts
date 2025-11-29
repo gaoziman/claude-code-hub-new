@@ -27,6 +27,7 @@ import {
   getTimeRangeForPeriod,
   getResetInfo,
   getDailyResetTime,
+  getTimeRangeForBillingPeriod, 
   type TimePeriod,
 } from "@/lib/rate-limit/time-utils";
 import type { ActionResult } from "./types";
@@ -125,7 +126,7 @@ export async function getOverviewData(): Promise<ActionResult<OverviewData>> {
     const isAdmin = session.user.role === "admin";
     const currentUserId = session.user.id;
     const enforceKeyView = session.viewMode === "key";
-    const scopedKeyValue = enforceKeyView ? session.key.key : undefined;
+    const scopedKeyValue = enforceKeyView && session.key ? session.key.key : undefined;
 
     // 3. 确定数据查询范围
     const shouldShowGlobal = !enforceKeyView && (isAdmin || settings.allowGlobalUsageView);
@@ -152,7 +153,7 @@ export async function getOverviewData(): Promise<ActionResult<OverviewData>> {
     } else {
       // 显示用户或 Key 维度的数据
       const [concurrent, metrics] = await Promise.all([
-        enforceKeyView
+        enforceKeyView && session.key
           ? getActiveConcurrentSessionsByKey(session.key.id)
           : getActiveConcurrentSessionsByUser(currentUserId),
         getOverviewMetricsByUserFromDB(currentUserId, scopedKeyValue),
@@ -203,27 +204,39 @@ export async function getOverviewData(): Promise<ActionResult<OverviewData>> {
       overview.topProviders = providers;
       overview.recentErrors = errors;
     } else {
+      // 非全局视图，构建用户个人摘要（可能是用户视角或Key视角）
+      const promises: [
+        Promise<Awaited<ReturnType<typeof getUserPreferenceSnapshot>>>,
+        Promise<Awaited<ReturnType<typeof getRecentRequestsByUser>>>,
+        Promise<Awaited<ReturnType<typeof buildPersonalSpendingLimits>>>,
+        Promise<Awaited<ReturnType<typeof buildPersonalSpendingLimits>> | null>,
+      ] = [
+        getUserPreferenceSnapshot(currentUserId, scopedKeyValue),
+        getRecentRequestsByUser(currentUserId, 5, scopedKeyValue),
+        // 用户级别限额（所有Key总消费）
+        buildPersonalSpendingLimits({
+          source: session.user,
+          todayCost: metricsData.todayCost,
+          scopedKeyValue: undefined,
+          userId: currentUserId,
+          enforceKeyView: false,
+          billingCycleStart: session.user.billingCycleStart, // ⭐ 传入账期起始日期
+        }),
+        // Key级别限额（当前Key独立消费）- 仅当key存在时计算
+        session.key
+          ? buildPersonalSpendingLimits({
+              source: session.key,
+              todayCost: metricsData.todayCost,
+              scopedKeyValue,
+              userId: currentUserId,
+              enforceKeyView: true,
+              billingCycleStart: session.user.billingCycleStart, // ⭐ Key也使用用户的账期起始日期
+            })
+          : Promise.resolve(null),
+      ];
+
       const [preferences, recentRequests, userSpendingLimits, keySpendingLimits] =
-        await Promise.all([
-          getUserPreferenceSnapshot(currentUserId, scopedKeyValue),
-          getRecentRequestsByUser(currentUserId, 5, scopedKeyValue),
-          // 用户级别限额（所有Key总消费）
-          buildPersonalSpendingLimits({
-            source: session.user,
-            todayCost: metricsData.todayCost,
-            scopedKeyValue: undefined,
-            userId: currentUserId,
-            enforceKeyView: false,
-          }),
-          // Key级别限额（当前Key独立消费）
-          buildPersonalSpendingLimits({
-            source: session.key,
-            todayCost: metricsData.todayCost,
-            scopedKeyValue,
-            userId: currentUserId,
-            enforceKeyView: true,
-          }),
-        ]);
+        await Promise.all(promises);
 
       overview.personalSummary = {
         todayRequests: metricsData.todayRequests,
@@ -232,8 +245,8 @@ export async function getOverviewData(): Promise<ActionResult<OverviewData>> {
         favoriteModel: preferences.favoriteModel,
         recentRequests,
         userSpendingLimits,
-        keySpendingLimits,
-        currentKeyName: session.key.name,
+        keySpendingLimits: keySpendingLimits ?? undefined,
+        currentKeyName: session.key?.name,
         balanceUsd: session.user.balanceUsd ?? 0,
       };
     }
@@ -266,6 +279,7 @@ interface BuildLimitOptions {
   scopedKeyValue?: string;
   userId: number;
   enforceKeyView: boolean;
+  billingCycleStart?: Date | null; // ⭐ 新增：用户账期起始日期
 }
 
 async function buildPersonalSpendingLimits({
@@ -274,14 +288,29 @@ async function buildPersonalSpendingLimits({
   scopedKeyValue,
   userId,
   enforceKeyView,
+  billingCycleStart,
 }: BuildLimitOptions): Promise<PersonalSpendingLimit[]> {
   if (enforceKeyView && !scopedKeyValue) {
     return [];
   }
 
+  // ⭐ 对于 Reseller 用户，需要查询子用户列表
+  const session = await getSession();
+  const isReseller = session?.user.role === "reseller";
+  let childUserIds: number[] = [];
+
+  if (isReseller && !enforceKeyView) {
+    const { findChildrenByParentId } = await import("@/repository/user");
+    const children = await findChildrenByParentId(userId);
+    childUserIds = children.map((c) => c.id);
+    logger.info(
+      `[Overview] Reseller ${userId} has ${childUserIds.length} children: ${childUserIds.join(", ")}`
+    );
+  }
+
   const usageCollector =
     enforceKeyView && scopedKeyValue
-      ? (period: TimePeriod) => {
+      ? async (period: TimePeriod) => {
           const range = getTimeRangeForPeriod(period);
           return sumKeyCostInTimeRange(
             parseInt(scopedKeyValue, 10),
@@ -289,8 +318,29 @@ async function buildPersonalSpendingLimits({
             range.endTime
           );
         }
-      : (period: TimePeriod) => {
-          const range = getTimeRangeForPeriod(period);
+      : async (period: TimePeriod) => {
+          // ⭐ 修复：使用账期周期计算，优先级：用户自定义 > 自然周期
+          const range =
+            period === "weekly" || period === "monthly"
+              ? getTimeRangeForBillingPeriod(period, billingCycleStart)
+              : getTimeRangeForPeriod(period);
+
+          // ⭐ 调试日志
+          logger.info(
+            `[Overview] 计算用户 ${userId} ${period} 消费 - ` +
+              `账期起始=${billingCycleStart?.toISOString() ?? 'null'}, ` +
+              `时间范围=${range.startTime.toISOString()} ~ ${range.endTime.toISOString()}, ` +
+              `角色=${isReseller ? 'reseller' : 'user'}, ` +
+              `子用户数=${childUserIds.length}`
+          );
+
+          // ⭐ 关键修复：对于 Reseller，使用 sumChildrenCostInTimeRange 包含所有子用户消费
+          if (isReseller) {
+            const { sumChildrenCostInTimeRange } = await import("@/repository/statistics");
+            return sumChildrenCostInTimeRange(userId, childUserIds, range.startTime, range.endTime);
+          }
+
+          // 普通用户：只查询自己的消费
           return sumUserCostInTimeRange(userId, range.startTime, range.endTime);
         };
 
@@ -303,7 +353,7 @@ async function buildPersonalSpendingLimits({
     { key: "5h", label: "5 小时额度", value: source.limit5hUsd, period: "5h" },
     { key: "weekly", label: "周额度", value: source.limitWeeklyUsd, period: "weekly" },
     { key: "monthly", label: "月额度", value: source.limitMonthlyUsd, period: "monthly" },
-    { key: "total", label: "累计额度", value: source.totalLimitUsd, period: "total" },
+    { key: "total", label: "套餐额度", value: source.totalLimitUsd, period: "total" },
   ];
 
   const limitPromises = limitConfigs
@@ -332,6 +382,7 @@ async function buildPersonalSpendingLimits({
       } as PersonalSpendingLimit;
     });
 
+  // ⭐ 每日限额：插入到最前面
   if (source.dailyLimitUsd && source.dailyLimitUsd > 0) {
     limitPromises.unshift(
       Promise.resolve({
@@ -345,20 +396,17 @@ async function buildPersonalSpendingLimits({
     );
   }
 
-  // 账户余额：仅在用户级别显示（不在 Key 级别显示）
-  if (!enforceKeyView && source.balanceUsd != null && source.balanceUsd > 0) {
-    limitPromises.push(
-      Promise.resolve({
-        key: "balance" as const,
-        label: "账户余额",
-        limit: source.balanceUsd,
-        used: todayCost, // 今日已消费
-        resetAt: undefined,
-        resetType: undefined,
-      })
-    );
-  }
-
+  // ⭐ 先解析所有套餐限额（周/月/总）
   const resolved = await Promise.all(limitPromises);
-  return resolved.filter((item): item is PersonalSpendingLimit => Boolean(item));
+  const validLimits = resolved.filter((item): item is PersonalSpendingLimit => Boolean(item));
+
+  // ⭐ 调试日志：输出所有限额计算结果
+  logger.info(
+    `[Overview] buildPersonalSpendingLimits 结果 - ` +
+      `userId=${userId}, enforceKeyView=${enforceKeyView}, ` +
+      `限额数量=${validLimits.length}, ` +
+      `详情=${JSON.stringify(validLimits.map((l) => ({ key: l.key, limit: l.limit, used: l.used })))}`
+  );
+
+  return validLimits;
 }

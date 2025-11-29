@@ -10,6 +10,7 @@ import {
   getMixedStatisticsFromDB,
   getProviderUsageTrendsFromDB,
   getTopKeysUsageTrendsFromDB,
+  getTopUsersUsageTrendsFromDB,
 } from "@/repository/statistics";
 import { getSystemSettings } from "@/repository/system-config";
 import type {
@@ -27,6 +28,9 @@ import type {
   KeyTrendData,
   KeyTrendRow,
   KeyTrendSeries,
+  UserTrendData,
+  UserTrendRow,
+  UserTrendSeries,
 } from "@/types/statistics";
 import type { ProviderType } from "@/types/provider";
 import { TIME_RANGE_OPTIONS, DEFAULT_TIME_RANGE } from "@/types/statistics";
@@ -106,7 +110,7 @@ export async function getUserStatistics(
         getActiveKeysForUserFromDB(session.user.id),
       ]);
 
-      if (enforceKeyView) {
+      if (enforceKeyView && session.key) {
         const targetKeyId = session.key.id;
         statsData = keyStats.filter((row) => row.key_id === targetKeyId);
         entities = keyList.filter((key) => key.id === targetKeyId);
@@ -430,6 +434,131 @@ function buildKeyTrendData(
   return {
     chartData,
     keys,
+    days: clampedDays,
+  };
+}
+
+/**
+ * 获取 Top 7 用户使用趋势（近 N 天）
+ */
+const DEFAULT_USER_TREND_DAYS = 7;
+
+export async function getTopUsersUsageTrends(
+  days = DEFAULT_USER_TREND_DAYS
+): Promise<ActionResult<UserTrendData>> {
+  try {
+    const session = await getSession();
+    if (!session) {
+      return {
+        ok: false,
+        error: "未登录",
+      };
+    }
+
+    if (session.user.role !== "admin") {
+      return {
+        ok: false,
+        error: "仅管理员可查看用户趋势",
+      };
+    }
+
+    const { userMeta, rows } = await getTopUsersUsageTrendsFromDB(days);
+    logger.debug("top_users_usage_trends", {
+      userCount: userMeta.length,
+      rowCount: rows.length,
+    });
+    const data = buildUserTrendData(rows, userMeta, days);
+
+    return {
+      ok: true,
+      data,
+    };
+  } catch (error) {
+    logger.error("Failed to get top users usage trends:", error);
+    const message = error instanceof Error ? error.message : "未知错误";
+    return {
+      ok: false,
+      error: `获取用户趋势失败：${message}`,
+    };
+  }
+}
+
+function buildUserTrendData(
+  rows: UserTrendRow[],
+  userMeta: { id: number; name: string }[],
+  days: number
+): UserTrendData {
+  const clampedDays = Math.max(1, Math.min(days, 30));
+  const chartDataMap = new Map<string, ChartDataItem>();
+  const userTotals = new Map<number, UserTrendSeries>();
+
+  const startDate = new Date();
+  startDate.setHours(0, 0, 0, 0);
+  startDate.setDate(startDate.getDate() - (clampedDays - 1));
+
+  // 初始化日期范围
+  for (let i = 0; i < clampedDays; i++) {
+    const slot = new Date(startDate);
+    slot.setDate(startDate.getDate() + i);
+    const iso = slot.toISOString().split("T")[0];
+    chartDataMap.set(iso, { date: iso });
+  }
+
+  // 初始化用户总计
+  userMeta.forEach((user) => {
+    const dataKey = createDataKey("user", user.id);
+    userTotals.set(user.id, {
+      id: user.id,
+      name: user.name,
+      dataKey,
+      totalCost: 0,
+      totalCalls: 0,
+    });
+  });
+
+  // 初始化每个日期的每个用户的数据为 0
+  chartDataMap.forEach((entry) => {
+    userTotals.forEach((user) => {
+      entry[`${user.dataKey}_cost`] = 0;
+      entry[`${user.dataKey}_calls`] = 0;
+    });
+  });
+
+  // 处理查询结果数据
+  rows.forEach((row) => {
+    const iso = new Date(row.date).toISOString().split("T")[0];
+    const dataKey = createDataKey("user", row.user_id);
+    const entry = chartDataMap.get(iso) ?? { date: iso };
+    entry[`${dataKey}_cost`] = Number(row.total_cost ?? 0);
+    entry[`${dataKey}_calls`] = Number(row.api_calls ?? 0);
+    chartDataMap.set(iso, entry);
+
+    const existing = userTotals.get(row.user_id);
+    if (!existing) {
+      userTotals.set(row.user_id, {
+        id: row.user_id,
+        name: row.user_name || `User${row.user_id}`,
+        dataKey,
+        totalCost: Number(row.total_cost ?? 0),
+        totalCalls: Number(row.api_calls ?? 0),
+      });
+      return;
+    }
+
+    existing.totalCost += Number(row.total_cost ?? 0);
+    existing.totalCalls += Number(row.api_calls ?? 0);
+    userTotals.set(row.user_id, existing);
+  });
+
+  const chartData = Array.from(chartDataMap.entries())
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([, value]) => value);
+
+  const users = Array.from(userTotals.values()).sort((a, b) => b.totalCost - a.totalCost);
+
+  return {
+    chartData,
+    users,
     days: clampedDays,
   };
 }

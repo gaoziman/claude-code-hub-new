@@ -6,6 +6,7 @@ import { eq, isNull, and, desc, sql, inArray } from "drizzle-orm";
 import type { MessageRequest, CreateMessageRequestData } from "@/types/message";
 import { toMessageRequest } from "./_shared/transformers";
 import { formatCostForStorage } from "@/lib/utils/currency";
+import { logger } from "@/lib/logger";
 
 /**
  * 创建消息请求记录
@@ -96,6 +97,27 @@ export async function updateMessageRequestCost(
   }
 
   await db.update(messageRequest).set(updateData).where(eq(messageRequest.id, id));
+}
+
+/**
+ * 更新消息请求的剩余额度快照
+ */
+export async function updateMessageRequestQuota(
+  id: number,
+  remainingQuotaUsd: number
+): Promise<void> {
+  await db
+    .update(messageRequest)
+    .set({
+      remainingQuotaUsd: remainingQuotaUsd.toFixed(15),
+      updatedAt: new Date(),
+    })
+    .where(eq(messageRequest.id, id));
+
+  logger.debug("[MessageRepo] Updated remaining quota", {
+    id,
+    remainingQuotaUsd: remainingQuotaUsd.toFixed(15),
+  });
 }
 
 /**

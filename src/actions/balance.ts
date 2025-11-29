@@ -20,7 +20,7 @@ export interface BalanceActionResult<T = void> {
 }
 
 /**
- * 管理员充值操作
+ * 管理员和代理用户充值操作
  *
  * @param userId - 目标用户ID
  * @param amount - 充值金额（美元）
@@ -39,20 +39,25 @@ export async function rechargeUserBalanceAction(
   }>
 > {
   try {
-    // ========== 权限检查：仅管理员可操作 ==========
+    // ========== 权限检查：管理员和代理用户可操作 ==========
     const session = await getSession();
-    if (!session || session.user.role !== "admin") {
-      logger.warn("[BalanceAction] Unauthorized recharge attempt", {
-        userId,
-        operatorId: session?.user.id,
-      });
+    if (!session) {
       return {
         success: false,
-        error: "仅管理员可执行充值操作",
+        error: "未登录",
       };
     }
 
     const currentUser = session.user;
+    const currentUserRole = currentUser.role;
+
+    // 普通用户不能充值
+    if (currentUserRole === "user") {
+      return {
+        success: false,
+        error: "普通用户无权充值",
+      };
+    }
 
     // ========== 参数校验 ==========
     if (amount <= 0) {
@@ -78,6 +83,68 @@ export async function rechargeUserBalanceAction(
       };
     }
 
+    // ========== 代理用户权限检查 ==========
+    if (currentUserRole === "reseller") {
+      // 代理用户只能给子用户充值（不能给自己充值）
+      if (targetUser.parentUserId !== currentUser.id) {
+        logger.warn("[BalanceAction] Unauthorized recharge attempt by reseller", {
+          userId,
+          operatorId: currentUser.id,
+          targetParentId: targetUser.parentUserId,
+        });
+        return {
+          success: false,
+          error: "代理用户只能给自己创建的子用户充值",
+        };
+      }
+
+      // ========== 代理用户限额校验：充值金额不能超过总可用额度 ==========
+      // 总可用额度 = (套餐限额 - 已使用) + 余额
+      const { getCurrentUserWithUsage } = await import("@/actions/users");
+      const resellerUserWithUsage = await getCurrentUserWithUsage("today");
+
+      if (resellerUserWithUsage) {
+        // 计算代理用户的总可用额度
+        // 使用最严格的限额维度进行校验（总限额）
+        let availableQuota: number | null = null;
+
+        if (resellerUserWithUsage.totalLimitUsd != null) {
+          // 有总限额：套餐剩余 + 余额
+          availableQuota =
+            Math.max(0, resellerUserWithUsage.totalLimitUsd - (resellerUserWithUsage.userAggregateTotalUsage ?? 0)) +
+            (resellerUserWithUsage.balanceUsd ?? 0);
+        } else {
+          // 无总限额：仅余额
+          availableQuota = resellerUserWithUsage.balanceUsd ?? 0;
+        }
+
+        // 校验充值金额
+        if (availableQuota != null && amount > availableQuota) {
+          logger.warn("[BalanceAction] Recharge amount exceeds reseller's available quota", {
+            userId,
+            amount,
+            operatorId: currentUser.id,
+            availableQuota,
+            totalLimit: resellerUserWithUsage.totalLimitUsd,
+            totalUsage: resellerUserWithUsage.userAggregateTotalUsage,
+            balance: resellerUserWithUsage.balanceUsd,
+          });
+
+          return {
+            success: false,
+            error: `充值金额 $${amount.toFixed(2)} 超过了您的总可用额度 $${availableQuota.toFixed(2)}（套餐剩余 + 余额）`,
+          };
+        }
+
+        logger.info("[BalanceAction] Reseller quota check passed", {
+          userId,
+          amount,
+          operatorId: currentUser.id,
+          availableQuota,
+        });
+      }
+    }
+
     // ========== 执行充值 ==========
     const result = await rechargeBalance(userId, amount, currentUser.id, currentUser.name, note);
 
@@ -86,6 +153,7 @@ export async function rechargeUserBalanceAction(
       amount,
       operatorId: currentUser.id,
       operatorName: currentUser.name,
+      operatorRole: currentUserRole,
       transactionId: result.transactionId,
       balanceBefore: result.balanceBefore,
       balanceAfter: result.balanceAfter,
@@ -139,20 +207,50 @@ export async function adjustUserBalanceAction(
   }>
 > {
   try {
-    // ========== 权限检查：仅管理员可操作 ==========
+    // ========== 权限检查：管理员和代理用户可操作 ==========
     const session = await getSession();
-    if (!session || session.user.role !== "admin") {
-      logger.warn("[BalanceAction] Unauthorized adjustment attempt", {
-        userId,
-        operatorId: session?.user.id,
-      });
+    if (!session) {
       return {
         success: false,
-        error: "仅管理员可执行余额调整操作",
+        error: "未登录",
       };
     }
 
     const currentUser = session.user;
+    const currentUserRole = currentUser.role;
+
+    // 普通用户不能调整余额
+    if (currentUserRole === "user") {
+      return {
+        success: false,
+        error: "普通用户无权调整余额",
+      };
+    }
+
+    // ========== 检查目标用户是否存在 ==========
+    const targetUser = await findUserById(userId);
+    if (!targetUser) {
+      return {
+        success: false,
+        error: "目标用户不存在",
+      };
+    }
+
+    // ========== 代理用户权限检查 ==========
+    if (currentUserRole === "reseller") {
+      // 代理用户只能管理自己和子用户的余额
+      if (targetUser.id !== currentUser.id && targetUser.parentUserId !== currentUser.id) {
+        logger.warn("[BalanceAction] Unauthorized adjustment attempt by reseller", {
+          userId,
+          operatorId: currentUser.id,
+          targetParentId: targetUser.parentUserId,
+        });
+        return {
+          success: false,
+          error: "代理用户只能调整自己和自己创建的用户余额",
+        };
+      }
+    }
 
     // ========== 参数校验 ==========
     if (adjustAmount === 0) {
@@ -177,13 +275,51 @@ export async function adjustUserBalanceAction(
       };
     }
 
-    // ========== 检查目标用户是否存在 ==========
-    const targetUser = await findUserById(userId);
-    if (!targetUser) {
-      return {
-        success: false,
-        error: "目标用户不存在",
-      };
+    // ========== 代理用户限额校验（仅增加余额时校验）==========
+    if (currentUserRole === "reseller" && adjustAmount > 0) {
+      // 只在给子用户增加余额时校验（调整自己的余额不校验）
+      if (targetUser.id !== currentUser.id) {
+        // 总可用额度 = (套餐限额 - 已使用) + 余额
+        const { getCurrentUserWithUsage } = await import("@/actions/users");
+        const resellerUserWithUsage = await getCurrentUserWithUsage("today");
+
+        if (resellerUserWithUsage) {
+          // 计算代理用户的总可用额度
+          let availableQuota: number | null = null;
+
+          if (resellerUserWithUsage.totalLimitUsd != null) {
+            // 有总限额：套餐剩余 + 余额
+            availableQuota =
+              Math.max(0, resellerUserWithUsage.totalLimitUsd - (resellerUserWithUsage.userAggregateTotalUsage ?? 0)) +
+              (resellerUserWithUsage.balanceUsd ?? 0);
+          } else {
+            // 无总限额：仅余额
+            availableQuota = resellerUserWithUsage.balanceUsd ?? 0;
+          }
+
+          // 校验增加金额
+          if (availableQuota != null && adjustAmount > availableQuota) {
+            logger.warn("[BalanceAction] Adjustment amount exceeds reseller's available quota", {
+              userId,
+              adjustAmount,
+              operatorId: currentUser.id,
+              availableQuota,
+            });
+
+            return {
+              success: false,
+              error: `增加金额 $${adjustAmount.toFixed(2)} 超过了您的总可用额度 $${availableQuota.toFixed(2)}（套餐剩余 + 余额）`,
+            };
+          }
+
+          logger.info("[BalanceAction] Reseller quota check passed (adjustment)", {
+            userId,
+            adjustAmount,
+            operatorId: currentUser.id,
+            availableQuota,
+          });
+        }
+      }
     }
 
     // ========== 执行调整 ==========

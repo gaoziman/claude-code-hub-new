@@ -114,7 +114,15 @@ export async function getOverviewMetricsByUser(
   const [result] = await db
     .select({
       requestCount: count(),
-      totalCost: sum(messageRequest.costUsd),
+      // 优先使用 package_cost_usd + balance_cost_usd，如果都为NULL则fallback到cost_usd
+      totalCost: sql<string>`COALESCE(
+        SUM(
+          COALESCE(${messageRequest.packageCostUsd}, 0) +
+          COALESCE(${messageRequest.balanceCostUsd}, 0)
+        ),
+        SUM(COALESCE(${messageRequest.costUsd}, 0)),
+        0
+      )`,
       avgDuration: avg(messageRequest.durationMs),
     })
     .from(messageRequest)

@@ -17,7 +17,7 @@ import type { ActionResult } from "./types";
  * 获取使用日志（根据权限过滤）
  */
 export async function getUsageLogs(
-  filters: Omit<UsageLogFilters, "userId">
+  filters: Omit<UsageLogFilters, "userIds"> // ⭐ 允许传递 userId，但不允许 userIds（由后端控制）
 ): Promise<ActionResult<UsageLogsResult>> {
   try {
     const session = await getSession();
@@ -26,14 +26,61 @@ export async function getUsageLogs(
     }
 
     const isAdmin = session.user.role === "admin";
-    let finalFilters: UsageLogFilters = isAdmin
-      ? { ...filters }
-      : { ...filters, userId: session.user.id };
+    const isReseller = session.user.role === "reseller";
 
-    if (session.viewMode === "key") {
+    let finalFilters: UsageLogFilters;
+
+    if (isAdmin) {
+      // 管理员：查询所有用户的日志
+      finalFilters = { ...filters };
+    } else if (isReseller) {
+      //  代理用户：可以查询自己 + 所有子用户的日志
+      const { findChildrenByParentId } = await import("@/repository/user");
+      const children = await findChildrenByParentId(session.user.id);
+      const allUserIds = [session.user.id, ...children.map(c => c.id)];
+
+      logger.info(
+        `[UsageLogs] Reseller ${session.user.id} querying usage logs for ${allUserIds.length} users: ${allUserIds.join(", ")}`
+      );
+
+      // ⭐ 检查前端是否传递了 userId 参数（用户选择了特定用户筛选）
+      const requestedUserId = filters.userId;
+
+      if (requestedUserId !== undefined) {
+        // 前端选择了特定用户，检查权限
+        if (allUserIds.includes(requestedUserId)) {
+          // 有权限查询这个用户，使用单用户查询
+          finalFilters = {
+            ...filters,
+            userId: requestedUserId,
+          };
+        } else {
+          // 无权限查询这个用户，返回空结果
+          logger.warn(
+            `[UsageLogs] Reseller ${session.user.id} attempted to query unauthorized user ${requestedUserId}`
+          );
+          finalFilters = {
+            ...filters,
+            userIds: [], // 空数组，查询结果为空
+          };
+        }
+      } else {
+        // 前端未选择特定用户，查询所有允许的用户
+        finalFilters = {
+          ...filters,
+          userIds: allUserIds,
+        };
+      }
+    } else {
+      // ⭐ 普通用户：只查询自己的日志
+      finalFilters = { ...filters, userId: session.user.id };
+    }
+
+    // Key 视图模式：进一步限制为当前 Key
+    if (session.viewMode === "key" && session.key) {
       finalFilters = {
         ...finalFilters,
-        userId: session.user.id,
+        userId: session.user.id, // Key 模式下强制单用户
         keyId: session.key.id,
       };
     }
@@ -99,7 +146,7 @@ export async function getMonthlyUsageStatsAction(
     const result = await getMonthlyUsageStats({
       userId: session.user.id,
       month,
-      keyId: session.viewMode === "key" ? session.key.id : undefined,
+      keyId: session.viewMode === "key" && session.key ? session.key.id : undefined,
     });
     return { ok: true, data: result };
   } catch (error) {

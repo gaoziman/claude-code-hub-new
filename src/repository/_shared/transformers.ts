@@ -29,16 +29,28 @@ export function toUser(dbUser: any): User {
         })(),
     isEnabled: dbUser?.isEnabled ?? true,
     expiresAt: dbUser?.expiresAt ? new Date(dbUser.expiresAt) : null,
+    // ========== 父子关系配置 ==========
+    parentUserId: dbUser?.parentUserId ?? null,
+    // ========== 密码认证配置 ==========
+    passwordHash: dbUser?.passwordHash ?? null,
+    passwordUpdatedAt: dbUser?.passwordUpdatedAt ? new Date(dbUser.passwordUpdatedAt) : null,
+    forcePasswordChange: dbUser?.forcePasswordChange ?? false,
+    // ========== Key 管理配置 ==========
+    maxKeysCount: dbUser?.maxKeysCount ?? 3,
     // 用户级别金额限流配置
     limit5hUsd: dbUser?.limit5hUsd ? parseFloat(dbUser.limit5hUsd) : null,
     limitWeeklyUsd: dbUser?.limitWeeklyUsd ? parseFloat(dbUser.limitWeeklyUsd) : null,
     limitMonthlyUsd: dbUser?.limitMonthlyUsd ? parseFloat(dbUser.limitMonthlyUsd) : null,
     totalLimitUsd: dbUser?.totalLimitUsd ? parseFloat(dbUser.totalLimitUsd) : null,
+    // ========== 额度共享配置 ==========
+    inheritParentLimits: dbUser?.inheritParentLimits ?? true,
     // 账期周期配置
     billingCycleStart: dbUser?.billingCycleStart ? new Date(dbUser.billingCycleStart) : null,
     // 余额系统
     balanceUsd: dbUser?.balanceUsd ? parseFloat(dbUser.balanceUsd) : 0,
     balanceUpdatedAt: dbUser?.balanceUpdatedAt ? new Date(dbUser.balanceUpdatedAt) : null,
+    // 余额使用策略
+    balanceUsagePolicy: (dbUser?.balanceUsagePolicy as User["balanceUsagePolicy"]) || 'after_quota',
     createdAt: dbUser?.createdAt ? new Date(dbUser.createdAt) : new Date(),
     updatedAt: dbUser?.updatedAt ? new Date(dbUser.updatedAt) : new Date(),
   };
@@ -50,9 +62,7 @@ export function toKey(dbKey: any): Key {
     ...dbKey,
     isEnabled: dbKey?.isEnabled ?? true,
     canLoginWebUi: dbKey?.canLoginWebUi ?? true,
-    scope: (dbKey?.scope as Key["scope"]) ?? "owner",
-    ownerKeyId: dbKey?.ownerKeyId ?? null,
-    // 子 Key 独立限额
+    // 独立限额
     limit5hUsd: dbKey?.limit5hUsd ? parseFloat(dbKey.limit5hUsd) : null,
     limitWeeklyUsd: dbKey?.limitWeeklyUsd ? parseFloat(dbKey.limitWeeklyUsd) : null,
     limitMonthlyUsd: dbKey?.limitMonthlyUsd ? parseFloat(dbKey.limitMonthlyUsd) : null,

@@ -7,7 +7,8 @@ import type { ProviderChainItem } from "@/types/message";
 import { getEnvConfig } from "@/lib/config";
 
 export interface UsageLogFilters {
-  userId?: number;
+  userId?: number; 
+  userIds?: number[]; // 支持多个用户ID查询（用于 Reseller 查询自己 + 子用户）
   keyId?: number;
   providerId?: number;
   date?: Date; // 单个日期，查询当天的记录（00:00:00 到 23:59:59.999）
@@ -34,6 +35,7 @@ export interface UsageLogRow {
   totalTokens: number;
   costUsd: string | null;
   costMultiplier: string | null; // 供应商倍率
+  remainingQuotaUsd: string | null; // ⭐ 剩余额度快照（请求完成后的剩余可用额度）
   durationMs: number | null;
   errorMessage: string | null;
   providerChain: ProviderChainItem[] | null;
@@ -106,7 +108,7 @@ export interface MonthlyUsageStatsResult {
  * 查询使用日志（支持多种筛选条件和分页）
  */
 export async function findUsageLogsWithDetails(filters: UsageLogFilters): Promise<UsageLogsResult> {
-  const { userId, keyId, providerId, date, statusCode, model, page = 1, pageSize = 20 } = filters;
+  const { userId, userIds, keyId, providerId, date, statusCode, model, page = 1, pageSize = 20 } = filters;
 
   // 将单个日期转换为时间范围（当天 00:00:00 到 23:59:59.999）
   let startDate: Date | undefined;
@@ -126,7 +128,12 @@ export async function findUsageLogsWithDetails(filters: UsageLogFilters): Promis
   // 构建查询条件
   const conditions = [isNull(messageRequest.deletedAt)];
 
-  if (userId !== undefined) {
+  // ⭐ 支持多用户ID查询（优先级：userIds > userId）
+  if (userIds !== undefined && userIds.length > 0) {
+    conditions.push(
+      sql`${messageRequest.userId} IN (${sql.join(userIds.map(id => sql`${id}`), sql`, `)})`
+    );
+  } else if (userId !== undefined) {
     conditions.push(eq(messageRequest.userId, userId));
   }
 
@@ -207,7 +214,15 @@ export async function findUsageLogsWithDetails(filters: UsageLogFilters): Promis
   const [summaryResult] = await db
     .select({
       totalRequests: sql<number>`count(*)::double precision`,
-      totalCost: sql<string>`COALESCE(sum(${messageRequest.costUsd}), 0)`,
+      // ⭐ 修复：使用双轨计费字段统计消费，确保与限流检查一致
+      totalCost: sql<string>`COALESCE(
+        SUM(
+          COALESCE(${messageRequest.packageCostUsd}, 0) +
+          COALESCE(${messageRequest.balanceCostUsd}, 0)
+        ),
+        SUM(COALESCE(${messageRequest.costUsd}, 0)),
+        0
+      )`,
       totalInputTokens: sql<number>`COALESCE(sum(${messageRequest.inputTokens})::double precision, 0::double precision)`,
       totalOutputTokens: sql<number>`COALESCE(sum(${messageRequest.outputTokens})::double precision, 0::double precision)`,
       totalCacheCreationTokens: sql<number>`COALESCE(sum(${messageRequest.cacheCreationInputTokens})::double precision, 0::double precision)`,
@@ -243,6 +258,7 @@ export async function findUsageLogsWithDetails(filters: UsageLogFilters): Promis
       cacheReadInputTokens: messageRequest.cacheReadInputTokens,
       costUsd: messageRequest.costUsd,
       costMultiplier: messageRequest.costMultiplier, // 供应商倍率
+      remainingQuotaUsd: messageRequest.remainingQuotaUsd, 
       durationMs: messageRequest.durationMs,
       errorMessage: messageRequest.errorMessage,
       providerChain: messageRequest.providerChain,
@@ -271,6 +287,7 @@ export async function findUsageLogsWithDetails(filters: UsageLogFilters): Promis
       ...row,
       totalTokens: totalRowTokens,
       costUsd: row.costUsd?.toString() ?? null,
+      remainingQuotaUsd: row.remainingQuotaUsd?.toString() ?? null, 
       providerChain: row.providerChain as ProviderChainItem[] | null,
     };
   });
@@ -411,7 +428,15 @@ export async function getMonthlyUsageStats(
     .select({
       date: sql<string>`to_char(${dayExpression}, 'YYYY-MM-DD')`,
       requestCount: sql<number>`count(*)::double precision`,
-      totalCost: sql<string>`COALESCE(sum(${messageRequest.costUsd}), 0)`,
+      // ⭐ 使用双轨计费字段统计消费，确保与限流检查一致
+      totalCost: sql<string>`COALESCE(
+        SUM(
+          COALESCE(${messageRequest.packageCostUsd}, 0) +
+          COALESCE(${messageRequest.balanceCostUsd}, 0)
+        ),
+        SUM(COALESCE(${messageRequest.costUsd}, 0)),
+        0
+      )`,
       totalInputTokens: sql<number>`COALESCE(sum(${messageRequest.inputTokens})::double precision, 0::double precision)`,
       totalOutputTokens: sql<number>`COALESCE(sum(${messageRequest.outputTokens})::double precision, 0::double precision)`,
       cacheCreationTokens: sql<number>`COALESCE(sum(${messageRequest.cacheCreationInputTokens})::double precision, 0::double precision)`,
@@ -431,7 +456,15 @@ export async function getMonthlyUsageStats(
       outputTokens: sql<number>`COALESCE(sum(${messageRequest.outputTokens})::double precision, 0::double precision)`,
       cacheCreationTokens: sql<number>`COALESCE(sum(${messageRequest.cacheCreationInputTokens})::double precision, 0::double precision)`,
       cacheReadTokens: sql<number>`COALESCE(sum(${messageRequest.cacheReadInputTokens})::double precision, 0::double precision)`,
-      totalCost: sql<string>`COALESCE(sum(${messageRequest.costUsd}), 0)`,
+      // ⭐ 使用双轨计费字段统计消费，确保与限流检查一致
+      totalCost: sql<string>`COALESCE(
+        SUM(
+          COALESCE(${messageRequest.packageCostUsd}, 0) +
+          COALESCE(${messageRequest.balanceCostUsd}, 0)
+        ),
+        SUM(COALESCE(${messageRequest.costUsd}, 0)),
+        0
+      )`,
     })
     .from(messageRequest)
     .where(and(...conditions))

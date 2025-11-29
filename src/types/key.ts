@@ -12,13 +12,7 @@ export interface Key {
   // Web UI 登录权限控制
   canLoginWebUi: boolean;
 
-  // Key 视角范围：owner(主 key) / child(子 key)
-  scope: "owner" | "child";
-
-  // ========== 主子关系 ==========
-  ownerKeyId: number | null; // 子 Key 所属的主 Key ID (仅子 key 有值)
-
-  // ========== 子 Key 独立限额 ==========
+  // ========== 独立限额 ==========
   limit5hUsd: number | null;
   limitWeeklyUsd: number | null;
   limitMonthlyUsd: number | null;
@@ -46,8 +40,7 @@ export interface CreateKeyData {
   expires_at?: Date;
   // Web UI 登录权限控制
   can_login_web_ui?: boolean;
-  scope?: "owner" | "child";
-  // ========== 子 Key 独立限额配置 ==========
+  // ========== 独立限额配置 ==========
   limit_5h_usd?: number | null;
   limit_weekly_usd?: number | null;
   limit_monthly_usd?: number | null;
@@ -68,8 +61,7 @@ export interface UpdateKeyData {
   expires_at?: Date;
   // Web UI 登录权限控制
   can_login_web_ui?: boolean;
-  scope?: "owner" | "child";
-  // ========== 子 Key 独立限额配置 ==========
+  // ========== 独立限额配置 ==========
   limit_5h_usd?: number | null;
   limit_weekly_usd?: number | null;
   limit_monthly_usd?: number | null;
