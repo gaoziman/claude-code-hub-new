@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "balance_usage_policy" varchar(20) DEFAULT 'after_quota' NOT NULL;

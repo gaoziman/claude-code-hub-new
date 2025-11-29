@@ -19,17 +19,34 @@ export const users = pgTable('users', {
   id: serial('id').primaryKey(),
   name: varchar('name').notNull(),
   description: text('description'),
-  role: varchar('role').default('user'),
+  role: varchar('role', { length: 20 }).notNull().default('user').$type<'admin' | 'reseller' | 'user'>(),
   providerGroup: varchar('provider_group', { length: 50 }),
   isEnabled: boolean('is_enabled').notNull().default(true),
   expiresAt: timestamp('expires_at', { withTimezone: true }),
   tags: jsonb('tags').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+
+  // ========== 父子关系配置 ==========
+  // 父用户 ID：User → Reseller，Reseller → Admin，Admin → NULL
+  parentUserId: integer('parent_user_id'),
+
+  // ========== 密码认证配置 ==========
+  passwordHash: varchar('password_hash', { length: 255 }), // bcrypt 密码哈希
+  passwordUpdatedAt: timestamp('password_updated_at', { withTimezone: true }), // 密码最后修改时间
+  forcePasswordChange: boolean('force_password_change').notNull().default(false), // 强制修改密码标记
+
+  // ========== Key 管理配置 ==========
+  maxKeysCount: integer('max_keys_count').notNull().default(3), // 最多可创建的 Key 数量
 
   // ========== 用户级别限额配置（管理员设置） ==========
   limit5hUsd: numeric('limit_5h_usd', { precision: 10, scale: 2 }),
   limitWeeklyUsd: numeric('limit_weekly_usd', { precision: 10, scale: 2 }),
   limitMonthlyUsd: numeric('limit_monthly_usd', { precision: 10, scale: 2 }),
   totalLimitUsd: numeric('total_limit_usd', { precision: 12, scale: 2 }),
+
+  // ========== 额度共享配置 ==========
+  // 是否继承父用户的额度限制（默认 TRUE）
+  // 设置为 FALSE 时可以使用独立额度，不受父用户限制
+  inheritParentLimits: boolean('inherit_parent_limits').notNull().default(true),
 
   // ========== 账期周期配置 ==========
   // 账期起始日期：用于计算周/月限额的起点
@@ -41,12 +58,26 @@ export const users = pgTable('users', {
   balanceUsd: numeric('balance_usd', { precision: 12, scale: 4 }).notNull().default('0'),
   balanceUpdatedAt: timestamp('balance_updated_at', { withTimezone: true }),
 
+  // ========== 余额使用策略（子用户专用） ==========
+  // 控制子用户如何使用账户余额
+  // - disabled: 禁止使用余额（套餐用完即停止）
+  // - after_quota: 配额用完后可用余额（默认，灵活充值）
+  // - priority: 优先使用余额（余额不足才用套餐）
+  balanceUsagePolicy: varchar('balance_usage_policy', { length: 20 })
+    .notNull()
+    .default('after_quota')
+    .$type<'disabled' | 'after_quota' | 'priority'>(),
+
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
   deletedAt: timestamp('deleted_at', { withTimezone: true }),
 }, (table) => ({
   // 优化用户列表查询的复合索引（按角色排序，管理员优先）
   usersActiveRoleSortIdx: index('idx_users_active_role_sort').on(table.deletedAt, table.role, table.id).where(sql`${table.deletedAt} IS NULL`),
+  // 父子关系索引
+  usersParentUserIdIdx: index('idx_users_parent_user_id').on(table.parentUserId).where(sql`${table.deletedAt} IS NULL AND ${table.parentUserId} IS NOT NULL`),
+  // 密码索引（用于登录查询）
+  usersPasswordHashIdx: index('idx_users_password_hash').on(table.passwordHash).where(sql`${table.passwordHash} IS NOT NULL`),
   // 基础索引
   usersCreatedAtIdx: index('idx_users_created_at').on(table.createdAt),
   usersDeletedAtIdx: index('idx_users_deleted_at').on(table.deletedAt),
@@ -64,14 +95,7 @@ export const keys = pgTable('keys', {
   // Web UI 登录权限控制
   canLoginWebUi: boolean('can_login_web_ui').default(true),
 
-  // Key 视角：owner 为主 Key，可查看所有数据；child 仅能查看自身
-  scope: varchar('scope', { length: 16 }).notNull().default('owner').$type<'owner' | 'child'>(),
-
-  // ========== 主子关系配置 ==========
-  // owner_key_id: 仅子 Key 填写，指向其主 Key；主 Key 为 NULL
-  ownerKeyId: integer('owner_key_id'),
-
-  // ========== 子 Key 独立限额配置 ==========
+  // ========== 独立限额配置 ==========
   limit5hUsd: numeric('limit_5h_usd', { precision: 10, scale: 2 }),
   limitWeeklyUsd: numeric('limit_weekly_usd', { precision: 10, scale: 2 }),
   limitMonthlyUsd: numeric('limit_monthly_usd', { precision: 10, scale: 2 }),
@@ -91,7 +115,6 @@ export const keys = pgTable('keys', {
 }, (table) => ({
   // 基础索引（详细的复合索引通过迁移脚本管理）
   keysUserIdIdx: index('idx_keys_user_id').on(table.userId),
-  keysOwnerKeyIdIdx: index('idx_keys_owner_key_id').on(table.ownerKeyId),
   keysCreatedAtIdx: index('idx_keys_created_at').on(table.createdAt),
   keysDeletedAtIdx: index('idx_keys_deleted_at').on(table.deletedAt),
 }));
@@ -204,6 +227,10 @@ export const messageRequest = pgTable('message_request', {
   // 从余额中扣除的金额（按量付费消耗）
   balanceCostUsd: numeric('balance_cost_usd', { precision: 21, scale: 15 }),
 
+  // ========== 剩余额度快照 ==========
+  // 请求完成后的剩余可用额度快照（套餐剩余 + 账户余额）
+  remainingQuotaUsd: numeric('remaining_quota_usd', { precision: 21, scale: 15 }),
+
   // Session ID（用于会话粘性和日志追踪）
   sessionId: varchar('session_id', { length: 64 }),
 
@@ -301,7 +328,7 @@ export const systemSettings = pgTable('system_settings', {
     .$type<SystemThemeConfig>()
     .notNull()
     .default(
-      sql`jsonb_build_object('baseColor', '#FF8A00', 'accentColor', '#FFB347', 'neutralColor', '#FFE8CC')`
+      sql`'{"baseColor":"#FF8A00","accentColor":"#FFB347","neutralColor":"#FFE8CC"}'::jsonb`
     ),
 
   // 日志清理配置

@@ -1,0 +1,1 @@
+ALTER TABLE "message_request" ADD COLUMN "remaining_quota_usd" numeric(21, 15);

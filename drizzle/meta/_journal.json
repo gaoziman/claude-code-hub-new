@@ -211,6 +211,41 @@
       "when": 1763713968777,
       "tag": "0029_spooky_leader",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1764079330131,
+      "tag": "0030_oval_falcon",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1764081608624,
+      "tag": "0031_huge_pepper_potts",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1764123478852,
+      "tag": "0032_careless_meltdown",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1764161873397,
+      "tag": "0033_numerous_mastermind",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1764257932645,
+      "tag": "0034_talented_otto_octavius",
+      "breakpoints": true
     }
   ]
 }

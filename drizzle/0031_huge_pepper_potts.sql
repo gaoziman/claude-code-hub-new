@@ -1,0 +1,1 @@
+ALTER TABLE "system_settings" ALTER COLUMN "theme_config" SET DEFAULT '{"baseColor":"#FF8A00","accentColor":"#FFB347","neutralColor":"#FFE8CC"}'::jsonb;
