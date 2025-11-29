@@ -2,11 +2,12 @@
 
 import { db } from "@/drizzle/db";
 import { keys, users, messageRequest, providers } from "@/drizzle/schema";
-import { eq, isNull, and, or, gt, gte, lt, count, sum, desc, sql } from "drizzle-orm";
+import { eq, isNull, and, or, gt, gte, lt, count, sum, desc, sql, like } from "drizzle-orm";
 import type { Key, CreateKeyData, UpdateKeyData } from "@/types/key";
 import type { User } from "@/types/user";
 import { toKey, toUser } from "./_shared/transformers";
 import { Decimal, toCostDecimal } from "@/lib/utils/currency";
+import { hashKey, verifyKey, decryptKey } from "@/lib/crypto";
 
 export async function findKeyList(userId: number): Promise<Key[]> {
   const result = await db
@@ -18,7 +19,6 @@ export async function findKeyList(userId: number): Promise<Key[]> {
       isEnabled: keys.isEnabled,
       expiresAt: keys.expiresAt,
       canLoginWebUi: keys.canLoginWebUi,
-      scope: keys.scope,
       limit5hUsd: keys.limit5hUsd,
       limitWeeklyUsd: keys.limitWeeklyUsd,
       limitMonthlyUsd: keys.limitMonthlyUsd,
@@ -38,6 +38,49 @@ export async function findKeyList(userId: number): Promise<Key[]> {
   return result.map(toKey);
 }
 
+/**
+ * 查询多个用户的所有密钥（用于 Reseller 查询自己 + 所有子用户的密钥）
+ * @param userIds 用户 ID 列表
+ * @returns Key 数组
+ */
+export async function findKeyListForMultipleUsers(userIds: number[]): Promise<Key[]> {
+  if (userIds.length === 0) {
+    return [];
+  }
+
+  const result = await db
+    .select({
+      id: keys.id,
+      userId: keys.userId,
+      key: keys.key,
+      name: keys.name,
+      isEnabled: keys.isEnabled,
+      expiresAt: keys.expiresAt,
+      canLoginWebUi: keys.canLoginWebUi,
+      limit5hUsd: keys.limit5hUsd,
+      limitWeeklyUsd: keys.limitWeeklyUsd,
+      limitMonthlyUsd: keys.limitMonthlyUsd,
+      totalLimitUsd: keys.totalLimitUsd,
+      limitConcurrentSessions: keys.limitConcurrentSessions,
+      rpmLimit: keys.rpmLimit,
+      dailyLimitUsd: keys.dailyLimitUsd,
+      billingCycleStart: keys.billingCycleStart,
+      createdAt: keys.createdAt,
+      updatedAt: keys.updatedAt,
+      deletedAt: keys.deletedAt,
+    })
+    .from(keys)
+    .where(
+      and(
+        sql`${keys.userId} IN (${sql.join(userIds.map(id => sql`${id}`), sql`, `)})`,
+        isNull(keys.deletedAt)
+      )
+    )
+    .orderBy(keys.createdAt);
+
+  return result.map(toKey);
+}
+
 export async function createKey(keyData: CreateKeyData): Promise<Key> {
   const dbData = {
     userId: keyData.user_id,
@@ -46,8 +89,7 @@ export async function createKey(keyData: CreateKeyData): Promise<Key> {
     isEnabled: keyData.is_enabled,
     expiresAt: keyData.expires_at,
     canLoginWebUi: keyData.can_login_web_ui ?? true,
-    scope: keyData.scope ?? "owner",
-    // 子 Key 独立限额
+    // 独立限额
     limit5hUsd: keyData.limit_5h_usd != null ? keyData.limit_5h_usd.toString() : null,
     limitWeeklyUsd: keyData.limit_weekly_usd != null ? keyData.limit_weekly_usd.toString() : null,
     limitMonthlyUsd:
@@ -73,7 +115,6 @@ export async function createKey(keyData: CreateKeyData): Promise<Key> {
     isEnabled: keys.isEnabled,
     expiresAt: keys.expiresAt,
     canLoginWebUi: keys.canLoginWebUi,
-    scope: keys.scope,
     limit5hUsd: keys.limit5hUsd,
     limitWeeklyUsd: keys.limitWeeklyUsd,
     limitMonthlyUsd: keys.limitMonthlyUsd,
@@ -103,8 +144,7 @@ export async function updateKey(id: number, keyData: UpdateKeyData): Promise<Key
   if (keyData.is_enabled !== undefined) dbData.isEnabled = keyData.is_enabled;
   if (keyData.expires_at !== undefined) dbData.expiresAt = keyData.expires_at;
   if (keyData.can_login_web_ui !== undefined) dbData.canLoginWebUi = keyData.can_login_web_ui;
-  if (keyData.scope !== undefined) dbData.scope = keyData.scope;
-  // 子 Key 独立限额
+  // 独立限额
   if (keyData.limit_5h_usd !== undefined)
     dbData.limit5hUsd = keyData.limit_5h_usd != null ? keyData.limit_5h_usd.toString() : null;
   if (keyData.limit_weekly_usd !== undefined)
@@ -135,7 +175,6 @@ export async function updateKey(id: number, keyData: UpdateKeyData): Promise<Key
       isEnabled: keys.isEnabled,
       expiresAt: keys.expiresAt,
       canLoginWebUi: keys.canLoginWebUi,
-      scope: keys.scope,
       limit5hUsd: keys.limit5hUsd,
       limitWeeklyUsd: keys.limitWeeklyUsd,
       limitMonthlyUsd: keys.limitMonthlyUsd,
@@ -165,7 +204,6 @@ export async function findActiveKeyByUserIdAndName(
       isEnabled: keys.isEnabled,
       expiresAt: keys.expiresAt,
       canLoginWebUi: keys.canLoginWebUi,
-      scope: keys.scope,
       limit5hUsd: keys.limit5hUsd,
       limitWeeklyUsd: keys.limitWeeklyUsd,
       limitMonthlyUsd: keys.limitMonthlyUsd,
@@ -224,11 +262,84 @@ export async function findKeyUsageInRange(
   const rows = await db
     .select({
       keyId: keys.id,
-      totalCost: sum(messageRequest.costUsd),
+      // ⭐ 修复：使用双轨计费字段统计消费，确保与限流检查一致
+      // 优先使用 package_cost_usd + balance_cost_usd，如果都为NULL则fallback到cost_usd
+      totalCost: sql<string>`COALESCE(
+        SUM(
+          COALESCE(${messageRequest.packageCostUsd}, 0) +
+          COALESCE(${messageRequest.balanceCostUsd}, 0)
+        ),
+        SUM(COALESCE(${messageRequest.costUsd}, 0)),
+        0
+      )`,
     })
     .from(keys)
     .leftJoin(messageRequest, and(...joinConditions))
     .where(and(eq(keys.userId, userId), isNull(keys.deletedAt)))
+    .groupBy(keys.id);
+
+  return rows.map((row) => ({
+    keyId: row.keyId,
+    totalCost: (() => {
+      const costDecimal = toCostDecimal(row.totalCost) ?? new Decimal(0);
+      return costDecimal.toDecimalPlaces(6).toNumber();
+    })(),
+  }));
+}
+
+/**
+ * 查询多个用户的所有密钥使用数据（用于 Reseller 查询自己 + 所有子用户的消费）
+ * @param userIds 用户 ID 列表
+ * @param range 时间范围过滤
+ * @returns { keyId, totalCost } 数组
+ */
+export async function findKeyUsageForMultipleUsers(
+  userIds: number[],
+  range?: DateRangeFilter
+): Promise<Array<{ keyId: number; totalCost: number }>> {
+  if (userIds.length === 0) {
+    return [];
+  }
+
+  const dateFilter =
+    range ??
+    (() => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      return { start: today, end: tomorrow };
+    })();
+
+  const joinConditions = [eq(messageRequest.key, keys.key), isNull(messageRequest.deletedAt)];
+  if (dateFilter.start) {
+    joinConditions.push(gte(messageRequest.createdAt, dateFilter.start));
+  }
+  if (dateFilter.end) {
+    joinConditions.push(lt(messageRequest.createdAt, dateFilter.end));
+  }
+
+  const rows = await db
+    .select({
+      keyId: keys.id,
+      // ⭐ 修复：使用双轨计费字段统计消费，确保与限流检查一致
+      totalCost: sql<string>`COALESCE(
+        SUM(
+          COALESCE(${messageRequest.packageCostUsd}, 0) +
+          COALESCE(${messageRequest.balanceCostUsd}, 0)
+        ),
+        SUM(COALESCE(${messageRequest.costUsd}, 0)),
+        0
+      )`,
+    })
+    .from(keys)
+    .leftJoin(messageRequest, and(...joinConditions))
+    .where(
+      and(
+        sql`${keys.userId} IN (${sql.join(userIds.map(id => sql`${id}`), sql`, `)})`,
+        isNull(keys.deletedAt)
+      )
+    )
     .groupBy(keys.id);
 
   return rows.map((row) => ({
@@ -260,7 +371,12 @@ export async function deleteKey(id: number): Promise<boolean> {
 }
 
 export async function findActiveKeyByKeyString(keyString: string): Promise<Key | null> {
-  const [key] = await db
+  // ⭐ 使用哈希 + 加密混合方案查询
+  // 1. 计算输入密钥的哈希
+  const inputHash = hashKey(keyString);
+
+  // 2. 查询所有哈希前缀匹配的活动密钥
+  const results = await db
     .select({
       id: keys.id,
       userId: keys.userId,
@@ -269,10 +385,10 @@ export async function findActiveKeyByKeyString(keyString: string): Promise<Key |
       isEnabled: keys.isEnabled,
       expiresAt: keys.expiresAt,
       canLoginWebUi: keys.canLoginWebUi,
-      scope: keys.scope,
       limit5hUsd: keys.limit5hUsd,
       limitWeeklyUsd: keys.limitWeeklyUsd,
       limitMonthlyUsd: keys.limitMonthlyUsd,
+      totalLimitUsd: keys.totalLimitUsd, // ⭐ 添加缺失的 totalLimitUsd 字段
       limitConcurrentSessions: keys.limitConcurrentSessions,
       rpmLimit: keys.rpmLimit,
       dailyLimitUsd: keys.dailyLimitUsd,
@@ -284,25 +400,33 @@ export async function findActiveKeyByKeyString(keyString: string): Promise<Key |
     .innerJoin(users, and(eq(users.id, keys.userId), isNull(users.deletedAt)))
     .where(
       and(
-        eq(keys.key, keyString),
+        like(keys.key, `${inputHash}:%`), // 使用哈希前缀匹配
         isNull(keys.deletedAt),
         eq(keys.isEnabled, true),
         or(isNull(keys.expiresAt), gt(keys.expiresAt, new Date())),
         eq(users.isEnabled, true),
         or(isNull(users.expiresAt), gt(users.expiresAt, new Date()))
       )
-    )
-    .limit(1);
+    );
 
-  if (!key) return null;
-  return toKey(key);
+  // 3. 在内存中验证完整密钥（防止哈希碰撞）
+  for (const result of results) {
+    if (verifyKey(keyString, result.key)) {
+      return toKey(result);
+    }
+  }
+
+  return null;
 }
 
 // 验证 API Key 并返回用户信息
 export async function validateApiKeyAndGetUser(
   keyString: string
 ): Promise<{ user: User; key: Key } | null> {
-  const result = await db
+  // ⭐ 使用哈希 + 加密混合方案查询
+  const inputHash = hashKey(keyString);
+
+  const results = await db
     .select({
       // Key fields
       keyId: keys.id,
@@ -312,7 +436,6 @@ export async function validateApiKeyAndGetUser(
       keyIsEnabled: keys.isEnabled,
       keyExpiresAt: keys.expiresAt,
       keyCanLoginWebUi: keys.canLoginWebUi,
-      keyScope: keys.scope,
       keyLimit5hUsd: keys.limit5hUsd,
       keyLimitWeeklyUsd: keys.limitWeeklyUsd,
       keyLimitMonthlyUsd: keys.limitMonthlyUsd,
@@ -340,7 +463,7 @@ export async function validateApiKeyAndGetUser(
     .innerJoin(users, eq(keys.userId, users.id))
     .where(
       and(
-        eq(keys.key, keyString),
+        like(keys.key, `${inputHash}:%`), // 使用哈希前缀匹配
         isNull(keys.deletedAt),
         eq(keys.isEnabled, true),
         or(isNull(keys.expiresAt), gt(keys.expiresAt, new Date())),
@@ -350,48 +473,48 @@ export async function validateApiKeyAndGetUser(
       )
     );
 
-  if (result.length === 0) {
-    return null;
+  // 在内存中验证完整密钥
+  for (const row of results) {
+    if (verifyKey(keyString, row.keyString)) {
+      const user: User = toUser({
+        id: row.userId,
+        name: row.userName,
+        description: row.userDescription,
+        role: row.userRole,
+        providerGroup: row.userProviderGroup,
+        tags: row.userTags,
+        isEnabled: row.userIsEnabled,
+        expiresAt: row.userExpiresAt,
+        createdAt: row.userCreatedAt,
+        updatedAt: row.userUpdatedAt,
+        deletedAt: row.userDeletedAt,
+      });
+
+      const key: Key = toKey({
+        id: row.keyId,
+        userId: row.keyUserId,
+        key: row.keyString,
+        name: row.keyName,
+        isEnabled: row.keyIsEnabled,
+        expiresAt: row.keyExpiresAt,
+        canLoginWebUi: row.keyCanLoginWebUi,
+        limit5hUsd: row.keyLimit5hUsd,
+        limitWeeklyUsd: row.keyLimitWeeklyUsd,
+        limitMonthlyUsd: row.keyLimitMonthlyUsd,
+        limitConcurrentSessions: row.keyLimitConcurrentSessions,
+        rpmLimit: row.keyRpmLimit,
+        dailyLimitUsd: row.keyDailyLimitUsd,
+        totalLimitUsd: row.keyTotalLimitUsd,
+        createdAt: row.keyCreatedAt,
+        updatedAt: row.keyUpdatedAt,
+        deletedAt: row.keyDeletedAt,
+      });
+
+      return { user, key };
+    }
   }
 
-  const row = result[0];
-
-  const user: User = toUser({
-    id: row.userId,
-    name: row.userName,
-    description: row.userDescription,
-    role: row.userRole,
-    providerGroup: row.userProviderGroup,
-    tags: row.userTags,
-    isEnabled: row.userIsEnabled,
-    expiresAt: row.userExpiresAt,
-    createdAt: row.userCreatedAt,
-    updatedAt: row.userUpdatedAt,
-    deletedAt: row.userDeletedAt,
-  });
-
-  const key: Key = toKey({
-    id: row.keyId,
-    userId: row.keyUserId,
-    key: row.keyString,
-    name: row.keyName,
-    isEnabled: row.keyIsEnabled,
-    expiresAt: row.keyExpiresAt,
-    canLoginWebUi: row.keyCanLoginWebUi,
-    scope: row.keyScope,
-    limit5hUsd: row.keyLimit5hUsd,
-    limitWeeklyUsd: row.keyLimitWeeklyUsd,
-    limitMonthlyUsd: row.keyLimitMonthlyUsd,
-    limitConcurrentSessions: row.keyLimitConcurrentSessions,
-    rpmLimit: row.keyRpmLimit,
-    dailyLimitUsd: row.keyDailyLimitUsd,
-    totalLimitUsd: row.keyTotalLimitUsd,
-    createdAt: row.keyCreatedAt,
-    updatedAt: row.keyUpdatedAt,
-    deletedAt: row.keyDeletedAt,
-  });
-
-  return { user, key };
+  return null;
 }
 
 /**
@@ -459,7 +582,16 @@ export async function findKeysWithStatistics(
       .select({
         model: messageRequest.model,
         callCount: sql<number>`count(*)::int`,
-        totalCost: sum(messageRequest.costUsd),
+        // ⭐ 修复：使用双轨计费字段统计消费，确保与 findKeyUsageForMultipleUsers 一致
+        // 优先使用 package_cost_usd + balance_cost_usd，如果都为NULL则fallback到cost_usd
+        totalCost: sql<string>`COALESCE(
+          SUM(
+            COALESCE(${messageRequest.packageCostUsd}, 0) +
+            COALESCE(${messageRequest.balanceCostUsd}, 0)
+          ),
+          SUM(COALESCE(${messageRequest.costUsd}, 0)),
+          0
+        )`,
       })
       .from(messageRequest)
       .where(and(...dateConditions, sql`${messageRequest.model} IS NOT NULL`))
@@ -500,10 +632,7 @@ export async function findKeyById(keyId: number): Promise<Key | null> {
       isEnabled: keys.isEnabled,
       expiresAt: keys.expiresAt,
       canLoginWebUi: keys.canLoginWebUi,
-      scope: keys.scope,
-      // ========== 主子关系 ==========
-      ownerKeyId: keys.ownerKeyId,
-      // ========== 子 Key 独立限额 ==========
+      // ========== 独立限额 ==========
       limit5hUsd: keys.limit5hUsd,
       limitWeeklyUsd: keys.limitWeeklyUsd,
       limitMonthlyUsd: keys.limitMonthlyUsd,

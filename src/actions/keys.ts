@@ -18,16 +18,15 @@ import { getSession } from "@/lib/auth";
 import type { ActionResult } from "./types";
 import type { KeyStatistics } from "@/repository/key";
 import type { Key } from "@/types/key";
+import { encryptKey } from "@/lib/crypto";
 
 // 添加密钥
-// 说明：为提升前端可控性，避免直接抛错，返回判别式结果。
 export async function addKey(data: {
   userId: number;
   name: string;
   expiresAt?: string;
   canLoginWebUi?: boolean;
-  scope?: "owner" | "child";
-  // 子 Key 独立限额
+  // 独立限额
   limit5hUsd?: number | null;
   limitWeeklyUsd?: number | null;
   limitMonthlyUsd?: number | null;
@@ -39,23 +38,39 @@ export async function addKey(data: {
   billingCycleStart?: string | null;
 }): Promise<ActionResult<{ generatedKey: string; name: string }>> {
   try {
-    // 权限检查：用户只能给自己添加Key，管理员可以给所有人添加Key
+    // ========== 权限检查：所有用户（包括 admin）都只能为自己创建 Key ==========
     const session = await getSession();
     if (!session) {
       return { ok: false, error: "未登录" };
     }
-    const isAdmin = session.user.role === "admin";
-    const isSelfOwnerView = session.viewMode === "user" && session.user.id === data.userId;
-    if (!isAdmin && !isSelfOwnerView) {
-      return { ok: false, error: "无权限执行此操作" };
+
+    // 严格检查：只能为自己创建 Key
+    if (session.user.id !== data.userId) {
+      return { ok: false, error: "您只能为自己创建 Key，无法为其他用户创建" };
+    }
+
+    // ========== 检查 Key 数量限制 ==========
+    const { findUserById } = await import("@/repository/user");
+    const user = await findUserById(session.user.id);
+    if (!user) {
+      return { ok: false, error: "用户不存在" };
+    }
+
+    const currentKeyCount = await countActiveKeysByUser(session.user.id);
+    const maxKeysCount = user.maxKeysCount ?? 3; // 默认最多 3 个 Key
+
+    if (currentKeyCount >= maxKeysCount) {
+      return {
+        ok: false,
+        error: `您已达到 Key 数量上限（${currentKeyCount}/${maxKeysCount}），请删除现有 Key 后再创建新 Key`,
+      };
     }
 
     const validatedData = KeyFormSchema.parse({
       name: data.name,
       expiresAt: data.expiresAt,
       canLoginWebUi: data.canLoginWebUi,
-      scope: data.scope,
-      // 子 Key 独立限额
+      // 独立限额
       limit5hUsd: data.limit5hUsd,
       limitWeeklyUsd: data.limitWeeklyUsd,
       limitMonthlyUsd: data.limitMonthlyUsd,
@@ -77,17 +92,19 @@ export async function addKey(data: {
     }
 
     const generatedKey = "sk-" + randomBytes(16).toString("hex");
-    const targetScope = isAdmin ? validatedData.scope : "child";
+
+    // ⭐ 加密密钥后再存储到数据库
+    const encryptedKey = encryptKey(generatedKey);
+    logger.debug(`[Key] Key encrypted for storage - userId=${session.user.id}`);
 
     await createKey({
       user_id: data.userId,
       name: validatedData.name,
-      key: generatedKey,
+      key: encryptedKey, // 存储加密后的密钥
       is_enabled: true,
       expires_at: validatedData.expiresAt ? new Date(validatedData.expiresAt) : undefined,
       can_login_web_ui: validatedData.canLoginWebUi,
-      scope: targetScope,
-      // 子 Key 独立限额
+      // 独立限额
       limit_5h_usd: validatedData.limit5hUsd,
       limit_weekly_usd: validatedData.limitWeeklyUsd,
       limit_monthly_usd: validatedData.limitMonthlyUsd,
@@ -101,9 +118,14 @@ export async function addKey(data: {
         : undefined,
     });
 
+    logger.info(
+      `[Key] Key created: userId=${session.user.id}, name=${validatedData.name}, ` +
+        `currentCount=${currentKeyCount + 1}/${maxKeysCount}`
+    );
+
     revalidatePath("/dashboard");
 
-    // 返回生成的key供前端显示
+    // ⭐ 返回明文密钥供前端显示（仅此一次）
     return { ok: true, data: { generatedKey, name: validatedData.name } };
   } catch (error) {
     logger.error("添加密钥失败:", error);
@@ -119,8 +141,7 @@ export async function editKey(
     name: string;
     expiresAt?: string;
     canLoginWebUi?: boolean;
-    scope?: "owner" | "child";
-    // 子 Key 独立限额
+    // 独立限额
     limit5hUsd?: number | null;
     limitWeeklyUsd?: number | null;
     limitMonthlyUsd?: number | null;
@@ -131,7 +152,7 @@ export async function editKey(
   }
 ): Promise<ActionResult> {
   try {
-    // 权限检查：用户只能编辑自己的Key，管理员可以编辑所有Key
+    // ========== 权限检查：所有用户（包括 admin）都只能编辑自己的 Key ==========
     const session = await getSession();
     if (!session) {
       return { ok: false, error: "未登录" };
@@ -142,10 +163,9 @@ export async function editKey(
       return { ok: false, error: "密钥不存在" };
     }
 
-    const isAdmin = session.user.role === "admin";
-    const isSelfOwnerView = session.viewMode === "user" && session.user.id === key.userId;
-    if (!isAdmin && (!isSelfOwnerView || key.scope !== "child")) {
-      return { ok: false, error: "仅管理员可修改主 Key" };
+    // 严格检查：只能编辑自己的 Key
+    if (session.user.id !== key.userId) {
+      return { ok: false, error: "您只能编辑自己的 Key，无法编辑其他用户的 Key" };
     }
 
     const validatedData = KeyFormSchema.parse(data);
@@ -154,8 +174,7 @@ export async function editKey(
       name: validatedData.name,
       expires_at: validatedData.expiresAt ? new Date(validatedData.expiresAt) : undefined,
       can_login_web_ui: validatedData.canLoginWebUi,
-      scope: isAdmin ? validatedData.scope : undefined,
-      // 子 Key 独立限额
+      // 独立限额
       limit_5h_usd: validatedData.limit5hUsd,
       limit_weekly_usd: validatedData.limitWeeklyUsd,
       limit_monthly_usd: validatedData.limitMonthlyUsd,
@@ -164,6 +183,8 @@ export async function editKey(
       rpm_limit: validatedData.rpmLimit,
       daily_limit_usd: validatedData.dailyQuota,
     });
+
+    logger.info(`[Key] Key updated: userId=${session.user.id}, keyId=${keyId}, name=${validatedData.name}`);
 
     revalidatePath("/dashboard");
     return { ok: true };
@@ -177,7 +198,7 @@ export async function editKey(
 // 删除密钥
 export async function removeKey(keyId: number): Promise<ActionResult> {
   try {
-    // 权限检查：用户只能删除自己的Key，管理员可以删除所有Key
+    // ========== 权限检查：所有用户（包括 admin）都只能删除自己的 Key ==========
     const session = await getSession();
     if (!session) {
       return { ok: false, error: "未登录" };
@@ -188,18 +209,15 @@ export async function removeKey(keyId: number): Promise<ActionResult> {
       return { ok: false, error: "密钥不存在" };
     }
 
-    const isAdmin = session.user.role === "admin";
-    const isSelfOwnerView = session.viewMode === "user" && session.user.id === key.userId;
-    if (!isAdmin && (!isSelfOwnerView || key.scope !== "child")) {
-      return { ok: false, error: "仅管理员可删除主 Key" };
-    }
-
-    const activeKeyCount = await countActiveKeysByUser(key.userId);
-    if (activeKeyCount <= 1) {
-      return { ok: false, error: "该用户至少需要保留一个可用的密钥，无法删除最后一个密钥" };
+    // 严格检查：只能删除自己的 Key
+    if (session.user.id !== key.userId) {
+      return { ok: false, error: "您只能删除自己的 Key，无法删除其他用户的 Key" };
     }
 
     await deleteKey(keyId);
+
+    logger.info(`[Key] Key deleted: userId=${session.user.id}, keyId=${keyId}`);
+
     revalidatePath("/dashboard");
     return { ok: true };
   } catch (error) {

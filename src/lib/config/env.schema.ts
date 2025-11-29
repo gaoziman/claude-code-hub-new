@@ -24,6 +24,14 @@ export const EnvSchema = z.object({
     if (val === "change-me") return undefined;
     return val;
   }, z.string().min(1, "管理员令牌不能为空").optional()),
+  ENCRYPTION_KEY: z.preprocess((val) => {
+    // 空字符串转为 undefined
+    if (!val || typeof val !== "string") return undefined;
+    return val;
+  }, z.string()
+    .length(64, "ENCRYPTION_KEY 必须是 64 位十六进制字符串（32 字节）")
+    .regex(/^[0-9a-fA-F]{64}$/, "ENCRYPTION_KEY 格式错误，必须是十六进制字符串")
+    .optional()),
   // ⚠️ 注意: 不要使用 z.coerce.boolean(),它会把字符串 "false" 转换为 true!
   // 原因: Boolean("false") === true (任何非空字符串都是 truthy)
   // 正确做法: 使用 transform 显式处理 "false" 和 "0" 字符串
