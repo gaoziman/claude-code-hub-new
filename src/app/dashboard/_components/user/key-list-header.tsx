@@ -196,9 +196,14 @@ export function KeyListHeader({
     setCopied(false);
   };
 
-  // 权限检查：管理员可以给所有人添加Key，普通用户只能给自己添加Key
+  // 严格权限控制，只允许用户为自己创建 key
   const canAddKey =
-    currentUser && activeUser && (currentUser.role === "admin" || canManageActiveUser);
+    currentUser && activeUser && currentUser.id === activeUser.id;
+
+  // 计算当前 Key 数量和最大限制
+  const currentKeyCount = activeUser?.keys.length ?? 0;
+  const maxKeysCount = activeUser?.maxKeysCount ?? 3; // ⭐ 从用户数据动态获取，默认 3
+  const hasReachedLimit = currentKeyCount >= maxKeysCount;
 
   return (
     <>
@@ -237,7 +242,7 @@ export function KeyListHeader({
             )}
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+        <div className="flex flex-wrap items-center justify-center gap-2 mt-6 lg:mt-8">
           {activeUser && showUserActions && (
             <div className="rounded-full bg-white/60 px-3 py-1 shadow-sm">
               <UserActions
@@ -250,19 +255,44 @@ export function KeyListHeader({
             </div>
           )}
           {canAddKey && (
-            <Dialog open={openAdd} onOpenChange={setOpenAdd}>
+            <Dialog
+              open={openAdd}
+              onOpenChange={(open) => {
+                // 当达到 Key 数量上限时，阻止打开对话框
+                if (hasReachedLimit && open) {
+                  return;
+                }
+                setOpenAdd(open);
+              }}
+            >
               <DialogTrigger asChild>
-                <Button
-                  size="sm"
-                  className="rounded-full px-4 text-sm shadow-md"
-                  disabled={!activeUser}
-                >
-                  <ListPlus className="h-3.5 w-3.5" /> 新增 Key
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    className="rounded-md px-4 text-sm shadow-md"
+                    disabled={!activeUser || hasReachedLimit}
+                    title={
+                      hasReachedLimit
+                        ? `已达到 Key 数量上限（${currentKeyCount}/${maxKeysCount}）`
+                        : `创建新的 Key（${currentKeyCount}/${maxKeysCount}）`
+                    }
+                  >
+                    <ListPlus className="h-3.5 w-3.5" /> 新增 Key
+                  </Button>
+                  {currentUser?.role === "user" && (
+                    <span className="text-xs text-muted-foreground">
+                      {currentKeyCount}/{maxKeysCount}
+                    </span>
+                  )}
+                </div>
               </DialogTrigger>
               <DialogContent className="max-w-2xl md:max-w-3xl xl:max-w-4xl max-h-[90vh] overflow-y-auto">
                 <FormErrorBoundary>
-                  <AddKeyForm userId={activeUser?.id} onSuccess={handleKeyCreated} />
+                  <AddKeyForm
+                    userId={activeUser?.id}
+                    onSuccess={handleKeyCreated}
+                    currentUserRole={currentUser?.role}
+                  />
                 </FormErrorBoundary>
               </DialogContent>
             </Dialog>

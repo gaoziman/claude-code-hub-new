@@ -8,13 +8,6 @@ import { DialogFormLayout } from "@/components/form/form-layout";
 import { TextField, NumberField } from "@/components/form/form-field";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useZodForm } from "@/lib/hooks/use-zod-form";
 import { KeyFormSchema } from "@/lib/validation/schemas";
 import { ExpirySelector } from "@/components/ui/expiry-selector";
@@ -35,7 +28,6 @@ interface EditKeyFormProps {
     limitConcurrentSessions?: number;
     rpmLimit?: number | null;
     dailyQuota?: number | null;
-    scope?: "owner" | "child";
   };
   onSuccess?: () => void;
 }
@@ -74,7 +66,6 @@ export function EditKeyForm({ keyData, onSuccess }: EditKeyFormProps) {
       name: keyData?.name || "",
       expiresAt: formatExpiresAt(keyData?.expiresAt || ""),
       canLoginWebUi: keyData?.canLoginWebUi ?? true,
-      scope: keyData?.scope ?? "owner",
       limit5hUsd: keyData?.limit5hUsd ?? null,
       limitWeeklyUsd: keyData?.limitWeeklyUsd ?? null,
       limitMonthlyUsd: keyData?.limitMonthlyUsd ?? null,
@@ -101,7 +92,6 @@ export function EditKeyForm({ keyData, onSuccess }: EditKeyFormProps) {
             limitConcurrentSessions: data.limitConcurrentSessions,
             rpmLimit: data.rpmLimit,
             dailyQuota: data.dailyQuota,
-            scope: data.scope,
           });
           if (!res.ok) {
             toast.error(res.error || "保存失败");
@@ -158,25 +148,6 @@ export function EditKeyForm({ keyData, onSuccess }: EditKeyFormProps) {
           checked={form.values.canLoginWebUi}
           onCheckedChange={(checked) => form.setValue("canLoginWebUi", checked)}
         />
-      </div>
-
-      <div className="flex flex-col gap-2 rounded-lg border border-dashed border-border px-4 py-3">
-        <Label className="text-sm font-medium">Key 视角</Label>
-        <p className="text-xs text-muted-foreground">
-          主 Key 可以查看用户全量数据；子 Key 仅可访问自身数据和限额
-        </p>
-        <Select
-          value={form.values.scope}
-          onValueChange={(value: "owner" | "child") => form.setValue("scope", value)}
-        >
-          <SelectTrigger className="rounded-xl">
-            <SelectValue placeholder="选择 Key 视角" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="owner">主 Key（汇总视角）</SelectItem>
-            <SelectItem value="child">子 Key（独立视角）</SelectItem>
-          </SelectContent>
-        </Select>
       </div>
 
       <NumberField

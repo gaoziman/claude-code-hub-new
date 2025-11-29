@@ -1,9 +1,18 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { LogOut } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { LogOut, Settings, ChevronDown } from "lucide-react";
 
 interface UserMenuProps {
   user: {
@@ -35,24 +44,43 @@ export function UserMenu({ user }: UserMenuProps) {
   };
 
   return (
-    <div className="flex items-center gap-2">
-      <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-muted/50 border border-border/50">
-        <Avatar className="h-7 w-7">
-          <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/10 text-primary font-semibold text-xs">
-            {getInitials(user.name)}
-          </AvatarFallback>
-        </Avatar>
-        <span className="text-sm font-medium text-foreground/90">{user.name}</span>
-      </div>
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={handleLogout}
-        className="h-9 w-9 rounded-full hover:bg-destructive/10 hover:text-destructive transition-all duration-200"
-        title="退出登录"
-      >
-        <LogOut className="h-4 w-4" />
-      </Button>
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          className="flex items-center gap-2.5 px-3 py-1.5 h-auto rounded-full bg-muted/50 border border-border/50 hover:bg-muted"
+        >
+          <Avatar className="h-7 w-7">
+            <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/10 text-primary font-semibold text-xs">
+              {getInitials(user.name)}
+            </AvatarFallback>
+          </Avatar>
+          <span className="text-sm font-medium text-foreground/90">{user.name}</span>
+          <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuLabel>
+          <div className="flex flex-col space-y-1">
+            <p className="text-sm font-medium leading-none">{user.name}</p>
+            {user.description && (
+              <p className="text-xs leading-none text-muted-foreground">{user.description}</p>
+            )}
+          </div>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link href="/dashboard/account" className="cursor-pointer">
+            <Settings className="mr-2 h-4 w-4" />
+            账户设置
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive focus:text-destructive">
+          <LogOut className="mr-2 h-4 w-4" />
+          退出登录
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

@@ -9,12 +9,12 @@ interface DashboardHeaderProps {
   session: AuthSession | null;
 }
 
-const NAV_ITEMS: (DashboardNavItem & { adminOnly?: boolean; userOnly?: boolean })[] = [
+const NAV_ITEMS: (DashboardNavItem & { adminOnly?: boolean; userOnly?: boolean; adminOrReseller?: boolean; nonAdmin?: boolean })[] = [
   { href: "/dashboard", label: "仪表盘", icon: "dashboard" },
   { href: "/dashboard/logs", label: "使用记录", icon: "logs" },
-  { href: "/dashboard/keys", label: "API 密钥", icon: "keys", userOnly: true },
+  { href: "/dashboard/keys", label: "API 密钥", icon: "keys", nonAdmin: true }, // 普通用户和代理用户可见，管理员不可见
   { href: "/dashboard/leaderboard", label: "排行榜", icon: "leaderboard" },
-  { href: "/dashboard/clients", label: "用户管理", icon: "clients", adminOnly: true },
+  { href: "/dashboard/clients", label: "用户管理", icon: "clients", adminOrReseller: true },
   { href: "/dashboard/providers/health", label: "供应商健康", icon: "health", adminOnly: true },
   { href: "/consistency", label: "数据一致性", icon: "consistency", adminOnly: true },
   { href: "/usage-doc", label: "文档", icon: "docs" },
@@ -23,16 +23,19 @@ const NAV_ITEMS: (DashboardNavItem & { adminOnly?: boolean; userOnly?: boolean }
 
 export function DashboardHeader({ session }: DashboardHeaderProps) {
   const isAdmin = session?.user.role === "admin";
+  const isReseller = session?.user.role === "reseller";
   const items = NAV_ITEMS.filter((item) => {
     if (item.adminOnly && !isAdmin) return false;
+    if (item.adminOrReseller && !(isAdmin || isReseller)) return false;
     if (item.userOnly && isAdmin) return false;
+    if (item.nonAdmin && isAdmin) return false; // 管理员不显示该菜单项
     return true;
   });
 
   const sessionUserForMenu = session
     ? {
         ...session.user,
-        name: session.viewMode === "key" ? session.key.name : session.user.name,
+        name: session.viewMode === "key" && session.key ? session.key.name : session.user.name,
       }
     : null;
 

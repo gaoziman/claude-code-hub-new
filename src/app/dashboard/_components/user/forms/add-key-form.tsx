@@ -17,11 +17,15 @@ import { getResetInfo } from "@/lib/rate-limit/time-utils";
 interface AddKeyFormProps {
   userId?: number;
   onSuccess?: (result: { generatedKey: string; name: string }) => void;
+  currentUserRole?: "admin" | "reseller" | "user"; // 新增：当前用户角色
 }
 
-export function AddKeyForm({ userId, onSuccess }: AddKeyFormProps) {
+export function AddKeyForm({ userId, onSuccess, currentUserRole = "user" }: AddKeyFormProps) {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
+
+  // 判断是否显示高级配置（仅管理员显示）
+  const showAdvancedFields = currentUserRole === "admin";
 
   // 计算周限额和月限额的重置时间说明
   const weeklyResetInfo = useMemo(() => {
@@ -48,8 +52,7 @@ export function AddKeyForm({ userId, onSuccess }: AddKeyFormProps) {
       name: "",
       expiresAt: "",
       canLoginWebUi: true,
-      scope: "child", // 手动新增的 Key 强制为子 Key
-      // 子 Key 独立限额
+      // 独立限额
       limit5hUsd: null,
       limitWeeklyUsd: null,
       limitMonthlyUsd: null,
@@ -69,8 +72,7 @@ export function AddKeyForm({ userId, onSuccess }: AddKeyFormProps) {
           name: data.name,
           expiresAt: data.expiresAt || undefined,
           canLoginWebUi: data.canLoginWebUi,
-          scope: "child", // 手动新增的 Key 强制为子 Key
-          // 子 Key 独立限额
+          // 独立限额
           limit5hUsd: data.limit5hUsd,
           limitWeeklyUsd: data.limitWeeklyUsd,
           limitMonthlyUsd: data.limitMonthlyUsd,
@@ -108,7 +110,7 @@ export function AddKeyForm({ userId, onSuccess }: AddKeyFormProps) {
     <DialogFormLayout
       config={{
         title: "新增 Key",
-        description: "为当前用户创建新的API密钥，Key值将自动生成。",
+        description: "创建新的API密钥，Key值将自动生成。",
         submitText: "确认创建",
         loadingText: "创建中...",
       }}
@@ -126,89 +128,94 @@ export function AddKeyForm({ userId, onSuccess }: AddKeyFormProps) {
         {...form.getFieldProps("name")}
       />
 
-      <ExpirySelector
-        value={form.values.expiresAt as string}
-        onChange={(next) => form.setValue("expiresAt", next ?? "")}
-      />
+      {/* 以下字段仅管理员可见 */}
+      {showAdvancedFields && (
+        <>
+          <ExpirySelector
+            value={form.values.expiresAt as string}
+            onChange={(next) => form.setValue("expiresAt", next ?? "")}
+          />
 
-      <div className="flex items-start justify-between gap-4 rounded-lg border border-dashed border-border px-4 py-3">
-        <div>
-          <Label htmlFor="can-login-web-ui" className="text-sm font-medium">
-            允许登录 Web UI
-          </Label>
-          <p className="text-xs text-muted-foreground mt-1">
-            关闭后，此 Key 仅可用于 API 调用，无法登录管理后台
-          </p>
-        </div>
-        <Switch
-          id="can-login-web-ui"
-          checked={form.values.canLoginWebUi}
-          onCheckedChange={(checked) => form.setValue("canLoginWebUi", checked)}
-        />
-      </div>
+          <div className="flex items-start justify-between gap-4 rounded-lg border border-dashed border-border px-4 py-3">
+            <div>
+              <Label htmlFor="can-login-web-ui" className="text-sm font-medium">
+                允许登录 Web UI
+              </Label>
+              <p className="text-xs text-muted-foreground mt-1">
+                关闭后，此 Key 仅可用于 API 调用，无法登录管理后台
+              </p>
+            </div>
+            <Switch
+              id="can-login-web-ui"
+              checked={form.values.canLoginWebUi}
+              onCheckedChange={(checked) => form.setValue("canLoginWebUi", checked)}
+            />
+          </div>
 
-      <NumberField
-        label="5小时消费上限 (USD)"
-        placeholder="留空表示无限制"
-        description="5小时内最大消费金额"
-        min={0}
-        step={0.01}
-        {...form.getFieldProps("limit5hUsd")}
-      />
+          <NumberField
+            label="5小时消费上限 (USD)"
+            placeholder="留空表示无限制"
+            description="5小时内最大消费金额"
+            min={0}
+            step={0.01}
+            {...form.getFieldProps("limit5hUsd")}
+          />
 
-      <NumberField
-        label="周消费上限 (USD)"
-        placeholder="留空表示无限制"
-        description={weeklyResetInfo}
-        min={0}
-        step={0.01}
-        {...form.getFieldProps("limitWeeklyUsd")}
-      />
+          <NumberField
+            label="周消费上限 (USD)"
+            placeholder="留空表示无限制"
+            description={weeklyResetInfo}
+            min={0}
+            step={0.01}
+            {...form.getFieldProps("limitWeeklyUsd")}
+          />
 
-      <NumberField
-        label="月消费上限 (USD)"
-        placeholder="留空表示无限制"
-        description={monthlyResetInfo}
-        min={0}
-        step={0.01}
-        {...form.getFieldProps("limitMonthlyUsd")}
-      />
+          <NumberField
+            label="月消费上限 (USD)"
+            placeholder="留空表示无限制"
+            description={monthlyResetInfo}
+            min={0}
+            step={0.01}
+            {...form.getFieldProps("limitMonthlyUsd")}
+          />
 
-      <NumberField
-        label="总费用上限 (USD)"
-        placeholder="留空表示无限制"
-        description="该 Key 生命周期内允许的最大消费"
-        min={0}
-        step={0.01}
-        {...form.getFieldProps("totalLimitUsd")}
-      />
+          <NumberField
+            label="总费用上限 (USD)"
+            placeholder="留空表示无限制"
+            description="该 Key 生命周期内允许的最大消费"
+            min={0}
+            step={0.01}
+            {...form.getFieldProps("totalLimitUsd")}
+          />
 
-      <NumberField
-        label="并发 Session 上限"
-        placeholder="0 表示无限制"
-        description="同时运行的对话数量"
-        min={0}
-        step={1}
-        {...form.getFieldProps("limitConcurrentSessions")}
-      />
+          <NumberField
+            label="并发 Session 上限"
+            placeholder="0 表示无限制"
+            description="同时运行的对话数量"
+            min={0}
+            step={1}
+            {...form.getFieldProps("limitConcurrentSessions")}
+          />
 
-      <NumberField
-        label="RPM 限制"
-        placeholder="留空表示无限制"
-        description="该 Key 每分钟允许的最大请求数"
-        min={1}
-        step={1}
-        {...form.getFieldProps("rpmLimit")}
-      />
+          <NumberField
+            label="RPM 限制"
+            placeholder="留空表示无限制"
+            description="该 Key 每分钟允许的最大请求数"
+            min={1}
+            step={1}
+            {...form.getFieldProps("rpmLimit")}
+          />
 
-      <NumberField
-        label="每日额度 (USD)"
-        placeholder="留空表示无限制"
-        description="该 Key 每日允许的最大消费金额"
-        min={0.01}
-        step={0.01}
-        {...form.getFieldProps("dailyQuota")}
-      />
+          <NumberField
+            label="每日额度 (USD)"
+            placeholder="留空表示无限制"
+            description="该 Key 每日允许的最大消费金额"
+            min={0.01}
+            step={0.01}
+            {...form.getFieldProps("dailyQuota")}
+          />
+        </>
+      )}
     </DialogFormLayout>
   );
 }
